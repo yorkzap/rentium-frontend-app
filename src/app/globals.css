@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand colors */
+    --brand-primary: hsl(171 99% 58%); /* #2CFECC */
+    --brand-primary-hover: hsl(171 99% 52%); /* #23e5b6 */
+    --brand-dark: hsl(187 46% 11%); /* #0A2C2F */
+    --brand-dark-lighter: hsl(187 38% 17%); /* #1a3b3e */
+
+    /* Base colors */
+    --background: 210 40% 98%; /* Slate 50 */
+    --foreground: 222.2 47.4% 11.2%; /* Slate 900 */
+
+    /* Card colors */
+    --card: 210 40% 98%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    /* Popover colors */
+    --popover: 210 40% 98%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    /* Primary colors - Using Slate */
+    --primary: 222.2 47.4% 11.2%; /* Slate 900 */
+    --primary-foreground: 210 40% 98%; /* Slate 50 */
+
+    /* Secondary colors - Using Teal */
+    --secondary: 174.7 83.9% 31.6%; /* Teal 600 */
+    --secondary-foreground: 210 40% 98%; /* Slate 50 */
+
+    /* Muted colors */
+    --muted: 214.3 31.8% 91.4%; /* Slate 200 */
+    --muted-foreground: 215.3 19.3% 34.5%; /* Slate 600 */
+
+    /* Accent colors - Using Teal */
+    --accent: 166.2 76.5% 96.7%; /* Teal 50 */
+    --accent-foreground: 174.7 83.9% 31.6%; /* Teal 600 */
+
+    /* Destructive colors */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Border and input colors */
+    --border: 214.3 31.8% 91.4%; /* Slate 200 */
+    --input: 214.3 31.8% 91.4%; /* Slate 200 */
+    --ring: 174.7 83.9% 31.6%; /* Teal 600 */
+
+    /* Chart colors */
+    --chart-1: 222.2 47.4% 11.2%; /* Slate 900 */
+    --chart-2: 174.7 83.9% 31.6%; /* Teal 600 */
+    --chart-3: 215.3 19.3% 34.5%; /* Slate 600 */
+    --chart-4: 168.4 83.8% 78.2%; /* Teal 200 */
+    --chart-5: 166.2 76.5% 96.7%; /* Teal 50 */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Base colors */
+    --background: 222.2 47.4% 11.2%; /* Slate 900 */
+    --foreground: 210 40% 98%; /* Slate 50 */
+
+    /* Card colors */
+    --card: 222.2 47.4% 11.2%;
+    --card-foreground: 210 40% 98%;
+
+    /* Popover colors */
+    --popover: 222.2 47.4% 11.2%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary colors - Lighter in dark mode */
+    --primary: 210 40% 98%; /* Slate 50 */
+    --primary-foreground: 222.2 47.4% 11.2%; /* Slate 900 */
+
+    /* Secondary colors - Lighter teal in dark mode */
+    --secondary: 166.2 76.5% 96.7%; /* Teal 50 */
+    --secondary-foreground: 174.7 83.9% 31.6%; /* Teal 600 */
+
+    /* Muted colors */
+    --muted: 215.3 19.3% 34.5%; /* Slate 600 */
+    --muted-foreground: 214.3 31.8% 91.4%; /* Slate 200 */
+
+    /* Accent colors */
+    --accent: 174.7 83.9% 31.6%; /* Teal 600 */
+    --accent-foreground: 166.2 76.5% 96.7%; /* Teal 50 */
+
+    /* Destructive colors */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Border and input colors */
+    --border: 215.3 19.3% 34.5%; /* Slate 600 */
+    --input: 215.3 19.3% 34.5%; /* Slate 600 */
+    --ring: 166.2 76.5% 96.7%; /* Teal 50 */
+
+    /* Chart colors - Adjusted for dark mode */
+    --chart-1: 210 40% 98%; /* Slate 50 */
+    --chart-2: 166.2 76.5% 96.7%; /* Teal 50 */
+    --chart-3: 214.3 31.8% 91.4%; /* Slate 200 */
+    --chart-4: 174.7 83.9% 31.6%; /* Teal 600 */
+    --chart-5: 215.3 19.3% 34.5%; /* Slate 600 */
+  }
+}
+
+@layer components {
+  /* Background colors */
+  .bg-brand-primary {
+    background-color: var(--brand-primary);
+  }
+  
+  .hover\:bg-brand-primary-hover:hover {
+    background-color: var(--brand-primary-hover);
+  }
+  
+  .bg-brand-dark {
+    background-color: var(--brand-dark);
+  }
+
+  .bg-brand-dark-lighter {
+    background-color: var(--brand-dark-lighter);
+  }
+  
+  .hover\:bg-brand-dark-lighter:hover {
+    background-color: var(--brand-dark-lighter);
+  }
+  
+  /* Border colors */
+  .border-brand-dark-lighter {
+    border-color: var(--brand-dark-lighter);
+  }
+  
+  .hover\:border-brand-primary:hover {
+    border-color: var(--brand-primary);
+  }
+
+  /* Text colors */
+  .text-brand-primary {
+    color: var(--brand-primary);
+  }
+
+  .hover\:text-brand-primary:hover {
+    color: var(--brand-primary);
+  }
+  
+  /* Ghost button styles */
+  .ghost-brand {
+    @apply text-gray-300 hover:text-brand-primary hover:bg-brand-dark-lighter/50 transition-colors;
+  }
+
+  /* Focus states */
+  .focus\:ring-brand-primary:focus {
+    --tw-ring-color: var(--brand-primary);
+  }
+
+  /* Active states */
+  .active\:bg-brand-primary-hover:active {
+    background-color: var(--brand-primary-hover);
+  }
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+}
