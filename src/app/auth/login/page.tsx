@@ -1,7 +1,7 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,18 +13,179 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { AlertCircle } from 'lucide-react';
 
-export default function Page() {
+export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-
-  const onSubmit = async (event: React.FormEvent) => {
+  const [isResending, setIsResending] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [verificationNeeded, setVerificationNeeded] = useState(false);
+  const [redirected, setRedirected] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated, loading } = useAuth();
+  
+  // Get the Django API URL from environment variables, with fallback
+  const DJANGO_API_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000/api';
+  
+  // Use useRef to track if toasts have been shown
+  const toastsShownRef = useRef(false);
+  
+  // Check for query parameters
+  const requiresVerification = searchParams.get('requiresVerification');
+  const verificationSuccess = searchParams.get('verificationSuccess');
+  const registered = searchParams.get('registered');
+  
+  // Log auth state for debugging
+  useEffect(() => {
+    console.log("Login page - Auth state:", { 
+      isAuthenticated, 
+      loading,
+      redirected
+    });
+  }, [isAuthenticated, loading, redirected]);
+  
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    // Only redirect if we're authenticated and not in a loading state
+    // and we haven't already triggered a redirect
+    if (isAuthenticated && !loading && !redirected) {
+      console.log('Login: Already authenticated, redirecting to dashboard');
+      setRedirected(true);
+      
+      // Use a timeout to prevent the redirect from happening too quickly
+      // which can lead to flickering
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 300);
+    }
+  }, [isAuthenticated, loading, redirected, router]);
+  
+  // Show appropriate messages based on query parameters - only once in an effect
+  useEffect(() => {
+    // Skip if we already showed the toasts
+    if (toastsShownRef.current) return;
+    
+    // Check if there's any toast to show
+    if (requiresVerification === 'true' || verificationSuccess === 'true' || registered === 'true') {
+      console.log("Showing toasts for:", { requiresVerification, verificationSuccess, registered });
+      
+      if (requiresVerification === 'true') {
+        toast.warning('Please verify your email address before logging in');
+      }
+      
+      if (verificationSuccess === 'true') {
+        toast.success('Email verified successfully! You can now log in');
+      }
+      
+      if (registered === 'true') {
+        toast.success('Registration successful! Please check your email to verify your account');
+      }
+      
+      // Mark that we've shown the toasts
+      toastsShownRef.current = true;
+    }
+  }, [requiresVerification, verificationSuccess, registered]);
+  
+  const onSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    setVerificationNeeded(false);
+    
+    try {
+      console.log("Attempting login for:", email);
+      const response = await fetch(`${DJANGO_API_URL}/auth-token/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: email, password }),
+      });
+      
+      // Get the response data
+      const data = await response.json();
+      console.log("Login response:", response.status, data);
+      
+      if (response.ok) {
+        toast.success('Logged in successfully');
+        console.log('Login successful, token received');
+        
+        // Call the login function from context with the token and email
+        await login(data.token, email);
+        
+        // Mark that we've triggered a redirect to prevent multiple redirects
+        setRedirected(true);
+        
+        // Use the router for navigation with a short delay
+        console.log('Redirecting to dashboard...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 500);
+        
+        return;
+      } else {
+        // Special handling for 403 Forbidden - Email not verified
+        if (response.status === 403 && data.detail && data.detail.includes('Email not verified')) {
+          console.log("Email not verified, showing verification prompt");
+          setVerificationNeeded(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        throw new Error(data.detail || (data.non_field_errors && data.non_field_errors[0]) || 'Invalid login credentials');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Failed to log in');
       setIsLoading(false);
-    }, 3000);
+    }
   };
-
+  
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast.error('Email address is missing');
+      return;
+    }
+    setIsResending(true);
+    
+    try {
+      const response = await fetch(`${DJANGO_API_URL}/users/resend-verification/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success('Verification email sent. Please check your inbox.');
+      } else {
+        throw new Error(data.error || data.detail || 'Failed to resend verification email');
+      }
+    } catch (error) {
+      console.error('Resend error:', error);
+      toast.error(error.message || 'Failed to resend verification email');
+    } finally {
+      setIsResending(false);
+    }
+  };
+  
+  // If the user is already authenticated, show a loading state
+  if (loading || (isAuthenticated && !redirected)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
+        <span className="ml-3 text-slate-600">
+          {loading ? "Checking authentication..." : "Redirecting to dashboard..."}
+        </span>
+      </div>
+    );
+  }
+  
   return (
     <div className="flex h-screen items-center justify-center bg-slate-50">
       <Card className="w-[380px]">
@@ -33,7 +194,7 @@ export default function Page() {
             Welcome back
           </CardTitle>
           <CardDescription>
-            New to Transendity?{' '}
+            New to Rentium?{' '}
             <Link
               href="/auth/signup"
               className="text-teal-600 hover:text-teal-700 underline"
@@ -42,6 +203,43 @@ export default function Page() {
             </Link>
           </CardDescription>
         </CardHeader>
+        
+        {/* Verification needed banner with simplified UI */}
+        {verificationNeeded && (
+          <div className="mx-6 -mt-2 mb-4 bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-md">
+            <div className="flex flex-col">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-amber-800">
+                    Email verification required
+                  </h3>
+                  <p className="mt-1 text-sm text-amber-700">
+                    Your account needs to be verified before you can log in.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <Button
+                  className="w-full bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                >
+                  {isResending ? (
+                    <div className="flex items-center justify-center">
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent"></div>
+                      Sending verification email...
+                    </div>
+                  ) : (
+                    'Resend verification email'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Form and remaining components */}
         <form onSubmit={onSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -53,6 +251,8 @@ export default function Page() {
                 type="email"
                 placeholder="name@example.com"
                 className="bg-slate-50 border-slate-200 focus:border-teal-600 focus:ring-teal-600"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -72,6 +272,8 @@ export default function Page() {
                 id="password"
                 type="password"
                 className="bg-slate-50 border-slate-200 focus:border-teal-600 focus:ring-teal-600"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -91,6 +293,7 @@ export default function Page() {
                 'Log in'
               )}
             </Button>
+            
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-slate-200" />
@@ -103,6 +306,7 @@ export default function Page() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <Button
+                type="button"
                 variant="outline"
                 className="border-slate-200 hover:bg-slate-50"
               >
@@ -126,6 +330,7 @@ export default function Page() {
                 </svg>
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 className="border-slate-200 hover:bg-slate-50"
               >
@@ -138,6 +343,7 @@ export default function Page() {
                 </svg>
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 className="border-slate-200 hover:bg-slate-50"
               >

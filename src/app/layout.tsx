@@ -1,6 +1,8 @@
 import { Inter } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import './globals.css';
+import ClientAuthProvider from '@/components/ClientAuthProvider';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,10 +21,13 @@ export default function RootLayout({
       <body
         className={cn(
           inter.className,
-          'min-h-screen bg-brand-dark antialiased' // Changed bg-background to bg-brand-dark
+          'min-h-screen bg-brand-dark antialiased'
         )}
       >
-        <main className="min-h-screen">{children}</main>
+        <ClientAuthProvider>
+          <main className="min-h-screen">{children}</main>
+          <Toaster position="top-right" />
+        </ClientAuthProvider>
       </body>
     </html>
   );
