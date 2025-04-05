@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { DJANGO_API_URL } from '@/lib/config';
 
 type User = {
   email: string;
@@ -15,6 +16,7 @@ type AuthContextType = {
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  apiUrl: string; // Expose API URL through the context
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -22,10 +24,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); // Add loading state
-  
-  // Get the Django API URL from environment variables, with fallback
-  const DJANGO_API_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000/api';
+  const [loading, setLoading] = useState(true);
   
   // Initialize on mount - client side only
   useEffect(() => {
@@ -46,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchUserInfo(storedToken);
     } else {
       console.log("No stored token found");
-      setLoading(false); // No token, so we're not loading
+      setLoading(false);
     }
   }, []);
   
@@ -54,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserInfo = async (currentToken: string) => {
     try {
       console.log("Fetching user info...");
-      // Try the /api/user/me/ endpoint first (corrected from /api/users/me/)
+      // Try the /api/user/me/ endpoint first
       let response = await fetch(`${DJANGO_API_URL}/user/me/`, {
         headers: {
           'Authorization': `Token ${currentToken}`,
@@ -145,7 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated,
-    loading
+    loading,
+    apiUrl: DJANGO_API_URL // Expose the API URL through the context
   };
   
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

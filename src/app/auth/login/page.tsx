@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertCircle } from 'lucide-react';
+import { DJANGO_API_URL } from '@/lib/config';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,9 +28,6 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated, loading } = useAuth();
-  
-  // Get the Django API URL from environment variables, with fallback
-  const DJANGO_API_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000/api';
   
   // Use useRef to track if toasts have been shown
   const toastsShownRef = useRef(false);

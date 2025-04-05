@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3'
 
 services:
   web:
@@ -8,9 +8,12 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      # Mount source code for development
+      - ./src:/app/src
+      - ./public:/app/public
+      # Don't mount these directories to avoid conflicts
       - /app/node_modules
+      - /app/.next
     environment:
       - NODE_ENV=development
-    stdin_open: true
-    tty: true
+    command: npm run dev
