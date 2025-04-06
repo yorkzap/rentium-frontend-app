@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import {
   LayoutDashboard,
@@ -26,51 +26,79 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/AuthContext"
-import { useRouter } from "next/navigation"
-
+import { useRouter, usePathname } from "next/navigation"
 // Dashboard sections
 import LandlordOverview from "./landlord/LandlordOverview"
-import AssetManagement from "./landlord/AssetManagement"
+import AssetManagement from "./landlord/Properties"
 import MaintenanceRequests from "./landlord/MaintenanceRequests"
 import LeaseManagement from "./landlord/LeaseManagement"
 import FinancialManagement from "./landlord/FinancialManagement"
 import InventoryManagement from "./landlord/InventoryManagement"
 import ProfileSettings from "./profile/ProfileSettings"
 
-export default function LandlordDashboard() {
-  const [activeSection, setActiveSection] = useState("dashboard")
+export default function LandlordDashboard({ children = null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState(3)
   const isMobile = useMediaQuery("(max-width: 768px)")
   const { user, logout } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  
+  // Determine active section based on URL path
+  const getActiveSectionFromPath = () => {
+    if (pathname.includes("/dashboard/properties")) return "properties"
+    if (pathname.includes("/dashboard/maintenance")) return "maintenance"
+    if (pathname.includes("/dashboard/inventory")) return "inventory"
+    if (pathname.includes("/dashboard/leases")) return "leases"
+    if (pathname.includes("/dashboard/financial")) return "financial"
+    if (pathname.includes("/dashboard/profile")) return "profile"
+    return "dashboard" // Default to dashboard
+  }
+  
+  const activeSection = getActiveSectionFromPath()
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "properties", label: "Properties", icon: Building },
-    { id: "maintenance", label: "Maintenance", icon: Wrench },
-    { id: "inventory", label: "Inventory", icon: Key },
-    { id: "leases", label: "Leases", icon: FileText },
-    { id: "financial", label: "Financial", icon: CreditCard },
-    { id: "profile", label: "My Account", icon: User },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+    { id: "properties", label: "Properties", icon: Building, path: "/dashboard/properties" },
+    { id: "maintenance", label: "Maintenance", icon: Wrench, path: "/dashboard/maintenance" },
+    { id: "inventory", label: "Inventory", icon: Key, path: "/dashboard/inventory" },
+    { id: "leases", label: "Leases", icon: FileText, path: "/dashboard/leases" },
+    { id: "financial", label: "Financial", icon: CreditCard, path: "/dashboard/financial" },
+    { id: "profile", label: "My Account", icon: User, path: "/dashboard/profile" },
   ]
-
+  
   // Get user initials for avatar
   const getUserInitials = () => {
     if (!user || !user.name) return "U"
-
     const nameParts = user.name.split(" ")
     if (nameParts.length >= 2) {
       return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
     }
     return nameParts[0][0].toUpperCase()
   }
-
+  
+  // Navigate to section
+  const navigateToSection = (path) => {
+    router.push(path)
+    if (isMobile) {
+      setMobileMenuOpen(false)
+    }
+  }
+  
   // Render the active section content
   const renderSection = () => {
+    // If children are passed, render them (this happens when using proper Next.js pages)
+    if (children) {
+      return children
+    }
+    
+    // Otherwise, fall back to the old way of rendering components directly
     switch (activeSection) {
       case "dashboard":
-        return <LandlordOverview onNavigate={setActiveSection} />
+        return <LandlordOverview onNavigate={(section) => {
+          const item = menuItems.find(item => item.id === section)
+          if (item) navigateToSection(item.path)
+        }} />
       case "properties":
         return <AssetManagement />
       case "maintenance":
@@ -84,15 +112,18 @@ export default function LandlordDashboard() {
       case "profile":
         return <ProfileSettings />
       default:
-        return <LandlordOverview onNavigate={setActiveSection} />
+        return <LandlordOverview onNavigate={(section) => {
+          const item = menuItems.find(item => item.id === section)
+          if (item) navigateToSection(item.path)
+        }} />
     }
   }
-
+  
   const handleLogout = () => {
     logout()
     router.push("/auth/login")
   }
-
+  
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Navigation */}
@@ -105,14 +136,12 @@ export default function LandlordDashboard() {
               <span className="hidden md:inline-flex px-2 py-1 bg-slate-100 text-xs rounded-md text-slate-700">
                 Landlord
               </span>
-
               {isMobile && (
                 <Button variant="ghost" size="sm" className="ml-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                   {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </Button>
               )}
             </div>
-
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
               {menuItems
@@ -126,14 +155,13 @@ export default function LandlordDashboard() {
                       "h-9 px-4 text-sm font-medium transition-colors",
                       activeSection === item.id ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900",
                     )}
-                    onClick={() => setActiveSection(item.id)}
+                    onClick={() => navigateToSection(item.path)}
                   >
                     <item.icon className="h-4 w-4 mr-2" />
                     {item.label}
                   </Button>
                 ))}
             </nav>
-
             {/* User Menu and Notifications */}
             <div className="flex items-center space-x-4">
               {/* Notifications */}
@@ -176,7 +204,6 @@ export default function LandlordDashboard() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -193,7 +220,7 @@ export default function LandlordDashboard() {
                     <p className="text-xs text-slate-500">Landlord</p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setActiveSection("profile")}>
+                  <DropdownMenuItem onClick={() => navigateToSection("/dashboard/profile")}>
                     <User className="h-4 w-4 mr-2" />
                     My Account
                   </DropdownMenuItem>
@@ -208,7 +235,6 @@ export default function LandlordDashboard() {
             </div>
           </div>
         </div>
-
         {/* Mobile Navigation Menu */}
         {isMobile && mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white">
@@ -224,10 +250,7 @@ export default function LandlordDashboard() {
                       ? "bg-slate-100 text-slate-900"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                   )}
-                  onClick={() => {
-                    setActiveSection(item.id)
-                    setMobileMenuOpen(false)
-                  }}
+                  onClick={() => navigateToSection(item.path)}
                 >
                   <item.icon className="h-4 w-4 mr-2" />
                   {item.label}
@@ -237,7 +260,6 @@ export default function LandlordDashboard() {
           </div>
         )}
       </header>
-
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <div className="max-w-screen-2xl mx-auto px-4 py-6">{renderSection()}</div>
@@ -245,4 +267,3 @@ export default function LandlordDashboard() {
     </div>
   )
 }
-
