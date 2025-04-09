@@ -53,22 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserInfo = async (currentToken: string) => {
     try {
       console.log("Fetching user info...");
-      // Try the /api/user/me/ endpoint first
-      let response = await fetch(`${DJANGO_API_URL}/user/me/`, {
+      // Try the /api/users/me/ endpoint first
+      let response = await fetch(`${DJANGO_API_URL}/users/me/`, {
         headers: {
           'Authorization': `Token ${currentToken}`,
         },
       });
-      
-      // If 404, try a fallback endpoint
-      if (response.status === 404) {
-        console.log("User info endpoint not found, trying fallback...");
-        response = await fetch(`${DJANGO_API_URL}/user/profile/`, {
-          headers: {
-            'Authorization': `Token ${currentToken}`,
-          },
-        });
-      }
       
       if (response.ok) {
         const userData = await response.json();

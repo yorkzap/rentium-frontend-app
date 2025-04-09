@@ -1,528 +1,367 @@
-"use client"
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+// src/components/dashboard/landlord/Properties.tsx
+"use client";
+import React, { useState, useEffect, useCallback } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Building2,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  Home,
-  Bed,
-  Bath,
-  Users,
-  SquareIcon as SquareFootIcon,
-  MapPin,
-  Loader2,
-} from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { useMediaQuery } from "@/hooks/use-media-query"
-import { useRouter } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+  Building2, Plus, Search, Home, Users, Loader2, Edit, Trash2
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { toast } from "sonner"
-import { useAuth } from "@/contexts/AuthContext"
-import { DJANGO_API_URL } from "@/lib/config"
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { DJANGO_API_URL } from "@/lib/config";
+import { capitalize, formatStatus } from "@/lib/utils"; // Assuming utility functions
 
+// --- CORRECTED IMPORTS ---
+import { PropertyList } from "./properties/PropertyList"; // Named import for named export
+import { GroupList } from "./properties/GroupList";       // Named import for named export
+// -------------------------
+
+// --- Interfaces (Assuming these match your latest backend structure) ---
+interface PropertyGroupBasic {
+    id: string;
+    name: string;
+}
+
+interface PropertyDetail {
+    id: number;
+    landlord: number;
+    landlord_name: string;
+    name: string;
+    description: string | null;
+    address: string | null;
+    city: string | null;
+    province: string | null;
+    postal_code: string | null;
+    country: string | null;
+    property_category: "COMPLETE_UNIT" | "ROOM";
+    primary_image: string | null;
+    additional_images: any[];
+    unit_type: string | null;
+    bedrooms: number | null;
+    bathrooms: string | number | null;
+    max_occupancy: number | null;
+    square_footage: number | null;
+    room_type: string | null;
+    total_washrooms: number | null;
+    other_rooms: string | null;
+    shared_with: string | null;
+    status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE" | "NOT_AVAILABLE";
+    created_at: string;
+    updated_at: string;
+    group: PropertyGroupBasic | null;
+}
+
+interface PropertyGroupListData {
+  id: string;
+  name: string;
+  description: string | null;
+  landlord: number;
+  created_at: string;
+  updated_at: string;
+}
+
+
+// ================================================================================
+// AssetManagement Component (Main Page)
+// ================================================================================
 export default function AssetManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [propertyToDelete, setPropertyToDelete] = useState(null)
-  const [properties, setProperties] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState("all")
-  const isMobile = useMediaQuery("(max-width: 768px)")
-  const router = useRouter()
-  const { token } = useAuth()
+  // --- State ---
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { token } = useAuth();
 
-  // Fetch properties data from API
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setIsLoading(true)
-      setError(null)
-      
-      try {
-        const response = await fetch(`${DJANGO_API_URL}/properties/`, {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-        })
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deletePropDialogOpen, setDeletePropDialogOpen] = useState(false);
+  const [deleteGroupDialogOpen, setDeleteGroupDialogOpen] = useState(false);
+  const [propertyToDelete, setPropertyToDelete] = useState<PropertyDetail | null>(null);
+  const [groupToDeleteId, setGroupToDeleteId] = useState<string | null>(null);
+  const [properties, setProperties] = useState<PropertyDetail[]>([]);
+  const [groups, setGroups] = useState<PropertyGroupListData[]>([]);
+  const [isLoadingProps, setIsLoadingProps] = useState(true);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.detail || 'Failed to fetch properties')
-        }
+  const initialViewMode = searchParams.get('view') === 'groups' ? 'groups' : 'properties';
+  const [viewMode, setViewMode] = useState<"properties" | "groups">(initialViewMode);
+  const [categoryTab, setCategoryTab] = useState("all");
 
-        const data = await response.json()
-        setProperties(data)
-      } catch (error) {
-        console.error("Error fetching properties:", error)
-        setError(error instanceof Error ? error.message : 'An unknown error occurred')
-        toast.error(`Failed to load properties: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchProperties()
-  }, [token])
-
-  // Count properties by category and status
-  const categoryCounts = {
-    all: properties.length,
-    units: properties.filter(p => p.property_category === "COMPLETE_UNIT").length,
-    rooms: properties.filter(p => p.property_category === "ROOM").length,
-    available: properties.filter(p => p.status === "AVAILABLE").length,
-    occupied: properties.filter(p => p.status === "OCCUPIED").length,
-  }
-
-  // Filter properties based on search term and active tab
-  const getFilteredProperties = () => {
-    // First apply search filter
-    let filtered = properties.filter(
-      (property) =>
-        property.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.property_category_display?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.unit_type_display?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.status_display?.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    
-    // Then apply tab filter
-    switch (activeTab) {
-      case "units":
-        filtered = filtered.filter(property => property.property_category === "COMPLETE_UNIT");
-        break;
-      case "rooms":
-        filtered = filtered.filter(property => property.property_category === "ROOM");
-        break;
-      case "available":
-        filtered = filtered.filter(property => property.status === "AVAILABLE");
-        break;
-      case "occupied":
-        filtered = filtered.filter(property => property.status === "OCCUPIED");
-        break;
-      default:
-        // "all" tab - no additional filtering
-        break;
-    }
-
-    return filtered;
-  }
-
-  const filteredProperties = getFilteredProperties();
-
-  const handleCreateListing = () => {
-    router.push("/dashboard/properties/create")
-  }
-
-  const handleEditProperty = (propertyId) => {
-    router.push(`/dashboard/properties/edit/${propertyId}`)
-  }
-
-  const handleDeleteProperty = (property) => {
-    setPropertyToDelete(property)
-    setDeleteDialogOpen(true)
-  }
-
-  const confirmDelete = async () => {
-    if (!propertyToDelete) return
-
-    try {
-      const response = await fetch(`${DJANGO_API_URL}/properties/${propertyToDelete.id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to delete property')
-      }
-
-      // Remove the deleted property from the local state
-      setProperties(properties.filter(p => p.id !== propertyToDelete.id))
-      toast.success(`Property "${propertyToDelete.name}" deleted successfully`)
-      
-    } catch (error) {
-      console.error("Error deleting property:", error)
-      toast.error(`Error deleting property: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setDeleteDialogOpen(false)
-      setPropertyToDelete(null)
-    }
-  }
-
-  const getStatusColor = (status) => {
+  // --- Utility Functions ---
+  const getStatusColor = (status?: PropertyDetail['status']): string => {
     switch (status) {
-      case "AVAILABLE":
-        return "bg-green-50 text-green-700"
-      case "OCCUPIED":
-        return "bg-blue-50 text-blue-700"
-      case "MAINTENANCE":
-        return "bg-amber-50 text-amber-700"
-      case "NOT_AVAILABLE":
-        return "bg-red-50 text-red-700"
-      default:
-        return "bg-slate-50 text-slate-700"
+      case "AVAILABLE": return "bg-green-100 text-green-800 border-green-200";
+      case "OCCUPIED": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "MAINTENANCE": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "NOT_AVAILABLE": return "bg-red-100 text-red-800 border-red-200";
+      default: return "bg-slate-100 text-slate-800 border-slate-200";
     }
-  }
+  };
 
-  const getCategoryColor = (category) => {
+  const getCategoryColor = (category?: PropertyDetail['property_category']): string => {
     switch (category) {
-      case "COMPLETE_UNIT":
-        return "bg-purple-50 text-purple-700"
-      case "ROOM":
-        return "bg-blue-50 text-blue-700"
-      default:
-        return "bg-slate-50 text-slate-700"
+      case "COMPLETE_UNIT": return "bg-purple-100 text-purple-800 border-purple-200";
+      case "ROOM": return "bg-cyan-100 text-cyan-800 border-cyan-200";
+      default: return "bg-slate-100 text-slate-800 border-slate-200";
     }
-  }
+  };
 
+  const formatCategory = (category?: PropertyDetail['property_category']): string => {
+    if (!category) return '-';
+    return category === 'COMPLETE_UNIT' ? 'Complete Unit' : 'Room';
+  };
+
+  // --- Fetch Data ---
+  const fetchData = useCallback(async () => {
+      if (!token) {
+          setIsLoadingProps(false); setIsLoadingGroups(false); setError("Authentication token missing."); return;
+      }
+      setIsLoadingProps(true); setIsLoadingGroups(true); setError(null);
+      console.log("Starting data fetch...");
+
+      try {
+          const propPromise = fetch(`${DJANGO_API_URL}/properties/`, { headers: { 'Authorization': `Token ${token}` } });
+          const groupPromise = fetch(`${DJANGO_API_URL}/property-groups/`, { headers: { 'Authorization': `Token ${token}` } });
+
+          const [propResponse, groupResponse] = await Promise.all([propPromise, groupPromise]);
+
+          // Process Properties
+          if (!propResponse.ok) throw new Error(`Failed property fetch (${propResponse.status})`);
+          const propsData: PropertyDetail[] = await propResponse.json();
+          setProperties(propsData);
+          console.log(`Fetched ${propsData.length} properties.`);
+          setIsLoadingProps(false);
+
+          // Process Groups
+          if (!groupResponse.ok) throw new Error(`Failed group fetch (${groupResponse.status})`);
+          const groupsData: PropertyGroupListData[] = await groupResponse.json();
+          setGroups(groupsData);
+          console.log(`Fetched ${groupsData.length} groups.`);
+          setIsLoadingGroups(false);
+
+      } catch (fetchError) {
+          const msg = fetchError instanceof Error ? fetchError.message : 'Unknown data fetch error';
+          setError(msg); toast.error(`Data Load Error: ${msg}`);
+          setProperties([]); setGroups([]); setIsLoadingProps(false); setIsLoadingGroups(false);
+      }
+  }, [token]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // --- Filtering Logic ---
+  const getFilteredProperties = useCallback(() => {
+      if (!Array.isArray(properties)) return [];
+      const lowerSearch = searchTerm.toLowerCase();
+      let searched = properties.filter(p => p && (
+          p.name?.toLowerCase().includes(lowerSearch) ||
+          p.address?.toLowerCase().includes(lowerSearch) ||
+          p.city?.toLowerCase().includes(lowerSearch) ||
+          p.group?.name?.toLowerCase().includes(lowerSearch)
+      ));
+      switch (categoryTab) {
+          case "units": return searched.filter(p => p.property_category === "COMPLETE_UNIT");
+          case "rooms": return searched.filter(p => p.property_category === "ROOM");
+          case "available": return searched.filter(p => p.status === "AVAILABLE");
+          case "occupied": return searched.filter(p => p.status === "OCCUPIED");
+          case "maintenance": return searched.filter(p => p.status === "MAINTENANCE");
+          case "not_available": return searched.filter(p => p.status === "NOT_AVAILABLE");
+          default: return searched;
+      }
+  }, [properties, searchTerm, categoryTab]);
+  const filteredProperties = getFilteredProperties();
+  const filteredGroups = groups.filter(g => g.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // --- Counts ---
+  const categoryCounts = React.useMemo(() => ({
+      all: properties?.length ?? 0,
+      units: properties?.filter(p => p.property_category === "COMPLETE_UNIT").length ?? 0,
+      rooms: properties?.filter(p => p.property_category === "ROOM").length ?? 0,
+      available: properties?.filter(p => p.status === "AVAILABLE").length ?? 0,
+      occupied: properties?.filter(p => p.status === "OCCUPIED").length ?? 0,
+      maintenance: properties?.filter(p => p.status === "MAINTENANCE").length ?? 0,
+      not_available: properties?.filter(p => p.status === "NOT_AVAILABLE").length ?? 0,
+  }), [properties]);
+
+  // --- Event Handlers ---
+  const handleCreate = () => router.push(`/dashboard/properties/create?type=${viewMode === 'groups' ? 'group' : 'property'}`);
+  const handleEditProperty = (e: React.MouseEvent, id: number) => { e.stopPropagation(); router.push(`/dashboard/properties/edit/${id}`); };
+  const handleDeletePropertyRequest = (e: React.MouseEvent, prop: PropertyDetail) => { e.stopPropagation(); setPropertyToDelete(prop); setDeletePropDialogOpen(true); };
+  const handleDeleteGroupRequest = (id: string) => { setGroupToDeleteId(id); setDeleteGroupDialogOpen(true); };
+
+  // --- Delete Confirmations ---
+  const confirmDeleteProperty = async () => {
+      if (!propertyToDelete || !token) return;
+      const { id, name } = propertyToDelete;
+      setIsDeleting(true);
+      try {
+          const res = await fetch(`${DJANGO_API_URL}/properties/${id}/`, { method: 'DELETE', headers: { 'Authorization': `Token ${token}` } });
+          if (!res.ok && res.status !== 204) throw new Error(`Delete failed (${res.status})`);
+          setProperties(prev => prev.filter(p => p.id !== id)); toast.success(`Property "${name}" deleted.`);
+          setDeletePropDialogOpen(false);
+      } catch (err) { toast.error(`Error deleting property: ${err instanceof Error ? err.message : 'Unknown'}`); }
+      finally { setIsDeleting(false); setPropertyToDelete(null); }
+  };
+
+  const confirmDeleteGroup = async () => {
+      if (!groupToDeleteId || !token) return;
+      const name = groups.find(g => g.id === groupToDeleteId)?.name ?? 'Unknown Group';
+      setIsDeleting(true);
+      try {
+          const res = await fetch(`${DJANGO_API_URL}/property-groups/${groupToDeleteId}/`, { method: 'DELETE', headers: { 'Authorization': `Token ${token}` } });
+           if (!res.ok && res.status !== 204) throw new Error(`Delete failed (${res.status})`);
+          setGroups(prev => prev.filter(g => g.id !== groupToDeleteId)); toast.success(`Group "${name}" deleted.`);
+          setProperties(prev => prev.map(p => p.group?.id === groupToDeleteId ? { ...p, group: null } : p));
+          setDeleteGroupDialogOpen(false);
+      } catch (err) { toast.error(`Error deleting group: ${err instanceof Error ? err.message : 'Unknown'}`); }
+      finally { setIsDeleting(false); setGroupToDeleteId(null); }
+  };
+
+  // --- Render Loading/Error ---
+  const isLoading = isLoadingProps || isLoadingGroups;
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+     return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-          <p className="text-sm text-muted-foreground">Loading properties...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
+          <p className="text-sm text-muted-foreground">Loading Properties & Groups...</p>
         </div>
       </div>
-    )
-  }
+    );
+   }
+  if (error && properties.length === 0 && groups.length === 0) {
+      return (
+        <div className="space-y-6">
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="p-6 text-center">
+              <Building2 className="h-12 w-12 text-destructive mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-destructive">Error Loading Data</h3>
+              <p className="text-sm text-destructive/90 mt-1 mb-4">{error}</p>
+              <Button variant="outline" onClick={fetchData}> Retry </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+   }
 
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <Building2 className="h-12 w-12 text-red-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-slate-700">Error loading properties</h3>
-            <p className="text-sm text-slate-500 mt-1">{error}</p>
-            <Button className="mt-4" onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
+  // --- Render Main Page ---
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 lg:space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Properties</h1>
-          <p className="text-slate-500 text-sm mt-1">Manage your real estate portfolio</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Your Properties</h1>
+          <p className="text-slate-600 text-sm mt-1">Overview and manage your property listings and groups.</p>
         </div>
-        <div className="flex space-x-2 w-full md:w-auto">
-          <div className="relative flex-1 md:flex-initial">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <Input
-              type="search"
-              placeholder="Search properties..."
-              className="pl-8 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex w-full sm:w-auto items-center space-x-2">
+          <div className="relative flex-grow sm:flex-grow-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Input type="search" placeholder="Search properties or groups..." className="pl-9 w-full sm:w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} aria-label="Search properties or groups"/>
           </div>
-          <Button className="bg-slate-900 hover:bg-slate-800 whitespace-nowrap" onClick={handleCreateListing}>
-            <Plus className="h-4 w-4 mr-1" /> Add Property
+          <Button className="bg-slate-900 hover:bg-slate-800 whitespace-nowrap shrink-0" onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-1.5" /> {viewMode === 'groups' ? 'Create Group' : 'Add Property'}
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full md:w-auto">
-          <TabsTrigger value="all">All Properties ({categoryCounts.all})</TabsTrigger>
-          <TabsTrigger value="units">Full Units ({categoryCounts.units})</TabsTrigger>
-          <TabsTrigger value="rooms">Rooms ({categoryCounts.rooms})</TabsTrigger>
-          <TabsTrigger value="available">Available ({categoryCounts.available})</TabsTrigger>
-          <TabsTrigger value="occupied">Occupied ({categoryCounts.occupied})</TabsTrigger>
+      {/* Main Tabs: Properties vs Groups */}
+      <Tabs defaultValue={initialViewMode} value={viewMode} onValueChange={(value) => setViewMode(value as "properties" | "groups")}>
+        <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground overflow-x-auto">
+           <TabsTrigger value="properties" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              <Home className="h-4 w-4 mr-2 shrink-0" /> Properties ({categoryCounts.all})
+            </TabsTrigger>
+            <TabsTrigger value="groups" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              <Users className="h-4 w-4 mr-2 shrink-0" /> Property Groups ({groups?.length ?? 0})
+            </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-4">
-          <PropertyGrid 
-            properties={filteredProperties} 
-            handleEditProperty={handleEditProperty} 
-            handleDeleteProperty={handleDeleteProperty} 
-            handleCreateListing={handleCreateListing}
-            getStatusColor={getStatusColor}
-            getCategoryColor={getCategoryColor}
-            searchTerm={searchTerm}
-            tabType="all"
-          />
+        {/* Properties Tab Content */}
+        <TabsContent value="properties" className="mt-6">
+          {/* FIXED: Restructured the nested tabs to avoid potential React.Children.only issues */}
+          <div className="space-y-4">
+            {/* Category Tabs */}
+            <div className="overflow-x-auto pb-2">
+              <Tabs defaultValue="all" value={categoryTab} onValueChange={setCategoryTab}>
+                <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-max">
+                  <TabsTrigger value="all" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">All ({categoryCounts.all})</TabsTrigger>
+                  <TabsTrigger value="units" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Units ({categoryCounts.units})</TabsTrigger>
+                  <TabsTrigger value="rooms" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Rooms ({categoryCounts.rooms})</TabsTrigger>
+                  <TabsTrigger value="available" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Available ({categoryCounts.available})</TabsTrigger>
+                  <TabsTrigger value="occupied" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Occupied ({categoryCounts.occupied})</TabsTrigger>
+                  <TabsTrigger value="maintenance" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Maintenance ({categoryCounts.maintenance})</TabsTrigger>
+                  <TabsTrigger value="not_available" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Unavailable ({categoryCounts.not_available})</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            {/* Property List */}
+            <PropertyList
+              properties={filteredProperties}
+              handleEditProperty={handleEditProperty}
+              handleDeleteRequest={handleDeletePropertyRequest}
+              handleCreateListing={handleCreate}
+              getStatusColor={getStatusColor}
+              getCategoryColor={getCategoryColor}
+              formatStatus={formatStatus}
+              formatCategory={formatCategory}
+              searchTerm={searchTerm}
+              tabType={categoryTab}
+            />
+          </div>
         </TabsContent>
 
-        <TabsContent value="units" className="mt-4">
-          <PropertyGrid 
-            properties={filteredProperties} 
-            handleEditProperty={handleEditProperty} 
-            handleDeleteProperty={handleDeleteProperty} 
-            handleCreateListing={handleCreateListing}
-            getStatusColor={getStatusColor}
-            getCategoryColor={getCategoryColor}
-            searchTerm={searchTerm}
-            tabType="units"
-          />
-        </TabsContent>
-
-        <TabsContent value="rooms" className="mt-4">
-          <PropertyGrid 
-            properties={filteredProperties} 
-            handleEditProperty={handleEditProperty} 
-            handleDeleteProperty={handleDeleteProperty} 
-            handleCreateListing={handleCreateListing}
-            getStatusColor={getStatusColor}
-            getCategoryColor={getCategoryColor}
-            searchTerm={searchTerm}
-            tabType="rooms"
-          />
-        </TabsContent>
-
-        <TabsContent value="available" className="mt-4">
-          <PropertyGrid 
-            properties={filteredProperties} 
-            handleEditProperty={handleEditProperty} 
-            handleDeleteProperty={handleDeleteProperty} 
-            handleCreateListing={handleCreateListing}
-            getStatusColor={getStatusColor}
-            getCategoryColor={getCategoryColor}
-            searchTerm={searchTerm}
-            tabType="available"
-          />
-        </TabsContent>
-
-        <TabsContent value="occupied" className="mt-4">
-          <PropertyGrid 
-            properties={filteredProperties} 
-            handleEditProperty={handleEditProperty} 
-            handleDeleteProperty={handleDeleteProperty} 
-            handleCreateListing={handleCreateListing}
-            getStatusColor={getStatusColor}
-            getCategoryColor={getCategoryColor}
-            searchTerm={searchTerm}
-            tabType="occupied"
+        {/* Groups Tab Content */}
+        <TabsContent value="groups" className="mt-6">
+          {/* Pass groups AND the full properties list down */}
+          <GroupList
+            groups={filteredGroups}
+            allProperties={properties} // Pass the updated properties array
+            isLoading={isLoadingGroups}
+            handleDeleteGroup={handleDeleteGroupRequest}
           />
         </TabsContent>
       </Tabs>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+      {/* Delete Property Dialog */}
+      <AlertDialog open={deletePropDialogOpen} onOpenChange={setDeletePropDialogOpen}>
+         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the property "{propertyToDelete?.name}". This action cannot be undone.
+              Are you sure you want to delete property <strong className="mx-1 break-words">"{propertyToDelete?.name}"</strong>? This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
-              Delete
+            <AlertDialogCancel onClick={() => setDeletePropDialogOpen(false)} disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteProperty} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+               {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null} Delete Property
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
-}
 
-function PropertyGrid({ 
-  properties, 
-  handleEditProperty, 
-  handleDeleteProperty, 
-  handleCreateListing,
-  getStatusColor,
-  getCategoryColor,
-  searchTerm,
-  tabType
-}) {
-  const router = useRouter();
-
-  if (properties.length === 0) {
-    let emptyMessage = "You haven't added any properties yet";
-    let actionText = "Add Your First Property";
-    
-    if (searchTerm) {
-      emptyMessage = `No properties match "${searchTerm}"`;
-      actionText = "Clear Search";
-    } else {
-      switch (tabType) {
-        case "units":
-          emptyMessage = "You haven't added any full units yet";
-          actionText = "Add Your First Full Unit";
-          break;
-        case "rooms":
-          emptyMessage = "You haven't added any rooms yet";
-          actionText = "Add Your First Room";
-          break;
-        case "available":
-          emptyMessage = "You don't have any available properties";
-          actionText = "Add Available Property";
-          break;
-        case "occupied":
-          emptyMessage = "You don't have any occupied properties";
-          actionText = "Add New Property";
-          break;
-      }
-    }
-    
-    return (
-      <Card className="mt-4">
-        <CardContent className="p-6 text-center">
-          <Building2 className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-slate-700">No properties found</h3>
-          <p className="text-sm text-slate-500 mt-1">{emptyMessage}</p>
-          <Button className="mt-4 bg-slate-900 hover:bg-slate-800" onClick={handleCreateListing}>
-            <Plus className="h-4 w-4 mr-1" /> {actionText}
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {properties.map((property) => (
-        <Card key={property.id} className="overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-          <div className="aspect-video relative">
-            <img
-              src={property.image || "/placeholder.svg?height=100&width=200"}
-              alt={property.name}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-2 right-2 flex gap-1">
-              <Badge className={getCategoryColor(property.property_category)}>
-                {property.property_category_display}
-              </Badge>
-              <Badge className={getStatusColor(property.status)}>{property.status_display}</Badge>
-            </div>
-          </div>
-          <CardContent className="p-4 flex-1 flex flex-col">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-lg">{property.name}</h3>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 15 15"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                    >
-                      <path
-                        d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
-                        fill="currentColor"
-                        fillRule="evenodd"
-                        clipRule="evenodd"
-                      ></path>
-                    </svg>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => router.push(`/dashboard/properties/${property.id}`)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    <span>View Details</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleEditProperty(property.id)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteProperty(property)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="flex items-center text-sm text-slate-500 mt-1 mb-3">
-              <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-              <span className="truncate">
-                {property.address}, {property.city}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mt-auto">
-              {property.property_category === "COMPLETE_UNIT" && (
-                <>
-                  <div className="flex items-center text-sm">
-                    <Home className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>{property.unit_type_display}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Bed className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>
-                      {property.bedrooms} {property.bedrooms === 1 ? "Bed" : "Beds"}
-                    </span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Bath className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>
-                      {property.bathrooms} {property.bathrooms === 1 ? "Bath" : "Baths"}
-                    </span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <SquareFootIcon className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>{property.square_footage} sq ft</span>
-                  </div>
-                </>
-              )}
-              {property.property_category === "ROOM" && (
-                <>
-                  <div className="flex items-center text-sm">
-                    <Home className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>{property.room_type_display}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Users className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>{property.shared_with ? `Shared with ${property.shared_with}` : "Private"}</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Bath className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>
-                      {property.total_washrooms || 0} Shared {property.total_washrooms === 1 ? "Bath" : "Baths"}
-                    </span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <SquareFootIcon className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                    <span>{property.square_footage} sq ft</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/dashboard/properties/${property.id}`)}
-              >
-                View Details
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+       {/* Delete Group Dialog */}
+       <AlertDialog open={deleteGroupDialogOpen} onOpenChange={setDeleteGroupDialogOpen}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Confirm Group Deletion</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete group <strong className="mx-1 break-words">"{groups?.find(g => g.id === groupToDeleteId)?.name}"</strong>? Properties within this group will become ungrouped. This cannot be undone.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteGroupDialogOpen(false)} disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteGroup} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+               {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null} Delete Group
+            </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
     </div>
   );
 }
