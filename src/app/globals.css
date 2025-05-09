@@ -1,3 +1,4 @@
+/* src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,10 +6,11 @@
 @layer base {
   :root {
     /* Brand colors */
-    --brand-primary: hsl(171 99% 58%); /* #2CFECC */
+    --brand-primary: 	hsl(170, 47%, 39%); /* #2CFECC */
     --brand-primary-hover: hsl(171 99% 52%); /* #23e5b6 */
     --brand-dark: hsl(187 46% 11%); /* #0A2C2F */
     --brand-dark-lighter: hsl(187 38% 17%); /* #1a3b3e */
+    
 
     /* Base colors */
     --background: 210 40% 98%; /* Slate 50 */

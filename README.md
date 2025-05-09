@@ -1,6 +1,7 @@
-# Transendity Frontend
+<!-- README.md -->
+# Rentium Frontend
 
-This is the frontend for the Transendity project, built with Next.js and configured with Husky and Commitlint.
+This is the frontend for the Rentium project, built with Next.js and configured with Husky and Commitlint.
 
 ## **Prerequisites**
 

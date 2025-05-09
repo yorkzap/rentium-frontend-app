@@ -1,3 +1,6 @@
+// src/components/nav/main-nav.tsx
+// src/hooks/components/nav/main-nav.tsx
+// src/components/nav/main-nav.tsx
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -26,7 +29,7 @@ const MainNav = () => {
   }, []);
 
   const navItems = [
-    { href: '/rates', label: 'Rates' },
+    { href: '/pricing', label: 'Pricing' },
     { href: '/about', label: 'About' },
     { href: '/help', label: 'Help' },
   ];
@@ -92,10 +95,14 @@ const MainNav = () => {
       <div className="h-16" />
 
       <nav className="fixed w-full top-0 z-50">
-        <div className="h-16 border-b border-brand-dark-lighter bg-brand-dark shadow-sm">
+        <div className="h-16 bg-white/90 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-4 h-full flex items-center">
-            <Link href="/" className="hover:opacity-90 transition-opacity">
-              <Logo />
+            <Link href="/" className="hover:opacity-90 transition-opacity flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span className="font-bold text-lg">Rentium</span>
             </Link>
 
             <div className="hidden md:flex items-center space-x-8 ml-auto">
@@ -104,25 +111,31 @@ const MainNav = () => {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'text-base font-medium transition-colors hover:text-brand-primary',
+                    'text-sm font-medium transition-colors relative group',
                     pathname === item.href
-                      ? 'text-brand-primary'
-                      : 'text-gray-300'
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {item.label}
+                  <motion.span
+                    className="absolute -bottom-1 left-0 h-0.5 bg-primary w-0 group-hover:w-full transition-all duration-300"
+                    initial={{ width: 0 }}
+                    whileHover={{ width: "100%" }}
+                    animate={pathname === item.href ? { width: "100%" } : { width: 0 }}
+                  />
                 </Link>
               ))}
 
               <Button
                 variant="ghost"
-                className="text-gray-300 hover:text-brand-primary hover:bg-[#C6FEE6]/10 font-medium rounded-full"
+                className="text-muted-foreground hover:text-foreground font-medium rounded-full"
                 asChild
               >
                 <Link href="/auth/login">Log in</Link>
               </Button>
               <Button
-                className="bg-brand-primary hover:bg-brand-primary-hover text-black shadow-sm font-medium rounded-full"
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white shadow-sm font-medium rounded-full"
                 asChild
               >
                 <Link href="/auth/signup">Register</Link>
@@ -131,14 +144,14 @@ const MainNav = () => {
 
             <div className="flex md:hidden items-center space-x-3 ml-auto">
               <Button
-                className="bg-brand-primary hover:bg-brand-primary-hover text-black shadow-sm font-medium rounded-full"
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white shadow-sm font-medium rounded-full"
                 asChild
               >
                 <Link href="/auth/signup">Register</Link>
               </Button>
 
               <motion.button
-                className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-brand-dark-lighter text-white"
+                className="w-10 h-10 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-800"
                 onClick={() => setIsOpen(!isOpen)}
               >
                 <svg width="23" height="23" viewBox="0 0 23 23">
@@ -176,7 +189,7 @@ const MainNav = () => {
           initial="closed"
           animate={isOpen ? 'open' : 'closed'}
           variants={menuVariants}
-          className="fixed top-16 right-0 bottom-0 w-full sm:max-w-sm bg-brand-dark shadow-xl"
+          className="fixed top-16 right-0 bottom-0 w-full sm:max-w-sm bg-white shadow-xl"
         >
           <div className="h-full overflow-auto overscroll-contain">
             <div className="px-4 py-6 space-y-6">
@@ -187,32 +200,37 @@ const MainNav = () => {
                       href={item.href}
                       onClick={() => setIsOpen(false)}
                       className={cn(
-                        'block text-2xl transition-colors hover:text-brand-primary',
+                        'block text-2xl transition-colors hover:text-foreground relative group',
                         pathname === item.href
-                          ? 'text-brand-primary font-medium'
-                          : 'text-gray-300 font-light'
+                          ? 'text-foreground font-medium'
+                          : 'text-muted-foreground font-light'
                       )}
                     >
                       {item.label}
+                      <motion.span
+                        className="absolute -bottom-1 left-0 h-0.5 bg-primary w-0 group-hover:w-full transition-all duration-300"
+                        initial={{ width: 0 }}
+                        animate={pathname === item.href ? { width: "100%" } : { width: 0 }}
+                      />
                     </Link>
                   </motion.div>
                 ))}
               </motion.div>
 
               <motion.div
-                className="space-y-4 pt-6 border-t border-brand-dark-lighter"
+                className="space-y-4 pt-6 border-t border-slate-200"
                 variants={itemVariants}
               >
                 <Button
                   variant="ghost"
-                  className="w-full justify-center text-base font-medium text-gray-300 hover:text-brand-primary hover:bg-[#C6FEE6]/10 rounded-full"
+                  className="w-full justify-center text-base font-medium text-muted-foreground hover:text-foreground rounded-full"
                   asChild
                   onClick={() => setIsOpen(false)}
                 >
                   <Link href="/auth/login">Log in</Link>
                 </Button>
                 <Button
-                  className="w-full justify-center text-base bg-brand-primary hover:bg-brand-primary-hover text-black font-medium rounded-full"
+                  className="w-full justify-center text-base bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-full"
                   asChild
                   onClick={() => setIsOpen(false)}
                 >
