@@ -63,11 +63,10 @@ export default function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
+              data-active={pathname === item.href}
               className={cn(
-                "rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
-                pathname === item.href
-                  ? "bg-surface-sunken text-ink"
-                  : "text-ink-3 hover:text-ink",
+                "nav-underline rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                pathname === item.href ? "text-ink" : "text-ink-3 hover:text-ink",
               )}
             >
               {item.label}
@@ -110,6 +109,9 @@ export default function SiteHeader() {
           <div className="mt-4 border-t border-line pt-4">
             <AuthActions onNavigate={close} />
           </div>
+          <p className="mt-4 text-xs text-ink-4">
+            Built for Canadian tenancy law — launching in BC.
+          </p>
         </div>
       )}
     </header>

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { Loader2, XCircle } from 'lucide-react';
+import { WobblyCheck } from '@/components/public/illustrations/marks';
 import { DJANGO_API_URL } from '@/lib/config';
 
 function VerifyEmailConfirm() {
@@ -85,8 +86,8 @@ function VerifyEmailConfirm() {
 
       {verificationStatus === 'success' && (
         <>
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-ok-soft">
-            <CheckCircle2 className="h-6 w-6 text-ok" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ok-soft">
+            <WobblyCheck className="h-7 w-7 text-ok" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold tracking-tight text-ink">
             Email verified

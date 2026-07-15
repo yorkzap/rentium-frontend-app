@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Reveal from "@/components/public/Reveal";
+import { ScribbleRing } from "@/components/public/illustrations/marks";
 import { PricingTiers } from "../sections/PricingSection";
 import { FaqList } from "../sections/FaqSection";
 
@@ -19,9 +20,12 @@ export default function PricingPage() {
             Simple pricing, every feature.
           </h1>
           <p className="mt-4 text-lg leading-8 text-ink-3">
-            Pick the plan that fits your portfolio. Every plan starts with 30
-            days free, no credit card required, and you can change plans
-            anytime.
+            Pick the plan that fits your portfolio. Every plan starts with{" "}
+            <span className="relative inline-block px-1 font-medium text-ink">
+              30 days free
+              <ScribbleRing />
+            </span>
+            , no credit card required, and you can change plans anytime.
           </p>
         </div>
       </Reveal>

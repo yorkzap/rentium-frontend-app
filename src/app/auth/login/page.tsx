@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { DJANGO_API_URL } from '@/lib/config';
 
 function LoginForm() {
@@ -15,6 +15,7 @@ function LoginForm() {
   const [isResending, setIsResending] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [redirected, setRedirected] = useState(false);
   const router = useRouter();
@@ -140,7 +141,7 @@ function LoginForm() {
   }
 
   return (
-    <div>
+    <div className="card border-t-2 border-t-brand p-8 shadow-[0_18px_45px_-30px_rgba(14,42,46,0.3)]">
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Welcome back</h1>
       <p className="mt-2 text-sm text-ink-3">
         New to Rentium?{' '}
@@ -186,6 +187,7 @@ function LoginForm() {
             type="email"
             placeholder="name@example.com"
             autoComplete="email"
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -195,14 +197,25 @@ function LoginForm() {
           {/* TODO(local): add a "Forgot password?" link here once the reset
               flow exists — the old link pointed at a route that 404s. */}
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className="pr-10"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-ink-4 transition-colors hover:text-ink-2"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         <Button className="w-full" size="lg" type="submit" disabled={isLoading}>
           {isLoading ? (
@@ -214,6 +227,9 @@ function LoginForm() {
             'Log in'
           )}
         </Button>
+        <p className="text-center text-xs text-ink-4">
+          New here? Your first 30 days are free — no credit card.
+        </p>
       </form>
     </div>
   );

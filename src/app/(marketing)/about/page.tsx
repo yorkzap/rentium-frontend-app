@@ -56,12 +56,17 @@ export default function AboutPage() {
         </p>
       </Reveal>
 
-      <div className="mt-14 space-y-10">
+      <div className="mt-14">
         {PRINCIPLES.map((p, i) => (
           <Reveal key={p.title} delay={i * 0.04}>
-            <div className="border-l-2 border-brand pl-6">
-              <h2 className="text-lg font-semibold text-ink">{p.title}</h2>
-              <p className="mt-2 text-base leading-7 text-ink-3">{p.body}</p>
+            <div className="flex gap-6 border-t border-line py-8 sm:gap-10">
+              <span className="text-2xl font-semibold tabular-nums text-brand/60 sm:text-3xl">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold text-ink">{p.title}</h2>
+                <p className="mt-2 text-base leading-7 text-ink-3">{p.body}</p>
+              </div>
             </div>
           </Reveal>
         ))}

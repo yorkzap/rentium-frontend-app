@@ -10,7 +10,7 @@ import { Underline, Sparkles } from "@/components/public/illustrations/marks";
 function HeroVisual() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:max-w-none" aria-hidden>
-      <div className="card space-y-4 p-5 shadow-[0_24px_60px_-30px_rgba(14,42,46,0.35)]">
+      <div className="card rotate-[0.75deg] space-y-4 p-5 shadow-[0_24px_60px_-30px_rgba(14,42,46,0.35)]">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-ink-3">July at a glance</p>
           <span className="rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok-ink">
@@ -49,7 +49,7 @@ function HeroVisual() {
         </div>
       </div>
 
-      <div className="card absolute -bottom-6 -left-4 w-64 space-y-2 p-4 shadow-[0_20px_50px_-25px_rgba(14,42,46,0.4)] sm:-left-8">
+      <div className="card absolute -bottom-12 -left-4 w-64 -rotate-2 space-y-2 bg-white p-4 shadow-[0_20px_50px_-25px_rgba(14,42,46,0.4)] sm:-left-8">
         <p className="text-xs font-semibold uppercase tracking-wider text-ink-4">
           Needs attention
         </p>

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Mail } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { MailNotice } from '@/components/public/illustrations/spots';
 import { DJANGO_API_URL } from '@/lib/config';
 
 function VerifyEmail() {
@@ -56,9 +57,7 @@ function VerifyEmail() {
 
   return (
     <div className="text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft">
-        <Mail className="h-6 w-6 text-brand" />
-      </div>
+      <MailNotice className="mx-auto h-28" />
       <h1 className="mt-5 text-2xl font-semibold tracking-tight text-ink">
         Verify your email address
       </h1>

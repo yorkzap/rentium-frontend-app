@@ -70,7 +70,7 @@ export default function SiteFooter() {
 
         <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-ink-inverse-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Rentium. All rights reserved.</p>
-          <p>English (Canada)</p>
+          <p>Made in BC · Serving Canada · English (Canada)</p>
         </div>
       </div>
     </footer>

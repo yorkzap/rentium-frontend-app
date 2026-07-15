@@ -68,7 +68,7 @@ export default function HelpPage() {
           </p>
           <ul className="mt-6 space-y-4">
             {RTB_RESOURCES.map((r) => (
-              <li key={r.label} className="card p-5">
+              <li key={r.label} className="card card-lift p-5">
                 <Link
                   href={r.href}
                   target="_blank"

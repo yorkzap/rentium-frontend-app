@@ -223,6 +223,28 @@
     color: hsl(var(--brand));
   }
 
+  /* Nav links: an underline that draws in from the left on hover. */
+  .nav-underline {
+    position: relative;
+  }
+  .nav-underline::after {
+    content: "";
+    position: absolute;
+    left: 0.875rem;
+    right: 0.875rem;
+    bottom: 0.35rem;
+    height: 2px;
+    border-radius: 1px;
+    background: hsl(var(--brand));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur) var(--ease);
+  }
+  .nav-underline:hover::after,
+  .nav-underline[data-active="true"]::after {
+    transform: scaleX(1);
+  }
+
   /* The one hover treatment for cards on public pages: a 2px lift and a
      firmer border. CSS only — motion that costs nothing. */
   .card-lift {

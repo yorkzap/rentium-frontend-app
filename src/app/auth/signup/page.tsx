@@ -6,9 +6,13 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Loader2, User } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DJANGO_API_URL } from '@/lib/config';
+import { WobblyCheck } from '@/components/public/illustrations/marks';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MIN_PASSWORD = 8;
 
 const ROLES = [
   {
@@ -37,21 +41,42 @@ export default function Page() {
     user_type: 'LANDLORD', // Default to landlord
   });
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData({ ...formData, [id]: value });
+    // Clear the field's error as soon as the user starts fixing it
+    if (fieldErrors[id as 'email' | 'password']) {
+      setFieldErrors({ ...fieldErrors, [id]: undefined });
+    }
   };
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === 1 && formData.email) {
-      setStep(2);
+    if (!EMAIL_RE.test(formData.email)) {
+      setFieldErrors({ email: "That doesn't look like an email address." });
+      return;
     }
+    setFieldErrors({});
+    setStep(2);
+  };
+
+  const validateStep2 = (): boolean => {
+    if (formData.password.length < MIN_PASSWORD) {
+      setFieldErrors({
+        password: `Use at least ${MIN_PASSWORD} characters — it's protecting your financial records.`,
+      });
+      return false;
+    }
+    setFieldErrors({});
+    return true;
   };
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!validateStep2()) return;
     setIsLoading(true);
     setError('');
 
@@ -83,7 +108,7 @@ export default function Page() {
   };
 
   return (
-    <div>
+    <div className="card border-t-2 border-t-brand p-8 shadow-[0_18px_45px_-30px_rgba(14,42,46,0.3)]">
       <h1 className="text-2xl font-semibold tracking-tight text-ink">
         Create your Rentium account
       </h1>
@@ -125,10 +150,18 @@ export default function Page() {
               type="email"
               placeholder="name@example.com"
               autoComplete="email"
+              autoFocus
               required
+              aria-invalid={!!fieldErrors.email}
               value={formData.email}
               onChange={handleChange}
             />
+            {fieldErrors.email && (
+              <p className="text-xs text-danger-ink" role="alert">{fieldErrors.email}</p>
+            )}
+            <p className="text-xs text-ink-4">
+              We&rsquo;ll send a verification link here — nothing else, no spam.
+            </p>
           </div>
         )}
 
@@ -149,15 +182,32 @@ export default function Page() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Create a password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required
+                  aria-invalid={!!fieldErrors.password}
+                  className="pr-10"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-ink-4 transition-colors hover:text-ink-2"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {fieldErrors.password ? (
+                <p className="text-xs text-danger-ink" role="alert">{fieldErrors.password}</p>
+              ) : (
+                <p className="text-xs text-ink-4">At least {MIN_PASSWORD} characters.</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -183,12 +233,17 @@ export default function Page() {
                     onClick={() => setFormData({ ...formData, user_type: role.value })}
                     aria-pressed={formData.user_type === role.value}
                     className={cn(
-                      'rounded-lg border p-4 text-center transition-colors',
+                      'relative rounded-lg border p-4 text-center transition-all',
                       formData.user_type === role.value
-                        ? 'border-brand bg-brand-soft text-brand-ink'
-                        : 'border-line text-ink-2 hover:border-line-strong',
+                        ? 'border-brand bg-brand-soft text-brand-ink shadow-[0_8px_20px_-14px_rgba(15,118,110,0.5)]'
+                        : 'border-line text-ink-2 hover:-translate-y-0.5 hover:border-line-strong',
                     )}
                   >
+                    {formData.user_type === role.value && (
+                      <span className="absolute right-2 top-2">
+                        <WobblyCheck className="h-4 w-4 text-brand" />
+                      </span>
+                    )}
                     <role.icon className="mx-auto h-5 w-5" />
                     <span className="mt-2 block text-sm font-medium">{role.title}</span>
                     <span className="mt-0.5 block text-xs text-ink-4">{role.body}</span>
