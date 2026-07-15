@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Reveal from "@/components/public/Reveal";
+import { Underline } from "@/components/public/illustrations/marks";
+import { LedgerBook } from "@/components/public/illustrations/spots";
 
 export const metadata: Metadata = {
   title: "About",
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 const PRINCIPLES = [
   {
     title: "The law is the spec",
-    body: "Most rental software is a generic checklist with a Canadian coat of paint. Rentium starts from the BC Residential Tenancy Act — its forms, its deadlines, its deposit rules — and builds the product around what the Act actually requires of you.",
+    body: "Most rental software is a generic checklist with a Canadian coat of paint. Rentium starts from tenancy law itself — the forms, the deadlines, the deposit rules, encoded province by province beginning with BC's Residential Tenancy Act — and builds the product around what the law actually requires of you.",
   },
   {
     title: "Records you can stand behind",
@@ -33,10 +35,19 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:py-20">
       <Reveal>
-        <p className="text-kicker">About Rentium</p>
-        <h1 className="text-display mt-3 text-ink">
-          Renting runs on trust. Trust runs on records.
-        </h1>
+        <div className="flex items-start justify-between gap-8">
+          <div>
+            <p className="text-kicker">About Rentium</p>
+            <h1 className="text-display mt-3 text-ink">
+              Renting runs on trust. Trust runs on{" "}
+              <span className="relative inline-block">
+                records.
+                <Underline />
+              </span>
+            </h1>
+          </div>
+          <LedgerBook className="mt-4 hidden h-32 shrink-0 sm:block" />
+        </div>
         <p className="mt-5 text-lg leading-8 text-ink-2">
           Rentium was built in British Columbia by people who kept watching the
           same thing happen: good landlords and good tenants ending up in bad

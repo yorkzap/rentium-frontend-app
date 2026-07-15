@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s · Rentium',
   },
   description:
-    'Property management built for BC landlords: compliant leases, condition inspections, deposit rules and a full financial ledger — with a portal your tenants will actually use.',
+    'Property management built for Canadian tenancy law: compliant leases, condition inspections, deposit rules and a full financial ledger — launching in British Columbia, with a portal your tenants will actually use.',
 };
 
 export default function RootLayout({

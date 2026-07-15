@@ -40,8 +40,8 @@ export default function SiteFooter() {
             <Wordmark tone="dark" />
             <p className="text-sm leading-6 text-ink-inverse-muted">
               Property management that takes the legal side as seriously as you
-              do. Built in British Columbia, designed around the Residential
-              Tenancy Act.
+              do. Built in British Columbia for landlords across Canada,
+              designed around each province&rsquo;s tenancy law.
             </p>
           </div>
 

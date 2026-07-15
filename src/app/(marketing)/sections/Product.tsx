@@ -1,39 +1,45 @@
-import {
-  BookOpenCheck, CalendarDays, ClipboardCheck, FileSignature, Users, Wrench,
-} from "lucide-react";
 import Reveal from "@/components/public/Reveal";
+import { WobblyCheck } from "@/components/public/illustrations/marks";
+import {
+  HouseKeys, InspectionWalk, LedgerBook,
+} from "@/components/public/illustrations/spots";
+import { cn } from "@/lib/utils";
 
-// These map 1:1 to real modules in the product — no aspirational features.
-const FEATURES = [
+// Three editorial feature rows, illustration on one side and the case on the
+// other — not a grid of icon tiles. Every claim maps to a real module.
+const ROWS = [
   {
-    icon: BookOpenCheck,
+    art: LedgerBook,
+    kicker: "The money",
     title: "An honest ledger",
-    body: "Every charge, payment and expense in one append-only record. Corrections are visible reversals — your books can survive an audit or a dispute.",
+    body: "Every charge, payment, deposit and expense in one append-only record. Corrections are visible reversals — never silent edits — so your books can survive an audit or a dispute hearing.",
+    points: [
+      "Rent expected vs collected, month by month",
+      "Deposits tracked separately from income, as the law requires",
+      "Receipts your tenants can download themselves",
+    ],
   },
   {
-    icon: FileSignature,
-    title: "Leases that sign themselves",
-    body: "Generate the lease, send it, and watch signatures land — with the tenancy moving through clear states from draft to active to ended.",
+    art: InspectionWalk,
+    kicker: "The legal record",
+    title: "Leases and inspections that keep up with the law",
+    body: "Generate the lease, collect signatures online, and walk the move-in inspection room by room — signed by both parties and delivered on the timeline your province requires.",
+    points: [
+      "Tenancies move through clear states, draft to active to ended",
+      "Condition reports with both signatures, delivered on time",
+      "The app tells you what's due next — before it's overdue",
+    ],
   },
   {
-    icon: ClipboardCheck,
-    title: "Condition inspections",
-    body: "Move-in and move-out inspections captured room by room, signed by both parties, delivered on the timeline the RTB requires.",
-  },
-  {
-    icon: Wrench,
-    title: "Maintenance with memory",
-    body: "Requests come in from tenants, become work orders, and stay visible until they're actually resolved — not until everyone forgets.",
-  },
-  {
-    icon: CalendarDays,
-    title: "One calendar for the tenancy",
-    body: "Viewings, rent dates, inspections, lease ends and entry notices in a single view, for you and for your tenants.",
-  },
-  {
-    icon: Users,
-    title: "A portal tenants actually use",
-    body: "Documents, rent history, receipts and maintenance in one place for tenants — which means fewer texts at dinner time for you.",
+    art: HouseKeys,
+    kicker: "The day-to-day",
+    title: "Maintenance, viewings and one shared calendar",
+    body: "Tenant requests become work orders that stay visible until resolved. Viewings, rent dates, inspections and entry notices land on one calendar — yours and your tenants'.",
+    points: [
+      "A portal tenants actually use — fewer texts at dinner time",
+      "Entry notices and visits announced ahead, automatically",
+      "Public listing pages and your own branded showcase site",
+    ],
   },
 ];
 
@@ -47,22 +53,40 @@ export default function Product() {
             <h2 className="text-title mt-3 text-ink">
               Everything a tenancy produces, in one system of record.
             </h2>
-            <p className="mt-4 text-base leading-7 text-ink-3">
-              Rentium isn&rsquo;t a checklist bolted onto a spreadsheet. It&rsquo;s the
-              lease, the money, the inspections and the maintenance — connected,
-              so nothing falls between tools.
-            </p>
           </div>
         </Reveal>
-        <div className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={(i % 3) * 0.05}>
-              <div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft">
-                  <f.icon className="h-5 w-5 text-brand" />
+
+        <div className="mt-16 space-y-20 lg:space-y-24">
+          {ROWS.map((row, i) => (
+            <Reveal key={row.title}>
+              <div
+                className={cn(
+                  "grid items-center gap-10 lg:grid-cols-2 lg:gap-16",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex justify-center",
+                    i % 2 === 1 && "lg:order-2",
+                  )}
+                >
+                  <row.art className="h-48 sm:h-56" />
                 </div>
-                <h3 className="mt-4 text-base font-semibold text-ink">{f.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-ink-3">{f.body}</p>
+                <div className={cn(i % 2 === 1 && "lg:order-1")}>
+                  <p className="text-kicker">{row.kicker}</p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
+                    {row.title}
+                  </h3>
+                  <p className="mt-3 text-base leading-7 text-ink-3">{row.body}</p>
+                  <ul className="mt-5 space-y-2.5">
+                    {row.points.map((point) => (
+                      <li key={point} className="flex items-start gap-2.5 text-sm leading-6 text-ink-2">
+                        <WobblyCheck className="mt-1 shrink-0 text-brand" />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </Reveal>
           ))}

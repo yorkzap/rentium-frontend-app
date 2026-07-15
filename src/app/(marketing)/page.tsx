@@ -15,7 +15,7 @@ import Cta from "./sections/Cta";
 export const metadata: Metadata = {
   title: "Rentium — Simply smart rentals",
   description:
-    "Property management built for BC landlords: RTB-1 leases, RTB-27 condition inspections, deposit rules and an audit-proof ledger — with a portal tenants actually use.",
+    "Property management built for Canadian tenancy law, launching in BC: RTB-1 leases, RTB-27 condition inspections, deposit rules and an audit-proof ledger — with a portal tenants actually use.",
 };
 
 export default function Home() {

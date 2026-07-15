@@ -19,6 +19,40 @@ This is the frontend for the Rentium project, built with Next.js and configured 
 
 ---
 
+## **Saving work: repo setup (one-time)**
+
+This repo currently has **no git remote**, and the Django backend lives in a
+separate repo in the same situation. Until both are on GitHub, work only
+exists on the machines it was written on. One-time setup, from your machine:
+
+```bash
+# 1. Create two private repos on github.com (no README/gitignore — empty):
+#      rentium-frontend   rentium-backend
+
+# 2. Frontend (run inside this repo):
+git remote add origin git@github.com:<your-username>/rentium-frontend.git
+git push -u origin main
+git push -u origin claude/site-premium-pass claude/alive-pass   # session branches
+
+# 3. Backend (run inside the Django repo):
+git remote add origin git@github.com:<your-username>/rentium-backend.git
+git push -u origin main
+
+# 4. Commit your local in-flight changes first if you want them included:
+git add -A && git commit -m "wip"
+```
+
+After that:
+- **Remote Claude sessions** should be started from the GitHub repo (or the
+  repo authorized in the session), so branches can be pushed and PRs opened
+  instead of work living only inside a container.
+- **Seeing changes on the actual site**: connect `rentium-frontend` to Vercel
+  (zero-config for Next.js) and every push deploys a preview; the backend can
+  start on any Docker host (Railway/Fly/a VPS) with `DJANGO_API_URL` pointed
+  at it. Wildcard subdomains for showcases are documented below.
+
+---
+
 ## **Landlord showcase subdomains**
 
 Each landlord showcase (`/l/<slug>`) is also served on its own subdomain:

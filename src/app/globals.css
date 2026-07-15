@@ -222,4 +222,18 @@
     letter-spacing: 0.08em;
     color: hsl(var(--brand));
   }
+
+  /* The one hover treatment for cards on public pages: a 2px lift and a
+     firmer border. CSS only — motion that costs nothing. */
+  .card-lift {
+    transition:
+      transform var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--line-strong));
+    box-shadow: 0 12px 30px -18px rgba(14, 42, 46, 0.25);
+  }
 }

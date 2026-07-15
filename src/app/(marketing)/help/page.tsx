@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import Reveal from "@/components/public/Reveal";
 import { FaqList } from "../sections/FaqSection";
+import { MailNotice } from "@/components/public/illustrations/spots";
 
 export const metadata: Metadata = {
   title: "Help & FAQ",
@@ -32,12 +33,17 @@ export default function HelpPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:py-20">
       <Reveal>
-        <p className="text-kicker">Help</p>
-        <h1 className="text-display mt-3 text-ink">How can we help?</h1>
-        <p className="mt-4 text-lg leading-8 text-ink-3">
-          The answers below cover the questions we hear most. If yours
-          isn&rsquo;t here, we&rsquo;re easy to reach from your dashboard.
-        </p>
+        <div className="flex items-start justify-between gap-8">
+          <div>
+            <p className="text-kicker">Help</p>
+            <h1 className="text-display mt-3 text-ink">How can we help?</h1>
+            <p className="mt-4 text-lg leading-8 text-ink-3">
+              The answers below cover the questions we hear most. If yours
+              isn&rsquo;t here, we&rsquo;re easy to reach from your dashboard.
+            </p>
+          </div>
+          <MailNotice className="mt-2 hidden h-32 shrink-0 sm:block" />
+        </div>
       </Reveal>
 
       <Reveal delay={0.05}>

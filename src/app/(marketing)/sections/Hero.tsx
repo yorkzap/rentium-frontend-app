@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarClock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Reveal from "@/components/public/Reveal";
+import { Underline, Sparkles } from "@/components/public/illustrations/marks";
 
 // The hero visual is a hand-built composition of the product's real surfaces
 // (ledger summary + action items), illustrative numbers only. Swap for real
@@ -70,14 +71,20 @@ export default function Hero() {
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:pb-28 lg:pt-24">
         <Reveal>
           <div className="max-w-xl">
-            <p className="text-kicker">Property management for BC landlords</p>
+            <p className="text-kicker">
+              Property management for Canadian landlords
+            </p>
             <h1 className="text-display mt-4 text-ink">
-              The paperwork side of renting, finally handled.
+              The paperwork side of renting, finally{" "}
+              <span className="relative inline-block">
+                handled.
+                <Underline />
+              </span>
             </h1>
             <p className="mt-5 text-lg leading-8 text-ink-2">
               Compliant leases, condition inspections, deposit rules and an
-              audit-proof ledger — Rentium keeps you on the right side of the
-              Residential Tenancy Act while it runs the day-to-day.
+              audit-proof ledger — Rentium keeps you on the right side of your
+              province&rsquo;s tenancy law while it runs the day-to-day.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button asChild size="lg" className="rounded-full px-7">
@@ -96,7 +103,10 @@ export default function Hero() {
           </div>
         </Reveal>
         <Reveal delay={0.08}>
-          <HeroVisual />
+          <div className="relative">
+            <Sparkles className="absolute -right-2 -top-8 text-brand" />
+            <HeroVisual />
+          </div>
         </Reveal>
       </div>
     </section>

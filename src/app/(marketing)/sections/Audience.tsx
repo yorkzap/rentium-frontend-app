@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import Reveal from "@/components/public/Reveal";
+import { WobblyCheck } from "@/components/public/illustrations/marks";
 
 const LANDLORD_POINTS = [
   "See expected vs collected rent — including deposits — the moment you log in",
@@ -25,9 +25,7 @@ function Points({ items }: { items: string[] }) {
     <ul className="mt-6 space-y-3">
       {items.map((point) => (
         <li key={point} className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft">
-            <Check className="h-3 w-3 text-brand" />
-          </span>
+          <WobblyCheck className="mt-1 h-4 w-4 shrink-0 text-brand" />
           <span className="text-sm leading-6 text-ink-2">{point}</span>
         </li>
       ))}

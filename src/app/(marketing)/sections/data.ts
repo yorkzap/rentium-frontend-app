@@ -56,9 +56,9 @@ export const FAQS = [
       "Sign up for a free 30-day trial, add your properties, and start using every feature immediately. No credit card is required to try Rentium, and onboarding walks you through setup step by step.",
   },
   {
-    question: "What makes Rentium different for BC landlords?",
+    question: "What makes Rentium different?",
     answer:
-      "Rentium is built around the BC Residential Tenancy Act rather than adapted to it: leases follow the RTB-1 form, move-in and move-out condition inspections follow RTB-27, and deposit handling follows the half-month-rent and interest rules. The app tells you what the Act requires and when.",
+      "Rentium is built around Canadian tenancy law rather than adapted to it. Rules are encoded province by province — in British Columbia, where we're launching, leases follow the RTB-1 form, condition inspections follow RTB-27, and deposit handling follows the half-month-rent and interest rules. The app tells you what your province requires and when.",
   },
   {
     question: "Can I manage multiple properties?",
@@ -78,6 +78,6 @@ export const FAQS = [
   {
     question: "What if I rent outside British Columbia?",
     answer:
-      "Everything except the BC-specific compliance workflows works anywhere in Canada today. Province-aware rules for more provinces are on the roadmap, and the system is built so new provinces slot in without you changing how you work.",
+      "Everything except the province-specific compliance workflows works anywhere in Canada today — the ledger, leases, maintenance, calendar and tenant portal don't care where your property is. BC's rulebook is live first; more provinces are on the roadmap, and the system is built so each one slots in without changing how you work.",
   },
 ] as const;

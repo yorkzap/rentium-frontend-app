@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WobblyCheck } from "@/components/public/illustrations/marks";
 import Reveal from "@/components/public/Reveal";
 import { PRICING_TIERS } from "./data";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ export function PricingTiers() {
         <Reveal key={tier.name} delay={i * 0.05} className="h-full">
           <div
             className={cn(
-              "card relative flex h-full flex-col p-7",
+              "card card-lift relative flex h-full flex-col p-7",
               tier.highlighted &&
                 "border-brand shadow-[0_20px_50px_-25px_rgba(15,118,110,0.35)]",
             )}
@@ -33,7 +33,7 @@ export function PricingTiers() {
             <ul className="mt-6 flex-1 space-y-3">
               {tier.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-2.5 text-sm text-ink-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                  <WobblyCheck className="mt-0.5 shrink-0 text-brand" />
                   {feature}
                 </li>
               ))}
