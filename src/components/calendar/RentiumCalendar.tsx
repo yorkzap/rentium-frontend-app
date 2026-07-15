@@ -106,7 +106,7 @@ export function RentiumCalendar({
   onMonthChange,
 }: {
   events: CalEvent[];
-  onDayClick?: (day: string) => void;
+  onDayClick?: (day: string, shiftKey: boolean) => void;
   selectedDay?: string | null;
   /** When set (>= selectedDay), the whole span is highlighted — used for
    *  picking a utility-bill period straight off the grid. */
@@ -178,99 +178,197 @@ export function RentiumCalendar({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-7 text-center text-[11px] uppercase tracking-wide text-slate-400 mb-1">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
+      {/* Agenda list below md: a 7-column grid with 30-odd cells doesn't fit
+          a phone screen usefully — cells shrink to unreadable dots. Below
+          that breakpoint, list the month's dated events instead. */}
+      <div className="md:hidden">
+        <AgendaList
+          year={year}
+          month={month}
+          byDay={byDay}
+          selectedDay={selectedDay}
+          onDayClick={onDayClick}
+        />
       </div>
-      <div className="grid grid-cols-7 gap-px rounded-xl overflow-hidden border bg-slate-200 shadow-sm">
-        {cells.map((day, i) => {
-          const dayEvents = day ? byDay.get(day) || [] : [];
-          const overflow = dayEvents.length - maxChips;
-          const weekend = i % 7 === 0 || i % 7 === 6;
-          return (
-            <button
-              key={i}
-              type="button"
-              disabled={!day}
-              onClick={(e) => day && onDayClick?.(day, e.shiftKey)}
-              className={cn(
-                'text-left p-1 sm:p-1.5 align-top transition-colors',
-                weekend ? 'bg-slate-50/80' : 'bg-white',
-                compact ? 'min-h-[52px]' : 'min-h-[64px] sm:min-h-[92px]',
-                day &&
-                  onDayClick &&
-                  'hover:bg-teal-50 active:bg-teal-100 cursor-pointer',
-                !day && 'bg-slate-100/60 cursor-default',
-                day && inRange(day) && 'bg-teal-50',
-                day === selectedDay && 'ring-2 ring-inset ring-teal-500',
-                day === rangeEnd &&
-                  rangeEnd !== selectedDay &&
-                  'ring-2 ring-inset ring-teal-300'
-              )}
-            >
-              {day && (
-                <>
-                  <span
-                    className={cn(
-                      'inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]',
-                      day === today
-                        ? 'bg-teal-600 text-white font-semibold'
-                        : 'text-slate-500'
+
+      <div className="hidden md:block">
+        <div className="grid grid-cols-7 text-center text-[11px] uppercase tracking-wide text-slate-400 mb-1">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-px rounded-xl overflow-hidden border bg-slate-200 shadow-sm">
+          {cells.map((day, i) => {
+            const dayEvents = day ? byDay.get(day) || [] : [];
+            const overflow = dayEvents.length - maxChips;
+            const weekend = i % 7 === 0 || i % 7 === 6;
+            return (
+              <button
+                key={i}
+                type="button"
+                disabled={!day}
+                onClick={(e) => day && onDayClick?.(day, e.shiftKey)}
+                className={cn(
+                  'text-left p-1 sm:p-1.5 align-top transition-colors',
+                  weekend ? 'bg-slate-50/80' : 'bg-white',
+                  compact ? 'min-h-[52px]' : 'min-h-[64px] sm:min-h-[92px]',
+                  day &&
+                    onDayClick &&
+                    'hover:bg-teal-50 active:bg-teal-100 cursor-pointer',
+                  !day && 'bg-slate-100/60 cursor-default',
+                  day && inRange(day) && 'bg-teal-50',
+                  day === selectedDay && 'ring-2 ring-inset ring-teal-500',
+                  day === rangeEnd &&
+                    rangeEnd !== selectedDay &&
+                    'ring-2 ring-inset ring-teal-300'
+                )}
+              >
+                {day && (
+                  <>
+                    <span
+                      className={cn(
+                        'inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]',
+                        day === today
+                          ? 'bg-teal-600 text-white font-semibold'
+                          : 'text-slate-500'
+                      )}
+                    >
+                      {parseInt(day.slice(8), 10)}
+                    </span>
+                    {/* phones: dots; >=sm: labeled chips */}
+                    {dayEvents.length > 0 && (
+                      <div className="mt-0.5 flex flex-wrap gap-0.5 sm:hidden">
+                        {dayEvents.slice(0, 4).map((e) => (
+                          <span
+                            key={e.id}
+                            className={cn(
+                              'h-1.5 w-1.5 rounded-full',
+                              KIND_DOTS[e.kind]
+                            )}
+                          />
+                        ))}
+                        {dayEvents.length > 4 && (
+                          <span className="text-[9px] text-slate-400 leading-none">
+                            +{dayEvents.length - 4}
+                          </span>
+                        )}
+                      </div>
                     )}
-                  >
-                    {parseInt(day.slice(8), 10)}
-                  </span>
-                  {/* phones: dots; >=sm: labeled chips */}
-                  {dayEvents.length > 0 && (
-                    <div className="mt-0.5 flex flex-wrap gap-0.5 sm:hidden">
-                      {dayEvents.slice(0, 4).map((e) => (
+                    <div className="mt-0.5 space-y-0.5 hidden sm:block">
+                      {dayEvents.slice(0, maxChips).map((e) => (
                         <span
                           key={e.id}
                           className={cn(
-                            'h-1.5 w-1.5 rounded-full',
-                            KIND_DOTS[e.kind]
+                            'block truncate rounded border px-1 text-[10px] leading-4',
+                            KIND_STYLES[e.kind],
+                            e.status === 'PAID' &&
+                              e.kind !== 'PAYMENT' &&
+                              'opacity-50 line-through',
+                            e.status === 'OVERDUE' &&
+                              'border-red-300 bg-red-50 text-red-700'
                           )}
-                        />
+                        >
+                          {e.label}
+                        </span>
                       ))}
-                      {dayEvents.length > 4 && (
-                        <span className="text-[9px] text-slate-400 leading-none">
-                          +{dayEvents.length - 4}
+                      {overflow > 0 && (
+                        <span className="block text-[10px] text-slate-400 px-1">
+                          +{overflow} more
                         </span>
                       )}
                     </div>
-                  )}
-                  <div className="mt-0.5 space-y-0.5 hidden sm:block">
-                    {dayEvents.slice(0, maxChips).map((e) => (
-                      <span
-                        key={e.id}
-                        className={cn(
-                          'block truncate rounded border px-1 text-[10px] leading-4',
-                          KIND_STYLES[e.kind],
-                          e.status === 'PAID' &&
-                            e.kind !== 'PAYMENT' &&
-                            'opacity-50 line-through',
-                          e.status === 'OVERDUE' &&
-                            'border-red-300 bg-red-50 text-red-700'
-                        )}
-                      >
-                        {e.label}
-                      </span>
-                    ))}
-                    {overflow > 0 && (
-                      <span className="block text-[10px] text-slate-400 px-1">
-                        +{overflow} more
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-            </button>
-          );
-        })}
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {footer}
     </div>
+  );
+}
+
+// ---------------------------------------------------------- agenda (mobile)
+function AgendaList({
+  year,
+  month,
+  byDay,
+  selectedDay,
+  onDayClick,
+}: {
+  year: number;
+  month: number;
+  byDay: Map<string, CalEvent[]>;
+  selectedDay?: string | null;
+  onDayClick?: (day: string, shiftKey: boolean) => void;
+}) {
+  const prefix = `${year}-${`${month + 1}`.padStart(2, '0')}`;
+  const days = useMemo(
+    () =>
+      Array.from(byDay.keys())
+        .filter((d) => d.startsWith(prefix))
+        .sort(),
+    [byDay, prefix]
+  );
+
+  if (days.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-slate-400">
+        Nothing this month.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-slate-100">
+      {days.map((day) => {
+        const dayEvents = byDay.get(day) || [];
+        const label = new Date(`${day}T00:00:00`).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+        return (
+          <li key={day} className="py-2.5">
+            <button
+              type="button"
+              onClick={() => onDayClick?.(day, false)}
+              className={cn(
+                'mb-1.5 text-left text-xs font-medium uppercase tracking-wide',
+                day === selectedDay ? 'text-teal-600' : 'text-slate-400'
+              )}
+            >
+              {label}
+            </button>
+            <div className="space-y-1">
+              {dayEvents.map((e) => (
+                <div
+                  key={e.id}
+                  className={cn(
+                    'flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm',
+                    KIND_STYLES[e.kind],
+                    e.status === 'PAID' && e.kind !== 'PAYMENT' && 'opacity-60',
+                    e.status === 'OVERDUE' &&
+                      'border-red-300 bg-red-50 text-red-700'
+                  )}
+                >
+                  <span className="truncate">{e.detail || e.label}</span>
+                  {e.status && (
+                    <Badge
+                      variant="outline"
+                      className="flex-shrink-0 text-[10px]"
+                    >
+                      {e.status}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
