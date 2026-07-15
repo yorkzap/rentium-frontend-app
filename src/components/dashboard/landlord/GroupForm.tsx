@@ -1,19 +1,25 @@
 // GroupForm.tsx
 
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
-  ArrowLeft, Check, Home, Info, Loader2, Plus, Trash2, UserCheck, Users,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { DJANGO_API_URL } from "@/lib/config";
-import { Field, TextArea, TextInput } from "@/components/form/Fields";
-import { EmptyState, PageHeader, Pill, Skeleton } from "@/components/ui/page";
-import { cn } from "@/lib/utils";
+  ArrowLeft,
+  Home,
+  Info,
+  Loader2,
+  Plus,
+  Trash2,
+  UserCheck,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { DJANGO_API_URL } from '@/lib/config';
+import { Field, TextArea, TextInput } from '@/components/form/Fields';
+import { PageHeader, Skeleton } from '@/components/ui/page';
+import { cn } from '@/lib/utils';
 
 /**
  * The shared parts of one home.
@@ -32,16 +38,16 @@ import { cn } from "@/lib/utils";
  */
 
 const AREA_TYPES = [
-  { value: "KITCHEN", label: "Kitchen" },
-  { value: "BATHROOM", label: "Bathroom" },
-  { value: "LIVING_ROOM", label: "Living room" },
-  { value: "DINING_ROOM", label: "Dining room" },
-  { value: "LAUNDRY", label: "Laundry" },
-  { value: "HALLWAY", label: "Entry / hallway" },
-  { value: "BALCONY", label: "Balcony / patio" },
-  { value: "GARDEN", label: "Yard / garden" },
-  { value: "STORAGE", label: "Storage" },
-  { value: "OTHER", label: "Other" },
+  { value: 'KITCHEN', label: 'Kitchen' },
+  { value: 'BATHROOM', label: 'Bathroom' },
+  { value: 'LIVING_ROOM', label: 'Living room' },
+  { value: 'DINING_ROOM', label: 'Dining room' },
+  { value: 'LAUNDRY', label: 'Laundry' },
+  { value: 'HALLWAY', label: 'Entry / hallway' },
+  { value: 'BALCONY', label: 'Balcony / patio' },
+  { value: 'GARDEN', label: 'Yard / garden' },
+  { value: 'STORAGE', label: 'Storage' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 interface CommonArea {
@@ -71,25 +77,25 @@ export default function GroupForm({ groupId }: Props) {
   const { token } = useAuth();
   const isEdit = Boolean(groupId);
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [rooms, setRooms] = useState<RoomStub[]>([]);        // in this group
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [rooms, setRooms] = useState<RoomStub[]>([]); // in this group
   const [available, setAvailable] = useState<RoomStub[]>([]); // ungrouped
   const [areas, setAreas] = useState<CommonArea[]>([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
 
-  const [newArea, setNewArea] = useState("KITCHEN");
-  const [newAreaCount, setNewAreaCount] = useState("1");
+  const [newArea, setNewArea] = useState('KITCHEN');
+  const [newAreaCount, setNewAreaCount] = useState('1');
   const [newAreaShared, setNewAreaShared] = useState(false);
 
   const auth = useCallback(
     (json = true) => {
       const h: Record<string, string> = { Authorization: `Token ${token}` };
-      if (json) h["Content-Type"] = "application/json";
+      if (json) h['Content-Type'] = 'application/json';
       return h;
     },
-    [token],
+    [token]
   );
 
   const load = useCallback(async () => {
@@ -98,24 +104,33 @@ export default function GroupForm({ groupId }: Props) {
       // NOTE the URLs. /properties/groups/ and /properties/property-groups/<id>/
       // — this is what Django actually routes.
       const [propsRes, groupRes, areasRes] = await Promise.all([
-        fetch(`${DJANGO_API_URL}/properties/?property_category=ROOM`, { headers: auth(false) }),
+        fetch(`${DJANGO_API_URL}/properties/?property_category=ROOM`, {
+          headers: auth(false),
+        }),
         isEdit
-          ? fetch(`${DJANGO_API_URL}/properties/groups/${groupId}/`, { headers: auth(false) })
-          : Promise.resolve(null),
-        isEdit
-          ? fetch(`${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/`, {
+          ? fetch(`${DJANGO_API_URL}/properties/groups/${groupId}/`, {
               headers: auth(false),
             })
+          : Promise.resolve(null),
+        isEdit
+          ? fetch(
+              `${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/`,
+              {
+                headers: auth(false),
+              }
+            )
           : Promise.resolve(null),
       ]);
 
       const allRooms: RoomStub[] = propsRes.ok ? await propsRes.json() : [];
-      setAvailable(allRooms.filter((r) => r.property_category === "ROOM" && !r.group_name));
+      setAvailable(
+        allRooms.filter((r) => r.property_category === 'ROOM' && !r.group_name)
+      );
 
       if (groupRes?.ok) {
         const g = await groupRes.json();
         setName(g.name);
-        setDescription(g.description ?? "");
+        setDescription(g.description ?? '');
         setRooms(g.grouped_properties ?? []);
       }
       if (areasRes?.ok) setAreas(await areasRes.json());
@@ -126,11 +141,13 @@ export default function GroupForm({ groupId }: Props) {
     }
   }, [token, groupId, isEdit, auth]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const saveDetails = async () => {
     if (!token || name.trim().length < 3) {
-      toast.error("Give the group a name.");
+      toast.error('Give the group a name.');
       return;
     }
     setSaving(true);
@@ -140,14 +157,19 @@ export default function GroupForm({ groupId }: Props) {
           ? `${DJANGO_API_URL}/properties/groups/${groupId}/`
           : `${DJANGO_API_URL}/properties/groups/`,
         {
-          method: isEdit ? "PATCH" : "POST",
+          method: isEdit ? 'PATCH' : 'POST',
           headers: auth(),
-          body: JSON.stringify({ name: name.trim(), description: description.trim() }),
-        },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim(),
+          }),
+        }
       );
       if (!res.ok) throw new Error();
       const g = await res.json();
-      toast.success(isEdit ? "Saved." : "Group created — now describe the shared spaces.");
+      toast.success(
+        isEdit ? 'Saved.' : 'Group created — now describe the shared spaces.'
+      );
       if (!isEdit) router.push(`/dashboard/properties/edit-group/${g.id}`);
     } catch {
       toast.error("Couldn't save.");
@@ -157,18 +179,34 @@ export default function GroupForm({ groupId }: Props) {
   };
 
   const addRoom = async (roomId: number) => {
-    const res = await fetch(`${DJANGO_API_URL}/properties/groups/${groupId}/add-property/`, {
-      method: "POST", headers: auth(), body: JSON.stringify({ property_id: roomId }),
-    });
-    if (!res.ok) { toast.error("Couldn't add that room."); return; }
+    const res = await fetch(
+      `${DJANGO_API_URL}/properties/groups/${groupId}/add-property/`,
+      {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ property_id: roomId }),
+      }
+    );
+    if (!res.ok) {
+      toast.error("Couldn't add that room.");
+      return;
+    }
     load();
   };
 
   const removeRoom = async (roomId: number) => {
-    const res = await fetch(`${DJANGO_API_URL}/properties/groups/${groupId}/remove-property/`, {
-      method: "POST", headers: auth(), body: JSON.stringify({ property_id: roomId }),
-    });
-    if (!res.ok) { toast.error("Couldn't remove that room."); return; }
+    const res = await fetch(
+      `${DJANGO_API_URL}/properties/groups/${groupId}/remove-property/`,
+      {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ property_id: roomId }),
+      }
+    );
+    if (!res.ok) {
+      toast.error("Couldn't remove that room.");
+      return;
+    }
     load();
   };
 
@@ -176,49 +214,62 @@ export default function GroupForm({ groupId }: Props) {
     const res = await fetch(
       `${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/`,
       {
-        method: "POST",
+        method: 'POST',
         headers: auth(),
         body: JSON.stringify({
           area_type: newArea,
           count: Number(newAreaCount) || 1,
           shared_with_landlord: newAreaShared,
         }),
-      },
+      }
     );
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       toast.error(body.detail ?? "Couldn't add that.");
       return;
     }
-    setNewAreaCount("1");
+    setNewAreaCount('1');
     setNewAreaShared(false);
     load();
   };
 
   const toggleLandlord = async (area: CommonArea, value: boolean) => {
     // Optimistic — this is a switch, and a switch that lags feels broken.
-    setAreas((a) => a.map((x) => (x.id === area.id ? { ...x, shared_with_landlord: value } : x)));
+    setAreas((a) =>
+      a.map((x) =>
+        x.id === area.id ? { ...x, shared_with_landlord: value } : x
+      )
+    );
     const res = await fetch(
       `${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/${area.id}/`,
-      { method: "PATCH", headers: auth(), body: JSON.stringify({ shared_with_landlord: value }) },
+      {
+        method: 'PATCH',
+        headers: auth(),
+        body: JSON.stringify({ shared_with_landlord: value }),
+      }
     );
     if (!res.ok) {
-      setAreas((a) => a.map((x) => (x.id === area.id ? { ...x, shared_with_landlord: !value } : x)));
+      setAreas((a) =>
+        a.map((x) =>
+          x.id === area.id ? { ...x, shared_with_landlord: !value } : x
+        )
+      );
       toast.error("Couldn't update that.");
       return;
     }
     toast.success(
       value
         ? `Recorded. Leases on these rooms now fall outside the tenancy act — your own notice terms apply.`
-        : `Recorded. The tenancy act applies to leases on these rooms as normal.`,
+        : `Recorded. The tenancy act applies to leases on these rooms as normal.`
     );
   };
 
   const deleteArea = async (area: CommonArea) => {
-    if (!confirm(`Remove the shared ${area.area_type_display.toLowerCase()}?`)) return;
+    if (!confirm(`Remove the shared ${area.area_type_display.toLowerCase()}?`))
+      return;
     await fetch(
       `${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/${area.id}/`,
-      { method: "DELETE", headers: auth(false) },
+      { method: 'DELETE', headers: auth(false) }
     );
     load();
   };
@@ -237,17 +288,17 @@ export default function GroupForm({ groupId }: Props) {
   return (
     <div className="mx-auto max-w-2xl pb-12">
       <PageHeader
-        title={isEdit ? name || "Edit group" : "New property group"}
+        title={isEdit ? name || 'Edit group' : 'New property group'}
         description="The shared parts of one home — the kitchen, bathroom and living room that several rooms have in common."
         breadcrumbs={[
-          { label: "Properties", href: "/dashboard/properties" },
-          { label: isEdit ? "Edit group" : "New group" },
+          { label: 'Properties', href: '/dashboard/properties' },
+          { label: isEdit ? 'Edit group' : 'New group' },
         ]}
         actions={
           <Link
             href="/dashboard/properties?view=groups"
             className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-[hsl(var(--surface-sunken))]"
-            style={{ borderColor: "hsl(var(--line))" }}
+            style={{ borderColor: 'hsl(var(--line))' }}
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </Link>
@@ -258,12 +309,24 @@ export default function GroupForm({ groupId }: Props) {
         <section className="card p-5">
           <h2 className="mb-4 font-semibold">The home</h2>
           <div className="space-y-4">
-            <Field label="Name" required hint="Just for you — e.g. 'Upstairs at McKenzie'">
-              <TextInput value={name} onChange={setName} placeholder="Upstairs at McKenzie" />
+            <Field
+              label="Name"
+              required
+              hint="Just for you — e.g. 'Upstairs at McKenzie'"
+            >
+              <TextInput
+                value={name}
+                onChange={setName}
+                placeholder="Upstairs at McKenzie"
+              />
             </Field>
             <Field label="Description">
-              <TextArea value={description} onChange={setDescription} rows={3}
-                        placeholder="Three bedrooms upstairs, sharing the kitchen and one bathroom." />
+              <TextArea
+                value={description}
+                onChange={setDescription}
+                rows={3}
+                placeholder="Three bedrooms upstairs, sharing the kitchen and one bathroom."
+              />
             </Field>
           </div>
           <button
@@ -273,7 +336,7 @@ export default function GroupForm({ groupId }: Props) {
             className="mt-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--brand))] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isEdit ? "Save" : "Create group"}
+            {isEdit ? 'Save' : 'Create group'}
           </button>
         </section>
 
@@ -287,20 +350,29 @@ export default function GroupForm({ groupId }: Props) {
               </p>
 
               {rooms.length === 0 ? (
-                <p className="py-3 text-sm text-[hsl(var(--ink-4))]">No rooms yet.</p>
+                <p className="py-3 text-sm text-[hsl(var(--ink-4))]">
+                  No rooms yet.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {rooms.map((r) => (
-                    <li key={r.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                        style={{ borderColor: "hsl(var(--line))" }}>
-                      <Link href={`/dashboard/properties/${r.id}`}
-                            className="flex items-center gap-2 text-sm font-medium hover:underline">
+                    <li
+                      key={r.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                      style={{ borderColor: 'hsl(var(--line))' }}
+                    >
+                      <Link
+                        href={`/dashboard/properties/${r.id}`}
+                        className="flex items-center gap-2 text-sm font-medium hover:underline"
+                      >
                         <Home className="h-4 w-4 text-[hsl(var(--ink-5))]" />
                         {r.name}
                       </Link>
-                      <button type="button" onClick={() => removeRoom(r.id)}
-                              className="text-[hsl(var(--ink-5))] hover:text-[hsl(var(--danger))]">
+                      <button
+                        type="button"
+                        onClick={() => removeRoom(r.id)}
+                        className="text-[hsl(var(--ink-5))] hover:text-[hsl(var(--danger))]"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </li>
@@ -309,15 +381,22 @@ export default function GroupForm({ groupId }: Props) {
               )}
 
               {available.length > 0 && (
-                <div className="mt-4 border-t pt-4" style={{ borderColor: "hsl(var(--line))" }}>
+                <div
+                  className="mt-4 border-t pt-4"
+                  style={{ borderColor: 'hsl(var(--line))' }}
+                >
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[hsl(var(--ink-4))]">
                     Add a room
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {available.map((r) => (
-                      <button key={r.id} type="button" onClick={() => addRoom(r.id)}
-                              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm hover:bg-[hsl(var(--surface-sunken))]"
-                              style={{ borderColor: "hsl(var(--line))" }}>
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => addRoom(r.id)}
+                        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm hover:bg-[hsl(var(--surface-sunken))]"
+                        style={{ borderColor: 'hsl(var(--line))' }}
+                      >
                         <Plus className="h-3.5 w-3.5" /> {r.name}
                       </button>
                     ))}
@@ -331,24 +410,32 @@ export default function GroupForm({ groupId }: Props) {
               <h2 className="font-semibold">Shared spaces</h2>
               <p className="mb-4 mt-1 text-sm text-[hsl(var(--ink-4))]">
                 What everyone in this home shares. These show up on the roommate
-                agreement, on the public listing, and on the condition inspection.
+                agreement, on the public listing, and on the condition
+                inspection.
               </p>
 
               {areas.length === 0 ? (
                 <p className="py-2 text-sm text-[hsl(var(--ink-4))]">
                   {rooms.length < 2
-                    ? "Add at least two rooms first."
-                    : "No shared spaces yet — add the kitchen and bathroom below."}
+                    ? 'Add at least two rooms first.'
+                    : 'No shared spaces yet — add the kitchen and bathroom below.'}
                 </p>
               ) : (
                 <ul className="space-y-2">
                   {areas.map((a) => (
-                    <li key={a.id} className="rounded-lg border p-3" style={{ borderColor: "hsl(var(--line))" }}>
+                    <li
+                      key={a.id}
+                      className="rounded-lg border p-3"
+                      style={{ borderColor: 'hsl(var(--line))' }}
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm font-medium">
                           {a.area_type_display}
                           {a.count > 1 && (
-                            <span className="font-normal text-[hsl(var(--ink-4))]"> × {a.count}</span>
+                            <span className="font-normal text-[hsl(var(--ink-4))]">
+                              {' '}
+                              × {a.count}
+                            </span>
                           )}
                           <span className="ml-2 text-xs font-normal text-[hsl(var(--ink-4))]">
                             shared by {a.shared_by_count} rooms
@@ -359,26 +446,36 @@ export default function GroupForm({ groupId }: Props) {
                           <label className="flex cursor-pointer items-center gap-2 text-xs">
                             <button
                               type="button"
-                              onClick={() => toggleLandlord(a, !a.shared_with_landlord)}
+                              onClick={() =>
+                                toggleLandlord(a, !a.shared_with_landlord)
+                              }
                               className={cn(
-                                "relative h-5 w-9 rounded-full transition-colors",
+                                'relative h-5 w-9 rounded-full transition-colors',
                                 a.shared_with_landlord
-                                  ? "bg-[hsl(var(--brand))]"
-                                  : "bg-[hsl(var(--line-strong))]",
+                                  ? 'bg-[hsl(var(--brand))]'
+                                  : 'bg-[hsl(var(--line-strong))]'
                               )}
                             >
-                              <span className={cn(
-                                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                                a.shared_with_landlord ? "translate-x-[18px]" : "translate-x-0.5",
-                              )} />
+                              <span
+                                className={cn(
+                                  'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                                  a.shared_with_landlord
+                                    ? 'translate-x-[18px]'
+                                    : 'translate-x-0.5'
+                                )}
+                              />
                             </button>
                             <span className="flex items-center gap-1 whitespace-nowrap text-[hsl(var(--ink-3))]">
-                              <UserCheck className="h-3.5 w-3.5" /> I use this too
+                              <UserCheck className="h-3.5 w-3.5" /> I use this
+                              too
                             </span>
                           </label>
 
-                          <button type="button" onClick={() => deleteArea(a)}
-                                  className="text-[hsl(var(--ink-5))] hover:text-[hsl(var(--danger))]">
+                          <button
+                            type="button"
+                            onClick={() => deleteArea(a)}
+                            className="text-[hsl(var(--ink-5))] hover:text-[hsl(var(--danger))]"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -400,42 +497,60 @@ export default function GroupForm({ groupId }: Props) {
                       You live here and share these spaces with your tenants.
                     </p>
                     <p className="mt-1 leading-relaxed">
-                      That takes leases on these rooms outside the provincial tenancy
-                      act — when the owner shares a kitchen or bathroom with a tenant,
-                      the Act generally doesn't apply, and your lease's own terms
-                      govern instead, including how much notice either side has to
-                      give. Rentium already handles this: the notice periods on these
-                      leases come from the lease, not the Act, and it's stated plainly
-                      in the roommate agreement your tenant signs.
+                      That takes leases on these rooms outside the provincial
+                      tenancy act — when the owner shares a kitchen or bathroom
+                      with a tenant, the Act generally doesn&apos;t apply, and
+                      your lease&apos;s own terms govern instead, including how
+                      much notice either side has to give. Rentium already
+                      handles this: the notice periods on these leases come from
+                      the lease, not the Act, and it&apos;s stated plainly in
+                      the roommate agreement your tenant signs.
                     </p>
                   </div>
                 </div>
               )}
 
               {rooms.length >= 2 && (
-                <div className="mt-4 rounded-lg border border-dashed p-3"
-                     style={{ borderColor: "hsl(var(--line-strong))" }}>
+                <div
+                  className="mt-4 rounded-lg border border-dashed p-3"
+                  style={{ borderColor: 'hsl(var(--line-strong))' }}
+                >
                   <p className="mb-2.5 text-xs font-medium uppercase tracking-wide text-[hsl(var(--ink-4))]">
                     Add a shared space
                   </p>
                   <div className="flex flex-wrap items-end gap-2">
-                    <select value={newArea} onChange={(e) => setNewArea(e.target.value)}
-                            className="field w-auto flex-1">
+                    <select
+                      value={newArea}
+                      onChange={(e) => setNewArea(e.target.value)}
+                      className="field w-auto flex-1"
+                    >
                       {AREA_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
                       ))}
                     </select>
-                    <input type="number" min="1" value={newAreaCount}
-                           onChange={(e) => setNewAreaCount(e.target.value)}
-                           className="field w-16" />
-                    <button type="button" onClick={addArea}
-                            className="rounded-lg bg-[hsl(var(--brand))] px-3 py-2 text-sm font-medium text-white">
+                    <input
+                      type="number"
+                      min="1"
+                      value={newAreaCount}
+                      onChange={(e) => setNewAreaCount(e.target.value)}
+                      className="field w-16"
+                    />
+                    <button
+                      type="button"
+                      onClick={addArea}
+                      className="rounded-lg bg-[hsl(var(--brand))] px-3 py-2 text-sm font-medium text-white"
+                    >
                       Add
                     </button>
                   </div>
                   <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-xs text-[hsl(var(--ink-3))]">
-                    <input type="checkbox" checked={newAreaShared}
-                           onChange={(e) => setNewAreaShared(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={newAreaShared}
+                      onChange={(e) => setNewAreaShared(e.target.checked)}
+                    />
                     I (or my family) live here and use this space too
                   </label>
                 </div>

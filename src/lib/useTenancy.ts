@@ -5,11 +5,11 @@
 // storage unit, they're mid-handover), so this resolves it once and lets the
 // pages get on with their job.
 
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { fetchLeases } from "@/lib/leaseApi";
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchLeases } from '@/lib/leaseApi';
 
 export interface TenancyLease {
   id: string;
@@ -25,7 +25,7 @@ export interface TenancyLease {
   total_rent?: string | number;
 }
 
-const LIVE = new Set(["ACTIVE", "PENDING"]);
+const LIVE = new Set(['ACTIVE', 'PENDING']);
 
 export function useTenancy() {
   const { token } = useAuth();
@@ -39,7 +39,7 @@ export function useTenancy() {
     setLoading(true);
     try {
       const data = await fetchLeases(token);
-      const rows: TenancyLease[] = Array.isArray(data) ? data : (data?.results ?? []);
+      const rows: TenancyLease[] = Array.isArray(data) ? data : [];
       // Live tenancies first — an expired lease from two years ago should never
       // be the thing the page silently picks for you.
       const sorted = [...rows].sort((a, b) => {
@@ -57,9 +57,20 @@ export function useTenancy() {
     }
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const lease = leases.find((l) => l.id === leaseId) ?? null;
 
-  return { token, leases, lease, leaseId, setLeaseId, loading, error, reload: load };
+  return {
+    token,
+    leases,
+    lease,
+    leaseId,
+    setLeaseId,
+    loading,
+    error,
+    reload: load,
+  };
 }

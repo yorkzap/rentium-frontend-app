@@ -229,15 +229,16 @@ export function GroupList({
                                 {property.name || 'Unnamed Property'}
                               </span>
                               {/* Show property category icon */}
-                              {property.property_category && (
-                                <span className="text-xs text-ink-4 px-1.5 mr-1">
-                                  {property.property_category === 'ROOM' ? (
-                                    <Key className="h-3.5 w-3.5 text-ink-4" />
-                                  ) : (
-                                    <Home className="h-3.5 w-3.5 text-ink-4" />
-                                  )}
-                                </span>
-                              )}
+                              {'property_category' in property &&
+                                property.property_category && (
+                                  <span className="text-xs text-ink-4 px-1.5 mr-1">
+                                    {property.property_category === 'ROOM' ? (
+                                      <Key className="h-3.5 w-3.5 text-ink-4" />
+                                    ) : (
+                                      <Home className="h-3.5 w-3.5 text-ink-4" />
+                                    )}
+                                  </span>
+                                )}
                               <ChevronRight className="h-4 w-4 text-ink-5 ml-1 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity" />
                             </Link>
                           ))

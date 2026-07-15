@@ -255,7 +255,7 @@ export function PropertyList({
   return (
     <div className="space-y-6">
       {/* Render ungrouped properties first */}
-      {propertiesByGroup.get(null)?.length > 0 && (
+      {(propertiesByGroup.get(null)?.length ?? 0) > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {propertiesByGroup
             .get(null)!

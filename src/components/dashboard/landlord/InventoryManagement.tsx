@@ -296,7 +296,9 @@ export default function InventoryManagement() {
       property:
         targetType === 'private' ? Number(selectedPropertyId) : undefined,
       group:
-        targetType === 'shared' ? selectedPropertyDetail?.group_id : undefined,
+        targetType === 'shared'
+          ? (selectedPropertyDetail?.group_id ?? undefined)
+          : undefined,
       created_at: '',
       updated_at: '',
       ...suggestion.defaults,

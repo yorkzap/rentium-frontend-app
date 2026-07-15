@@ -2,7 +2,12 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import {
+  useForm,
+  Controller,
+  useFieldArray,
+  type Resolver,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import axios from 'axios';
@@ -21,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import {
   Popover,
   PopoverContent,
@@ -185,7 +190,7 @@ const formSchema = z
 interface Property {
   id: number;
   name: string;
-  property_category: string;
+  property_category: 'COMPLETE_UNIT' | 'ROOM';
   property_category_display?: string;
   city: string;
   province?: string;
@@ -218,7 +223,6 @@ interface BillProvider {
 
 export function CreateLeaseForm() {
   const router = useRouter();
-  const { toast } = useToast();
   const { token } = useAuth(); // Use auth context to get token
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingData, setIsFetchingData] = useState(true);
@@ -296,13 +300,11 @@ export function CreateLeaseForm() {
         })
       );
     } catch (err) {
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description:
           err instanceof Error
             ? err.message
             : "Couldn't recalculate the rent split.",
-        variant: 'destructive',
       });
     } finally {
       setIsSyncingSplit(false);
@@ -414,8 +416,7 @@ export function CreateLeaseForm() {
           })
         )
       );
-      toast({
-        title: 'Invites sent',
+      toast.success('Invites sent', {
         description: `${rowsToSend.length} tenant(s) invited to sign.`,
       });
       router.push(`/dashboard/leases/${createdLeaseId}`);
@@ -424,14 +425,20 @@ export function CreateLeaseForm() {
         axios.isAxiosError(error) && error.response?.data
           ? JSON.stringify(error.response.data)
           : 'Failed to send some invites.';
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      toast.error('Error', { description: msg });
     } finally {
       setIsSendingInvites(false);
     }
   };
 
+  // The schema coerces its money fields (string in, number out), which makes
+  // zod's INPUT type `unknown` and unusable for <Input {...field}>. Run the
+  // form on the OUTPUT shape and bridge the resolver's input/output split
+  // with one contained cast.
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as unknown as Resolver<
+      z.infer<typeof formSchema>
+    >,
     defaultValues: {
       propertyId: '',
       leaseType: '',
@@ -589,10 +596,8 @@ export function CreateLeaseForm() {
         setApiError(
           'Could not load properties, lease types, or bill providers. Using default utility list.'
         );
-        toast({
-          title: 'Warning',
+        toast.error('Warning', {
           description: 'Could not load utility providers. Using default list.',
-          variant: 'destructive',
         });
       } finally {
         setIsFetchingData(false);
@@ -725,19 +730,15 @@ export function CreateLeaseForm() {
         form.setValue('leaseType', chosenLeaseType.value);
         setAutoSelectedLeaseType(chosenLeaseType);
       } else {
-        toast({
-          title: 'No Agreement Found',
+        toast.error('No Agreement Found', {
           description:
             'No suitable agreement type was found for the selected property.',
-          variant: 'destructive',
         });
       }
     } catch (error) {
       console.error('Error fetching complete property details:', error);
-      toast({
-        title: 'Error',
+      toast.error('Error', {
         description: 'Failed to load complete property details.',
-        variant: 'destructive',
       });
       // Fallback: try to set a basic property if available
       const basicProperty =
@@ -768,17 +769,15 @@ export function CreateLeaseForm() {
       setStep(2);
       setActiveTab('details');
     } else {
-      toast({
-        title: 'Selection Required',
+      toast.error('Selection Required', {
         description: 'Please select a property first.',
-        variant: 'destructive',
       });
     }
   };
 
   // Proceed to bill terms step
-  const goToBillTerms = () => {
-    const detailsResult = form.trigger([
+  const goToBillTerms = async () => {
+    const detailsResult = await form.trigger([
       'startDate',
       'endDate',
       'moveInDate',
@@ -891,8 +890,7 @@ export function CreateLeaseForm() {
 
       // Create lease
       const response = await api.post('/leases/', leaseData);
-      toast({
-        title: 'Lease created',
+      toast.success('Lease created', {
         description: 'Now add the tenant(s) who need to sign it.',
       });
       console.log('Created lease:', response.data);
@@ -922,11 +920,7 @@ export function CreateLeaseForm() {
       }
 
       setApiError(errorMessage);
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      toast.error('Error', { description: errorMessage });
     } finally {
       setIsLoading(false);
     }

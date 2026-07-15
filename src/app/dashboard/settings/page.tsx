@@ -1,18 +1,25 @@
 // page.tsx
 
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
-  AlertTriangle, Check, ExternalLink, Eye, EyeOff, Globe, Image as ImageIcon,
-  Loader2, X,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { DJANGO_API_URL } from "@/lib/config";
-import { PageHeader, Pill, Skeleton } from "@/components/ui/page";
-import { cn } from "@/lib/utils";
+  AlertTriangle,
+  Check,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Globe,
+  Image as ImageIcon,
+  Loader2,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { DJANGO_API_URL } from '@/lib/config';
+import { PageHeader, Pill, Skeleton } from '@/components/ui/page';
+import { cn } from '@/lib/utils';
 
 interface Settings {
   is_public: boolean;
@@ -31,8 +38,10 @@ interface Settings {
 export default function SettingsPage() {
   const { token } = useAuth();
   const [s, setS] = useState<Settings | null>(null);
-  const [slug, setSlug] = useState("");
-  const [slugState, setSlugState] = useState<"idle" | "checking" | "ok" | "taken">("idle");
+  const [slug, setSlug] = useState('');
+  const [slugState, setSlugState] = useState<
+    'idle' | 'checking' | 'ok' | 'taken'
+  >('idle');
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -43,24 +52,29 @@ export default function SettingsPage() {
     if (res.ok) {
       const data: Settings = await res.json();
       setS(data);
-      setSlug(data.slug ?? "");
+      setSlug(data.slug ?? '');
     }
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Live availability, debounced. A landlord shouldn't have to submit a form to
   // find out their URL is taken.
   useEffect(() => {
-    if (!token || !slug || slug === s?.slug) { setSlugState("idle"); return; }
-    setSlugState("checking");
+    if (!token || !slug || slug === s?.slug) {
+      setSlugState('idle');
+      return;
+    }
+    setSlugState('checking');
     const t = setTimeout(async () => {
       const res = await fetch(
         `${DJANGO_API_URL}/showcase/settings/check_slug/?slug=${encodeURIComponent(slug)}`,
-        { headers: { Authorization: `Token ${token}` } },
+        { headers: { Authorization: `Token ${token}` } }
       );
       const body = await res.json();
-      setSlugState(body.available ? "ok" : "taken");
+      setSlugState(body.available ? 'ok' : 'taken');
     }, 400);
     return () => clearTimeout(t);
   }, [slug, token, s?.slug]);
@@ -70,18 +84,22 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const isForm = body instanceof FormData;
-      const res = await fetch(`${DJANGO_API_URL}/showcase/settings/update_settings/`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Token ${token}`,
-          ...(isForm ? {} : { "Content-Type": "application/json" }),
-        },
-        body: isForm ? body : JSON.stringify(body),
-      });
+      const res = await fetch(
+        `${DJANGO_API_URL}/showcase/settings/update_settings/`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Token ${token}`,
+            ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+          },
+          body: isForm ? body : JSON.stringify(body),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.slug?.[0] || data.detail || "Couldn't save.");
+      if (!res.ok)
+        throw new Error(data.slug?.[0] || data.detail || "Couldn't save.");
       setS(data);
-      setSlug(data.slug ?? "");
+      setSlug(data.slug ?? '');
       return data as Settings;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save.");
@@ -126,17 +144,21 @@ export default function SettingsPage() {
               <Globe className="h-4 w-4 text-[hsl(var(--ink-4))]" />
               Show my properties publicly
               {s.is_public ? (
-                <Pill tone="ok"><Eye className="h-3 w-3" /> Live</Pill>
+                <Pill tone="ok">
+                  <Eye className="h-3 w-3" /> Live
+                </Pill>
               ) : (
-                <Pill tone="neutral"><EyeOff className="h-3 w-3" /> Off</Pill>
+                <Pill tone="neutral">
+                  <EyeOff className="h-3 w-3" /> Off
+                </Pill>
               )}
             </h2>
             <p className="mt-1.5 text-sm text-[hsl(var(--ink-3))]">
               {s.is_public ? (
                 <>
-                  Your available properties appear on Rentium's public city pages
-                  and on your own page, where anyone can find them — including
-                  through Google.
+                  Your available properties appear on Rentium&apos;s public city
+                  pages and on your own page, where anyone can find them —
+                  including through Google.
                 </>
               ) : (
                 <>
@@ -152,14 +174,18 @@ export default function SettingsPage() {
             disabled={saving || !canGoPublic}
             onClick={() => patch({ is_public: !s.is_public })}
             className={cn(
-              "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-40",
-              s.is_public ? "bg-[hsl(var(--brand))]" : "bg-[hsl(var(--line-strong))]",
+              'relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-40',
+              s.is_public
+                ? 'bg-[hsl(var(--brand))]'
+                : 'bg-[hsl(var(--line-strong))]'
             )}
           >
-            <span className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-              s.is_public ? "translate-x-[22px]" : "translate-x-0.5",
-            )} />
+            <span
+              className={cn(
+                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                s.is_public ? 'translate-x-[22px]' : 'translate-x-0.5'
+              )}
+            />
           </button>
         </div>
 
@@ -176,10 +202,13 @@ export default function SettingsPage() {
               What people will see
             </p>
             <ul className="space-y-1 text-sm text-[hsl(var(--ink-2))]">
-              {["Your photos and description", "Your asking rent",
-                "The neighbourhood — not the address",
+              {[
+                'Your photos and description',
+                'Your asking rent',
+                'The neighbourhood — not the address',
                 "Whether it's furnished, and with what",
-                "Your name or business name"].map((x) => (
+                'Your name or business name',
+              ].map((x) => (
                 <li key={x} className="flex gap-2">
                   <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[hsl(var(--ok))]" />
                   {x}
@@ -192,11 +221,13 @@ export default function SettingsPage() {
               What they will never see
             </p>
             <ul className="space-y-1 text-sm text-[hsl(var(--ink-2))]">
-              {["Your street address or unit number",
-                "Anything about your current tenants",
-                "Your leases, rent roll or finances",
-                "Your email address or phone number",
-                "Occupied or unavailable properties"].map((x) => (
+              {[
+                'Your street address or unit number',
+                'Anything about your current tenants',
+                'Your leases, rent roll or finances',
+                'Your email address or phone number',
+                'Occupied or unavailable properties',
+              ].map((x) => (
                 <li key={x} className="flex gap-2">
                   <X className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[hsl(var(--ink-5))]" />
                   {x}
@@ -208,7 +239,8 @@ export default function SettingsPage() {
 
         {s.is_public && s.public_url && (
           <Link
-            href={s.public_url} target="_blank"
+            href={s.public_url}
+            target="_blank"
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--brand))] hover:underline"
           >
             View your page <ExternalLink className="h-3.5 w-3.5" />
@@ -222,7 +254,8 @@ export default function SettingsPage() {
           <h2 className="flex items-center gap-2 font-semibold text-[hsl(var(--warn-ink))]">
             <AlertTriangle className="h-4 w-4" />
             {s.blocked_properties.length} propert
-            {s.blocked_properties.length === 1 ? "y isn't" : "ies aren't"} showing up
+            {s.blocked_properties.length === 1 ? "y isn't" : "ies aren't"}{' '}
+            showing up
           </h2>
           {/* This section exists because the old failure was SILENT. A property
               with a typo'd province just... didn't appear, anywhere, forever, and
@@ -230,18 +263,22 @@ export default function SettingsPage() {
           <p className="mt-1 text-sm text-[hsl(var(--warn-ink))]">
             {s.is_public
               ? "These are available and not hidden, but they're missing something."
-              : "Worth fixing before you go public."}
+              : 'Worth fixing before you go public.'}
           </p>
           <ul className="mt-3 space-y-2.5">
             {s.blocked_properties.map((p) => (
               <li key={p.id} className="rounded-lg bg-white/70 p-3">
-                <Link href={`/dashboard/properties/edit/${p.id}`}
-                      className="text-sm font-medium hover:underline">
+                <Link
+                  href={`/dashboard/properties/edit/${p.id}`}
+                  className="text-sm font-medium hover:underline"
+                >
                   {p.name}
                 </Link>
                 <ul className="mt-1 space-y-0.5">
                   {p.reasons.map((r) => (
-                    <li key={r} className="text-xs text-[hsl(var(--ink-3))]">— {r}</li>
+                    <li key={r} className="text-xs text-[hsl(var(--ink-3))]">
+                      — {r}
+                    </li>
                   ))}
                 </ul>
               </li>
@@ -258,28 +295,42 @@ export default function SettingsPage() {
           <div>
             <label className="text-sm font-medium">Address</label>
             <div className="mt-1.5 flex items-center gap-0">
-              <span className="rounded-l-lg border border-r-0 bg-[hsl(var(--surface-sunken))] px-3 py-2 text-sm text-[hsl(var(--ink-4))]"
-                    style={{ borderColor: "hsl(var(--line))" }}>
+              <span
+                className="rounded-l-lg border border-r-0 bg-[hsl(var(--surface-sunken))] px-3 py-2 text-sm text-[hsl(var(--ink-4))]"
+                style={{ borderColor: 'hsl(var(--line))' }}
+              >
                 rentium.ca/l/
               </span>
               <input
                 value={slug}
                 onChange={(e) =>
-                  setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-"))
+                  setSlug(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]/g, '-')
+                      .replace(/-+/g, '-')
+                  )
                 }
                 onBlur={() => {
-                  if (slug && slug !== s.slug && slugState === "ok") patch({ slug });
+                  if (slug && slug !== s.slug && slugState === 'ok')
+                    patch({ slug });
                 }}
                 placeholder="raj-rentals"
                 className="field flex-1 rounded-l-none"
               />
             </div>
             <p className="mt-1.5 text-xs text-[hsl(var(--ink-4))]">
-              {slugState === "checking" && "Checking..."}
-              {slugState === "ok" && <span className="text-[hsl(var(--ok-ink))]">Available.</span>}
-              {slugState === "taken" && <span className="text-[hsl(var(--danger-ink))]">Already taken.</span>}
-              {slugState === "idle" &&
-                "You can change this later — your old address keeps working and redirects here."}
+              {slugState === 'checking' && 'Checking...'}
+              {slugState === 'ok' && (
+                <span className="text-[hsl(var(--ok-ink))]">Available.</span>
+              )}
+              {slugState === 'taken' && (
+                <span className="text-[hsl(var(--danger-ink))]">
+                  Already taken.
+                </span>
+              )}
+              {slugState === 'idle' &&
+                'You can change this later — your old address keeps working and redirects here.'}
             </p>
           </div>
 
@@ -287,8 +338,11 @@ export default function SettingsPage() {
             <label className="text-sm font-medium">Display name</label>
             <input
               defaultValue={s.display_name}
-              onBlur={(e) => e.target.value !== s.display_name && patch({ display_name: e.target.value })}
-              placeholder={s.display_name || "e.g. McKenzie Rentals"}
+              onBlur={(e) =>
+                e.target.value !== s.display_name &&
+                patch({ display_name: e.target.value })
+              }
+              placeholder={s.display_name || 'e.g. McKenzie Rentals'}
               className="field mt-1.5"
             />
             <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
@@ -299,8 +353,12 @@ export default function SettingsPage() {
           <div>
             <label className="text-sm font-medium">About</label>
             <textarea
-              rows={4} defaultValue={s.bio} maxLength={1200}
-              onBlur={(e) => e.target.value !== s.bio && patch({ bio: e.target.value })}
+              rows={4}
+              defaultValue={s.bio}
+              maxLength={1200}
+              onBlur={(e) =>
+                e.target.value !== s.bio && patch({ bio: e.target.value })
+              }
               placeholder="A few sentences for people considering renting from you."
               className="field mt-1.5 resize-none"
             />
@@ -311,23 +369,33 @@ export default function SettingsPage() {
             <div className="mt-1.5 flex items-center gap-4">
               {s.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.photo} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                <img
+                  src={s.photo}
+                  alt=""
+                  className="h-16 w-16 rounded-xl object-cover"
+                />
               ) : (
                 <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-[hsl(var(--surface-sunken))] text-[hsl(var(--ink-5))]">
                   <ImageIcon className="h-6 w-6" />
                 </span>
               )}
-              <label className="cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium hover:bg-[hsl(var(--surface-sunken))]"
-                     style={{ borderColor: "hsl(var(--line))" }}>
-                {s.photo ? "Change" : "Upload"}
-                <input type="file" accept="image/*" className="hidden"
-                       onChange={(e) => {
-                         const f = e.target.files?.[0];
-                         if (!f) return;
-                         const fd = new FormData();
-                         fd.append("photo", f);
-                         patch(fd);
-                       }} />
+              <label
+                className="cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium hover:bg-[hsl(var(--surface-sunken))]"
+                style={{ borderColor: 'hsl(var(--line))' }}
+              >
+                {s.photo ? 'Change' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const fd = new FormData();
+                    fd.append('photo', f);
+                    patch(fd);
+                  }}
+                />
               </label>
             </div>
           </div>
@@ -335,14 +403,18 @@ export default function SettingsPage() {
           <div>
             <label className="text-sm font-medium">Where inquiries go</label>
             <input
-              type="email" defaultValue={s.contact_email}
-              onBlur={(e) => e.target.value !== s.contact_email && patch({ contact_email: e.target.value })}
+              type="email"
+              defaultValue={s.contact_email}
+              onBlur={(e) =>
+                e.target.value !== s.contact_email &&
+                patch({ contact_email: e.target.value })
+              }
               placeholder={s.effective_contact_email}
               className="field mt-1.5"
             />
             <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
-              Blank sends them to {s.effective_contact_email}. This address is never
-              shown publicly — people reach you through a form.
+              Blank sends them to {s.effective_contact_email}. This address is
+              never shown publicly — people reach you through a form.
             </p>
           </div>
         </div>
@@ -355,8 +427,11 @@ export default function SettingsPage() {
       </section>
 
       <p className="mt-6 text-center text-sm text-[hsl(var(--ink-4))]">
-        Looking for your name, email or password?{" "}
-        <Link href="/dashboard/profile" className="text-[hsl(var(--brand))] hover:underline">
+        Looking for your name, email or password?{' '}
+        <Link
+          href="/dashboard/profile"
+          className="text-[hsl(var(--brand))] hover:underline"
+        >
           Account settings
         </Link>
       </p>

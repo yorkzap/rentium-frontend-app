@@ -14,13 +14,8 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // TEMPORARY, so `next build` (and therefore deploys) work today.
-  // The repo carries pre-existing lint errors and ~100 type errors in the
-  // dashboard tree (some caused by files not yet pushed, e.g. @/types/lease).
-  // Burn-down: fix those, then delete both flags. `npm run lint` and
-  // `npx tsc --noEmit` still report everything when run directly.
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
+  // The type/lint debt is paid: `npx tsc --noEmit` and `next lint` both run
+  // clean, so builds enforce them again. Keep it that way.
 };
 
 export default nextConfig;
