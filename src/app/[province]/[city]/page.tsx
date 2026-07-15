@@ -9,9 +9,9 @@
 // back from nothing. In rentals, inventory turns over constantly. So the page
 // survives the gap and says so honestly.
 
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 import {
   PROVINCES,
@@ -19,12 +19,18 @@ import {
   money,
   prettyDate,
   type PublicCard,
-} from "@/lib/publicApi";
+} from '@/lib/publicApi';
+import CityMap from '@/components/public/CityMap';
 
 export const revalidate = 300;
 
 type Params = { province: string; city: string };
-type Search = { type?: string; furnished?: string; min_rent?: string; max_rent?: string };
+type Search = {
+  type?: string;
+  furnished?: string;
+  min_rent?: string;
+  max_rent?: string;
+};
 
 // Root-level dynamic segments are greedy. Next gives static routes (/dashboard,
 // /auth, /pricing) priority, so they still win — but a stray /foo/bar would
@@ -34,19 +40,21 @@ function assertProvince(code: string) {
   if (!PROVINCES[code.toLowerCase()]) notFound();
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<Params> },
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
   const { province, city } = await params;
   assertProvince(province);
 
   const data = await getCity(province, city);
-  if (!data) return { title: "Not found" };
+  if (!data) return { title: 'Not found' };
 
   const n = data.facets.total;
   const title =
     n > 0
-      ? `${n} room${n === 1 ? "" : "s"} & rentals in ${data.city}, ${data.province_code.toUpperCase()}`
+      ? `${n} room${n === 1 ? '' : 's'} & rentals in ${data.city}, ${data.province_code.toUpperCase()}`
       : `Rooms & rentals in ${data.city}, ${data.province_code.toUpperCase()}`;
 
   return {
@@ -55,7 +63,7 @@ export async function generateMetadata(
       `Rooms, shared suites and full units for rent in ${data.city}, ` +
       `${data.province_name}. Listed directly by the people who own them.`,
     alternates: { canonical: `/${province}/${city}` },
-    openGraph: { title, type: "website" },
+    openGraph: { title, type: 'website' },
   };
 }
 
@@ -77,16 +85,22 @@ export default async function CityPage({
   const base = `/${province}/${city}`;
 
   const filters = [
-    { key: undefined, label: "Everything", n: facets.total },
-    { key: "private_room", label: "Private rooms", n: facets.counts.private_room },
-    { key: "shared_room", label: "Shared rooms", n: facets.counts.shared_room },
-    { key: "full_suite", label: "Full suites", n: facets.counts.full_suite },
+    { key: undefined, label: 'Everything', n: facets.total },
+    {
+      key: 'private_room',
+      label: 'Private rooms',
+      n: facets.counts.private_room,
+    },
+    { key: 'shared_room', label: 'Shared rooms', n: facets.counts.shared_room },
+    { key: 'full_suite', label: 'Full suites', n: facets.counts.full_suite },
   ];
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
       <nav className="mb-6 text-sm text-neutral-500">
-        <Link href="/" className="hover:text-neutral-900">Rentium</Link>
+        <Link href="/" className="hover:text-neutral-900">
+          Rentium
+        </Link>
         <span className="mx-1.5">/</span>
         <span className="text-neutral-900">{data.city}</span>
       </nav>
@@ -99,8 +113,8 @@ export default async function CityPage({
           {facets.total > 0 ? (
             <>
               {facets.total} available right now
-              {facets.min_rent && <> · from {money(facets.min_rent)}/mo</>}
-              . Listed by the people who actually own them — no agency fee, no
+              {facets.min_rent && <> · from {money(facets.min_rent)}/mo</>}.
+              Listed by the people who actually own them — no agency fee, no
               middleman.
             </>
           ) : (
@@ -124,14 +138,18 @@ export default async function CityPage({
                   key={f.label}
                   href={href}
                   className={[
-                    "rounded-full border px-3.5 py-1.5 text-sm transition",
+                    'rounded-full border px-3.5 py-1.5 text-sm transition',
                     active
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400",
-                  ].join(" ")}
+                      ? 'border-neutral-900 bg-neutral-900 text-white'
+                      : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400',
+                  ].join(' ')}
                 >
                   {f.label}
-                  <span className={active ? "ml-1.5 opacity-60" : "ml-1.5 text-neutral-400"}>
+                  <span
+                    className={
+                      active ? 'ml-1.5 opacity-60' : 'ml-1.5 text-neutral-400'
+                    }
+                  >
                     {f.n}
                   </span>
                 </Link>
@@ -141,14 +159,20 @@ export default async function CityPage({
             <Link
               href={search.furnished ? base : `${base}?furnished=1`}
               className={[
-                "rounded-full border px-3.5 py-1.5 text-sm transition",
+                'rounded-full border px-3.5 py-1.5 text-sm transition',
                 search.furnished
-                  ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400",
-              ].join(" ")}
+                  ? 'border-neutral-900 bg-neutral-900 text-white'
+                  : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400',
+              ].join(' ')}
             >
               Furnished
-              <span className={search.furnished ? "ml-1.5 opacity-60" : "ml-1.5 text-neutral-400"}>
+              <span
+                className={
+                  search.furnished
+                    ? 'ml-1.5 opacity-60'
+                    : 'ml-1.5 text-neutral-400'
+                }
+              >
                 {facets.furnished}
               </span>
             </Link>
@@ -157,13 +181,32 @@ export default async function CityPage({
       )}
 
       {results.length > 0 ? (
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {results.map((p) => (
-            <ListingCard key={p.slug} p={p} href={`${base}/${p.slug}`} />
-          ))}
-        </ul>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8">
+          <ul className="grid gap-6 sm:grid-cols-2">
+            {results.map((p) => (
+              <ListingCard key={p.slug} p={p} href={`${base}/${p.slug}`} />
+            ))}
+          </ul>
+          <CityMap
+            pins={results
+              .filter((p) => p.coords)
+              .map((p) => ({
+                id: p.slug,
+                title: p.name,
+                href: `${base}/${p.slug}`,
+                priceLabel: p.asking_rent
+                  ? `${money(p.asking_rent)}/mo`
+                  : undefined,
+                coords: p.coords!,
+              }))}
+          />
+        </div>
       ) : (
-        <EmptyState city={data.city} filtered={Object.keys(search).length > 0} base={base} />
+        <EmptyState
+          city={data.city}
+          filtered={Object.keys(search).length > 0}
+          base={base}
+        />
       )}
 
       <section className="mt-16 border-t border-neutral-200 pt-10">
@@ -173,13 +216,13 @@ export default async function CityPage({
         <div className="mt-3 max-w-2xl space-y-3 text-sm leading-relaxed text-neutral-600">
           <p>
             Every place on this page is listed by its owner. You message them
-            directly and they reply to you by email — there's no agency in the
-            middle and no fee for asking.
+            directly and they reply to you by email — there&apos;s no agency in
+            the middle and no fee for asking.
           </p>
           <p>
             Listings show the neighbourhood rather than the street address. The
-            exact address is something a landlord shares with you once you've
-            been in touch, not something we publish to strangers.
+            exact address is something a landlord shares with you once
+            you&apos;ve been in touch, not something we publish to strangers.
           </p>
         </div>
       </section>
@@ -225,10 +268,12 @@ function ListingCard({ p, href }: { p: PublicCard; href: string }) {
           <p className="mt-1 truncate text-sm font-medium text-neutral-800">
             {p.type_label}
           </p>
-          <p className="mt-0.5 truncate text-sm text-neutral-500">{p.location}</p>
+          <p className="mt-0.5 truncate text-sm text-neutral-500">
+            {p.location}
+          </p>
           <p className="mt-2 text-xs text-neutral-500">
             Available {prettyDate(p.available_from)}
-            {p.square_footage ? ` · ${p.square_footage} ft²` : ""}
+            {p.square_footage ? ` · ${p.square_footage} ft²` : ''}
           </p>
         </div>
       </Link>
@@ -249,7 +294,7 @@ function EmptyState({
     <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-16 text-center">
       <p className="text-neutral-900">
         {filtered
-          ? "Nothing matches those filters right now."
+          ? 'Nothing matches those filters right now.'
           : `No places are free in ${city} at the moment.`}
       </p>
       {filtered ? (
@@ -261,7 +306,7 @@ function EmptyState({
         </Link>
       ) : (
         <p className="mx-auto mt-2 max-w-sm text-sm text-neutral-500">
-          Rooms here turn over often — it's worth checking back in a week.
+          Rooms here turn over often — it&apos;s worth checking back in a week.
         </p>
       )}
     </div>

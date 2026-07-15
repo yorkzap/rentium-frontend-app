@@ -1,34 +1,37 @@
 // page.tsx
 
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-import { PROVINCES, getListing, money, prettyDate } from "@/lib/publicApi";
-import InquiryForm from "@/components/public/InquiryForm";
+import { PROVINCES, getListing, money, prettyDate } from '@/lib/publicApi';
+import InquiryForm from '@/components/public/InquiryForm';
+import ListingsMapLazy from '@/components/public/ListingsMapLazy';
 
 export const revalidate = 300;
 
 type Params = { province: string; city: string; slug: string };
 
-export async function generateMetadata(
-  { params }: { params: Promise<Params> },
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
   const { province, city, slug } = await params;
-  if (!PROVINCES[province.toLowerCase()]) return { title: "Not found" };
+  if (!PROVINCES[province.toLowerCase()]) return { title: 'Not found' };
 
   const p = await getListing(slug);
-  if (!p) return { title: "Not found" };
+  if (!p) return { title: 'Not found' };
 
   const title = `${p.type_label} in ${p.location} — ${money(p.asking_rent)}/mo`;
   return {
     title,
-    description: (p.description || "").slice(0, 155) || title,
+    description: (p.description || '').slice(0, 155) || title,
     alternates: { canonical: `/${province}/${city}/${slug}` },
     openGraph: {
       title,
       images: p.image ? [p.image] : undefined,
-      type: "website",
+      type: 'website',
     },
   };
 }
@@ -66,7 +69,7 @@ export default async function ListingPage({
         <div className="mb-8 grid gap-2 overflow-hidden rounded-xl sm:grid-cols-3">
           {/* eslint-disable @next/next/no-img-element */}
           <img
-            src={p.images[0]?.url ?? p.image ?? ""}
+            src={p.images[0]?.url ?? p.image ?? ''}
             alt={p.name}
             className="aspect-[4/3] w-full object-cover sm:col-span-2 sm:aspect-[16/10]"
           />
@@ -74,7 +77,7 @@ export default async function ListingPage({
             {p.images.slice(1, 3).map((img, i) => (
               <img
                 key={i}
-                src={img.url ?? ""}
+                src={img.url ?? ''}
                 alt={img.caption || p.name}
                 className="aspect-[4/3] w-full object-cover"
               />
@@ -93,7 +96,9 @@ export default async function ListingPage({
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-neutral-600">
             <span className="text-xl font-semibold text-neutral-900">
               {money(p.asking_rent)}
-              <span className="text-base font-normal text-neutral-500">/mo</span>
+              <span className="text-base font-normal text-neutral-500">
+                /mo
+              </span>
             </span>
             <span className="text-neutral-300">·</span>
             <span>Available {prettyDate(p.available_from)}</span>
@@ -150,11 +155,13 @@ export default async function ListingPage({
                 <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   <strong className="font-semibold">
                     The landlord lives here too.
-                  </strong>{" "}
-                  You'd be sharing the{" "}
-                  {landlordShares.map((s) => s.name.toLowerCase()).join(" and ")}{" "}
+                  </strong>{' '}
+                  You&apos;d be sharing the{' '}
+                  {landlordShares
+                    .map((s) => s.name.toLowerCase())
+                    .join(' and ')}{' '}
                   with them. That usually means the provincial tenancy act
-                  doesn't cover the arrangement — worth asking about.
+                  doesn&apos;t cover the arrangement — worth asking about.
                 </p>
               )}
             </Section>
@@ -175,9 +182,22 @@ export default async function ListingPage({
             </Section>
           )}
 
+          {p.coords && (
+            <Section title="Location">
+              <ListingsMapLazy
+                area={{ coords: p.coords }}
+                className="h-64 w-full rounded-xl border border-neutral-200"
+              />
+              <p className="mt-2 text-xs text-neutral-500">
+                Approximate area — the circle shows the neighbourhood, not the
+                door.
+              </p>
+            </Section>
+          )}
+
           <p className="mt-10 text-xs text-neutral-400">
-            The exact address isn't shown publicly. The landlord will share it
-            with you when you're in touch.
+            The exact address isn&apos;t shown publicly. The landlord will share
+            it with you when you&apos;re in touch.
           </p>
         </div>
 

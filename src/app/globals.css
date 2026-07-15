@@ -3,125 +3,119 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   shadcn/ui variables.
+
+   These feed the ui/ components (button, card, dialog…) through
+   tailwind.config.ts. They are kept in sync with the design tokens below —
+   same teal, same warm neutrals — so shadcn components and hand-written
+   markup resolve to the same palette.
+--------------------------------------------------------------------------- */
 @layer base {
   :root {
-    /* Brand colors */
-    --brand-primary: 	hsl(170, 47%, 39%); /* #2CFECC */
-    --brand-primary-hover: hsl(171 99% 52%); /* #23e5b6 */
-    --brand-dark: hsl(187 46% 11%); /* #0A2C2F */
-    --brand-dark-lighter: hsl(187 38% 17%); /* #1a3b3e */
-    
-
     /* Base colors */
-    --background: 210 40% 98%; /* Slate 50 */
-    --foreground: 222.2 47.4% 11.2%; /* Slate 900 */
+    --background: 44 20% 97%;            /* = --canvas */
+    --foreground: 60 5% 11%;             /* = --ink */
 
     /* Card colors */
-    --card: 210 40% 98%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;                   /* = --surface */
+    --card-foreground: 60 5% 11%;
 
     /* Popover colors */
-    --popover: 210 40% 98%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 60 5% 11%;
 
-    /* Primary colors - Using Slate */
-    --primary: 222.2 47.4% 11.2%; /* Slate 900 */
-    --primary-foreground: 210 40% 98%; /* Slate 50 */
+    /* Primary — the brand teal, so default buttons are brand buttons */
+    --primary: 175 77% 26%;              /* = --brand */
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary colors - Using Teal */
-    --secondary: 174.7 83.9% 31.6%; /* Teal 600 */
-    --secondary-foreground: 210 40% 98%; /* Slate 50 */
+    /* Secondary */
+    --secondary: 40 12% 95%;             /* = --surface-sunken */
+    --secondary-foreground: 60 5% 11%;
 
     /* Muted colors */
-    --muted: 214.3 31.8% 91.4%; /* Slate 200 */
-    --muted-foreground: 215.3 19.3% 34.5%; /* Slate 600 */
+    --muted: 40 12% 95%;
+    --muted-foreground: 40 5% 45%;       /* = --ink-3 */
 
-    /* Accent colors - Using Teal */
-    --accent: 166.2 76.5% 96.7%; /* Teal 50 */
-    --accent-foreground: 174.7 83.9% 31.6%; /* Teal 600 */
+    /* Accent colors */
+    --accent: 166 76% 97%;               /* = --brand-soft */
+    --accent-foreground: 175 84% 15%;    /* = --brand-ink */
 
     /* Destructive colors */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;            /* = --danger */
+    --destructive-foreground: 0 0% 100%;
 
     /* Border and input colors */
-    --border: 214.3 31.8% 91.4%; /* Slate 200 */
-    --input: 214.3 31.8% 91.4%; /* Slate 200 */
-    --ring: 174.7 83.9% 31.6%; /* Teal 600 */
+    --border: 38 13% 89%;                /* = --line */
+    --input: 38 13% 89%;
+    --ring: 175 77% 26%;                 /* = --brand */
 
     /* Chart colors */
-    --chart-1: 222.2 47.4% 11.2%; /* Slate 900 */
-    --chart-2: 174.7 83.9% 31.6%; /* Teal 600 */
-    --chart-3: 215.3 19.3% 34.5%; /* Slate 600 */
-    --chart-4: 168.4 83.8% 78.2%; /* Teal 200 */
-    --chart-5: 166.2 76.5% 96.7%; /* Teal 50 */
+    --chart-1: 175 77% 26%;
+    --chart-2: 60 5% 11%;
+    --chart-3: 40 5% 45%;
+    --chart-4: 168 84% 78%;
+    --chart-5: 166 76% 90%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
   }
 
   .dark {
-    /* Base colors */
-    --background: 222.2 47.4% 11.2%; /* Slate 900 */
-    --foreground: 210 40% 98%; /* Slate 50 */
+    --background: 187 46% 8%;
+    --foreground: 44 20% 97%;
 
-    /* Card colors */
-    --card: 222.2 47.4% 11.2%;
-    --card-foreground: 210 40% 98%;
+    --card: 187 40% 11%;
+    --card-foreground: 44 20% 97%;
 
-    /* Popover colors */
-    --popover: 222.2 47.4% 11.2%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 187 40% 11%;
+    --popover-foreground: 44 20% 97%;
 
-    /* Primary colors - Lighter in dark mode */
-    --primary: 210 40% 98%; /* Slate 50 */
-    --primary-foreground: 222.2 47.4% 11.2%; /* Slate 900 */
+    --primary: 173 42% 56%;
+    --primary-foreground: 187 46% 8%;
 
-    /* Secondary colors - Lighter teal in dark mode */
-    --secondary: 166.2 76.5% 96.7%; /* Teal 50 */
-    --secondary-foreground: 174.7 83.9% 31.6%; /* Teal 600 */
+    --secondary: 187 30% 15%;
+    --secondary-foreground: 44 20% 97%;
 
-    /* Muted colors */
-    --muted: 215.3 19.3% 34.5%; /* Slate 600 */
-    --muted-foreground: 214.3 31.8% 91.4%; /* Slate 200 */
+    --muted: 187 30% 15%;
+    --muted-foreground: 40 6% 70%;
 
-    /* Accent colors */
-    --accent: 174.7 83.9% 31.6%; /* Teal 600 */
-    --accent-foreground: 166.2 76.5% 96.7%; /* Teal 50 */
+    --accent: 187 30% 15%;
+    --accent-foreground: 173 42% 62%;
 
-    /* Destructive colors */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 44 20% 97%;
 
-    /* Border and input colors */
-    --border: 215.3 19.3% 34.5%; /* Slate 600 */
-    --input: 215.3 19.3% 34.5%; /* Slate 600 */
-    --ring: 166.2 76.5% 96.7%; /* Teal 50 */
+    --border: 187 25% 20%;
+    --input: 187 25% 20%;
+    --ring: 173 42% 56%;
 
-    /* Chart colors - Adjusted for dark mode */
-    --chart-1: 210 40% 98%; /* Slate 50 */
-    --chart-2: 166.2 76.5% 96.7%; /* Teal 50 */
-    --chart-3: 214.3 31.8% 91.4%; /* Slate 200 */
-    --chart-4: 174.7 83.9% 31.6%; /* Teal 600 */
-    --chart-5: 215.3 19.3% 34.5%; /* Slate 600 */
+    --chart-1: 173 42% 56%;
+    --chart-2: 44 20% 97%;
+    --chart-3: 40 6% 70%;
+    --chart-4: 168 84% 78%;
+    --chart-5: 187 30% 15%;
   }
 }
-
 
 /* ---------------------------------------------------------------------------
    DESIGN TOKENS
 
-   One place. Every colour, radius and shadow in the app resolves here, so the
-   difference between "looks like a school project" and "looks finished" is a
-   set of decisions made once rather than a hundred ad-hoc hex codes made in a
-   hurry. The old code had teal-600, slate-900 and #0f766e all acting as "the
-   primary colour" in different files, which is exactly how an interface stops
-   feeling like one product.
+   One place. Every colour, radius, shadow and motion curve in the app
+   resolves here, so the difference between "looks like a school project" and
+   "looks finished" is a set of decisions made once rather than a hundred
+   ad-hoc hex codes made in a hurry. The old code had teal-600, slate-900 and
+   #0f766e all acting as "the primary colour" in different files, which is
+   exactly how an interface stops feeling like one product.
 
-   The palette is warm-neutral rather than cold-grey: pure #ffffff on #f8fafc is
-   the default every unfinished admin panel ships with, and it reads as unfinished
-   because it IS the default. A warm off-white background with near-black (not
-   black) text is what serious document-handling software looks like, and this
-   app handles legal documents.
+   The palette is warm-neutral rather than cold-grey: pure #ffffff on #f8fafc
+   is the default every unfinished admin panel ships with, and it reads as
+   unfinished because it IS the default. A warm off-white background with
+   near-black (not black) text is what serious document-handling software
+   looks like, and this app handles legal documents.
+
+   Tailwind names for these live in tailwind.config.ts: bg-canvas, text-ink-3,
+   border-line, bg-brand, text-warn-ink, … Prefer those over arbitrary values
+   in new code.
 --------------------------------------------------------------------------- */
 :root {
   /* Surfaces */
@@ -146,6 +140,19 @@
   --brand-soft: 166 76% 97%;
   --brand-ink: 175 84% 15%;
 
+  /* Dark editorial surfaces — hero panels, the site footer, the auth brand
+     panel. A deep blue-green, not slate-900: it has to read as the brand's
+     own dark, and text on it uses --ink-inverse / --ink-inverse-muted. */
+  --deep: 187 46% 10%;         /* #0e2a2e */
+  --deep-raised: 187 38% 14%;
+  --ink-inverse: 44 20% 97%;
+  --ink-inverse-muted: 186 12% 68%;
+  /* Accent for dark surfaces. Deliberately NOT the max-saturation teal —
+     full chroma at mid lightness reads "neon" on a dark panel. A lighter,
+     desaturated sea-glass tint of the same hue keeps the brand and stays
+     calm (still >4.5:1 on --deep). */
+  --brand-bright: 173 42% 56%;
+
   /* Semantic — exactly one of each. Not four ambers. */
   --warn: 38 92% 50%;
   --warn-soft: 48 96% 89%;
@@ -163,6 +170,13 @@
   --info-soft: 214 95% 96%;
   --info-ink: 224 64% 33%;
 
+  /* Motion — one spec for the whole product. Anything animated uses these;
+     if an animation needs different numbers, the animation is wrong. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 150ms;
+  --dur: 200ms;
+  --dur-slow: 250ms;
+
   --radius: 0.625rem;
 }
 
@@ -171,6 +185,7 @@
     background: hsl(var(--canvas));
     color: hsl(var(--ink));
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   /* Cards get a 1px line, not a shadow. Shadows on every card is how a UI ends
      up looking like a pile of floating debris; a hairline border is what a
@@ -190,4 +205,61 @@
   }
   .field:focus { border-color: hsl(var(--brand)); }
   .field::placeholder { color: hsl(var(--ink-5)); }
+
+  /* Editorial type scale — display for heros, title for section headings.
+     Sizes are clamp()ed so marketing pages scale without per-breakpoint
+     font-size classes sprinkled through the markup. */
+  .text-display {
+    font-size: clamp(2.5rem, 1.6rem + 3.8vw, 4.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+  .text-title {
+    font-size: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .text-kicker {
+    @apply text-xs font-semibold uppercase;
+    letter-spacing: 0.08em;
+    color: hsl(var(--brand));
+  }
+
+  /* Nav links: an underline that draws in from the left on hover. */
+  .nav-underline {
+    position: relative;
+  }
+  .nav-underline::after {
+    content: "";
+    position: absolute;
+    left: 0.875rem;
+    right: 0.875rem;
+    bottom: 0.35rem;
+    height: 2px;
+    border-radius: 1px;
+    background: hsl(var(--brand));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur) var(--ease);
+  }
+  .nav-underline:hover::after,
+  .nav-underline[data-active="true"]::after {
+    transform: scaleX(1);
+  }
+
+  /* The one hover treatment for cards on public pages: a 2px lift and a
+     firmer border. CSS only — motion that costs nothing. */
+  .card-lift {
+    transition:
+      transform var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--line-strong));
+    box-shadow: 0 12px 30px -18px rgba(14, 42, 46, 0.25);
+  }
 }
