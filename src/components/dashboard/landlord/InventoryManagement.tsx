@@ -154,7 +154,7 @@ export default function InventoryManagement() {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
                 <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
+                    <Loader2 className="h-10 w-10 animate-spin text-brand" />
                     <p className="text-sm text-muted-foreground">Loading Inventory Management...</p>
                 </div>
             </div>
@@ -175,7 +175,7 @@ export default function InventoryManagement() {
                         <Label htmlFor="propertySelect">Select Property</Label>
                         {/* No loading spinner here, handled by main check */}
                         {properties.length === 0 ? (
-                            <p className="text-sm text-slate-500 mt-1">No properties found. Add properties first.</p>
+                            <p className="text-sm text-ink-3 mt-1">No properties found. Add properties first.</p>
                         ) : (
                             <Select
                                 value={selectedPropertyId ?? ""}
@@ -251,7 +251,7 @@ export default function InventoryManagement() {
                                                      <TooltipContent> <p>Defaults:</p> <ul className="text-xs list-disc pl-4"> <li>Qty: {item.defaults.quantity ?? 1}</li> <li>Condition: {item.defaults.condition ?? 'N/A'}</li> <li>Location: {item.defaults.location_description || 'N/A'}</li> </ul> </TooltipContent>
                                                 </Tooltip>
                                             ))}
-                                             {COMMON_INVENTORY_ITEMS.filter(item => item.itemType === (isGrouped ? addItemType : 'private')).length === 0 && ( <p className="text-xs text-slate-500 italic">No common '{isGrouped ? addItemType : 'private'}' items defined.</p> )}
+                                             {COMMON_INVENTORY_ITEMS.filter(item => item.itemType === (isGrouped ? addItemType : 'private')).length === 0 && ( <p className="text-xs text-ink-3 italic">No common '{isGrouped ? addItemType : 'private'}' items defined.</p> )}
                                         </div>
                                     </ScrollArea>
                                 </div>
@@ -276,9 +276,9 @@ export default function InventoryManagement() {
                                 <CardDescription>Shows private items for this property and shared items from its group.</CardDescription>
                              </CardHeader>
                              <CardContent>
-                                {isLoadingInventory ? ( <div className="flex justify-center items-center py-10"> <Loader2 className="h-6 w-6 animate-spin text-slate-400" /> <span className="ml-2 text-slate-500">Loading inventory...</span> </div>
+                                {isLoadingInventory ? ( <div className="flex justify-center items-center py-10"> <Loader2 className="h-6 w-6 animate-spin text-ink-4" /> <span className="ml-2 text-ink-3">Loading inventory...</span> </div>
                                  ) : error && combinedInventory.length === 0 ? ( <p className="text-center text-red-600 py-6">{error}</p> // Show fetch error
-                                 ) : combinedInventory.length === 0 ? ( <p className="text-center text-slate-500 py-6">No inventory items (private or shared) found for this property.</p> // Explicit empty state
+                                 ) : combinedInventory.length === 0 ? ( <p className="text-center text-ink-3 py-6">No inventory items (private or shared) found for this property.</p> // Explicit empty state
                                  ) : ( <InventoryItemsTable items={combinedInventory} onEdit={openEditItemModal} onDelete={handleDeleteItemRequest} isLoading={isDeleting} /> )}
                              </CardContent>
                         </Card>
@@ -286,7 +286,7 @@ export default function InventoryManagement() {
                  )}
 
                  {/* Placeholder when no property selected */}
-                 {!selectedPropertyId && !isClient && properties.length > 0 && ( <Card className="border-dashed"><CardContent className="p-10 text-center"><PackageSearch className="h-12 w-12 text-slate-300 mx-auto mb-3"/><p className="text-slate-500">Please select a property above to view its inventory.</p></CardContent></Card> )}
+                 {!selectedPropertyId && !isClient && properties.length > 0 && ( <Card className="border-dashed"><CardContent className="p-10 text-center"><PackageSearch className="h-12 w-12 text-ink-5 mx-auto mb-3"/><p className="text-ink-3">Please select a property above to view its inventory.</p></CardContent></Card> )}
 
 
                  {/* Modals */}

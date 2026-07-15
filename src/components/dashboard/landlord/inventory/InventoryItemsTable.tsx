@@ -44,7 +44,7 @@ export default function InventoryItemsTable({ items, onEdit, onDelete, isLoading
 
     // No changes needed for the empty state rendering
     if (!items || items.length === 0) {
-        return <p className="text-center text-slate-500 py-6">No inventory items found.</p>;
+        return <p className="text-center text-ink-3 py-6">No inventory items found.</p>;
     }
 
     return (
@@ -64,9 +64,9 @@ export default function InventoryItemsTable({ items, onEdit, onDelete, isLoading
                         <TableCell>
                             {item.condition_display ? (
                                 <Badge variant={getConditionBadgeVariant(item.condition)} className="whitespace-nowrap">{item.condition_display}</Badge>
-                            ) : <span className="text-slate-400">-</span>}
+                            ) : <span className="text-ink-4">-</span>}
                         </TableCell>
-                        <TableCell className="text-sm text-slate-600">{item.location_description || <span className="text-slate-400">-</span>}</TableCell>
+                        <TableCell className="text-sm text-ink-2">{item.location_description || <span className="text-ink-4">-</span>}</TableCell>
                         <TableCell>
                             <Badge variant={item.itemType === 'shared' ? 'secondary' : 'outline'} className="text-xs">
                                 {item.itemType === 'shared' ? <Users className="h-3 w-3 mr-1" /> : <Home className="h-3 w-3 mr-1" />}

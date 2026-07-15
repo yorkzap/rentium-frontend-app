@@ -100,7 +100,7 @@ export default function AssetManagement() {
       case "OCCUPIED": return "bg-blue-100 text-blue-800 border-blue-200";
       case "MAINTENANCE": return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "NOT_AVAILABLE": return "bg-red-100 text-red-800 border-red-200";
-      default: return "bg-slate-100 text-slate-800 border-slate-200";
+      default: return "bg-surface-sunken text-ink border-line";
     }
   };
 
@@ -108,7 +108,7 @@ export default function AssetManagement() {
     switch (category) {
       case "COMPLETE_UNIT": return "bg-purple-100 text-purple-800 border-purple-200";
       case "ROOM": return "bg-cyan-100 text-cyan-800 border-cyan-200";
-      default: return "bg-slate-100 text-slate-800 border-slate-200";
+      default: return "bg-surface-sunken text-ink border-line";
     }
   };
 
@@ -228,7 +228,7 @@ export default function AssetManagement() {
      return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
+          <Loader2 className="h-10 w-10 animate-spin text-brand" />
           <p className="text-sm text-muted-foreground">Loading Properties & Groups...</p>
         </div>
       </div>
@@ -255,15 +255,15 @@ export default function AssetManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Your Properties</h1>
-          <p className="text-slate-600 text-sm mt-1">Overview and manage your property listings and groups.</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-ink">Your Properties</h1>
+          <p className="text-ink-2 text-sm mt-1">Overview and manage your property listings and groups.</p>
         </div>
         <div className="flex w-full sm:w-auto items-center space-x-2">
           <div className="relative flex-grow sm:flex-grow-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-4 pointer-events-none" />
             <Input type="search" placeholder="Search properties or groups..." className="pl-9 w-full sm:w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} aria-label="Search properties or groups"/>
           </div>
-          <Button className="bg-slate-900 hover:bg-slate-800 whitespace-nowrap shrink-0" onClick={handleCreate}>
+          <Button className="whitespace-nowrap shrink-0" onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-1.5" /> {viewMode === 'groups' ? 'Create Group' : 'Add Property'}
           </Button>
         </div>

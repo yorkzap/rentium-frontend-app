@@ -75,9 +75,9 @@ const STATUS_PILL: Record<ChargeStatus, string> = {
   PAID: "bg-green-50 text-green-700",
   PARTIALLY_PAID: "bg-amber-50 text-amber-700",
   DUE: "bg-blue-50 text-blue-700",
-  SCHEDULED: "bg-slate-100 text-slate-600",
+  SCHEDULED: "bg-surface-sunken text-ink-2",
   OVERDUE: "bg-red-50 text-red-700",
-  VOIDED: "bg-slate-100 text-slate-400 line-through",
+  VOIDED: "bg-surface-sunken text-ink-4 line-through",
 }
 const STATUS_LABEL: Record<ChargeStatus, string> = {
   PAID: "Paid", PARTIALLY_PAID: "Partial", DUE: "Due today",
@@ -189,8 +189,8 @@ export default function FinancialManagement() {
     <div className="space-y-6">
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Financial</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-ink">Financial</h1>
+          <p className="mt-1 text-sm text-ink-3">
             Your property ledger — every charge, payment, and expense.
           </p>
         </div>
@@ -201,7 +201,7 @@ export default function FinancialManagement() {
           <Button variant="outline" onClick={() => setUtilityOpen(true)}>
             <Zap className="mr-1 h-4 w-4" /> Add utility bill
           </Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => setExpenseOpen(true)}>
+          <Button className="" onClick={() => setExpenseOpen(true)}>
             <Plus className="mr-1 h-4 w-4" /> Add expense
           </Button>
         </div>
@@ -246,12 +246,12 @@ export default function FinancialManagement() {
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="text-sm font-medium text-slate-700">Last 6 months</h2>
-            {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+            <h2 className="text-sm font-medium text-ink-2">Last 6 months</h2>
+            {loading && <Loader2 className="h-4 w-4 animate-spin text-ink-4" />}
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <table className="min-w-full divide-y divide-line text-sm">
+              <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-3">
                 <tr>
                   <th className="px-4 py-2.5 text-left">Month</th>
                   <th className="px-4 py-2.5 text-right">Expected</th>
@@ -260,20 +260,20 @@ export default function FinancialManagement() {
                   <th className="px-4 py-2.5 text-right">Net</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {summary?.monthly.map((m) => (
-                  <tr key={m.month} className="hover:bg-slate-50">
-                    <td className="px-4 py-2.5 font-medium text-slate-900">{m.label}</td>
-                    <td className="px-4 py-2.5 text-right text-slate-500">{money(m.expected_income)}</td>
+                  <tr key={m.month} className="hover:bg-canvas">
+                    <td className="px-4 py-2.5 font-medium text-ink">{m.label}</td>
+                    <td className="px-4 py-2.5 text-right text-ink-3">{money(m.expected_income)}</td>
                     <td className="px-4 py-2.5 text-right text-green-600">{money(m.collected_income)}</td>
                     <td className="px-4 py-2.5 text-right text-red-600">{money(m.expenses)}</td>
-                    <td className={`px-4 py-2.5 text-right font-medium ${Number(m.net) >= 0 ? "text-slate-900" : "text-red-600"}`}>
+                    <td className={`px-4 py-2.5 text-right font-medium ${Number(m.net) >= 0 ? "text-ink" : "text-red-600"}`}>
                       {money(m.net)}
                     </td>
                   </tr>
                 ))}
                 {!loading && !summary?.monthly.length && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">No data yet.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-ink-4">No data yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -310,7 +310,7 @@ export default function FinancialManagement() {
             </Select>
           )}
           <div className="relative flex-1 md:flex-initial">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-4" />
             <Input placeholder="Search…" className="pl-8"
                    value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
@@ -388,9 +388,9 @@ function StatCard({ label, value, hint, icon, tone }: {
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="text-sm font-medium text-ink-3">{label}</p>
             <p className="truncate text-2xl font-semibold">{value}</p>
-            {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+            {hint && <p className="mt-0.5 text-xs text-ink-4">{hint}</p>}
           </div>
           <div className={`shrink-0 rounded-full p-2 ${tones[tone]}`}>{icon}</div>
         </div>
@@ -414,8 +414,8 @@ function ChargesTable({ rows, loading, properties, onPay, onCredit, onVoid, onCo
     <Card>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+          <table className="min-w-full divide-y divide-line text-sm">
+            <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-3">
               <tr>
                 <th className="w-8 px-2 py-3"><span className="sr-only">Details</span></th>
                 <th className="px-2 py-3 text-left">Due</th>
@@ -427,7 +427,7 @@ function ChargesTable({ rows, loading, properties, onPay, onCredit, onVoid, onCo
                 <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {rows.map((c) => {
                 const st = (c.charge_status ?? "SCHEDULED") as ChargeStatus
                 const settleable = st !== "PAID" && st !== "VOIDED"
@@ -439,55 +439,55 @@ function ChargesTable({ rows, loading, properties, onPay, onCredit, onVoid, onCo
 
                 return (
                   <React.Fragment key={c.id}>
-                    <tr className="hover:bg-slate-50">
+                    <tr className="hover:bg-canvas">
                       <td className="px-2 py-3">
                         <button type="button"
-                                className="rounded p-1 text-slate-400 hover:bg-slate-100"
+                                className="rounded p-1 text-ink-4 hover:bg-surface-sunken"
                                 title={isOpen ? "Hide details" : "Show details"}
                                 onClick={() => setExpandedId(isOpen ? null : c.id)}>
                           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </button>
                       </td>
-                      <td className="whitespace-nowrap px-2 py-3 text-slate-500">{c.due_date}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="whitespace-nowrap px-2 py-3 text-ink-3">{c.due_date}</td>
+                      <td className="px-4 py-3 font-medium text-ink">
                         {leaseId ? (
                           <button type="button"
-                                  className="text-left decoration-slate-300 underline-offset-2 hover:underline"
+                                  className="text-left decoration-ink-5 underline-offset-2 hover:underline"
                                   title="Open the lease this charge belongs to"
                                   onClick={() => onOpenLease(leaseId)}>
                             {c.description}
                           </button>
                         ) : c.description}
-                        <span className="mt-0.5 block text-xs font-normal text-slate-400 sm:hidden">
+                        <span className="mt-0.5 block text-xs font-normal text-ink-4 sm:hidden">
                           {extra.is_joint ? "Household" : (c.tenant_name || extra.tenant_name || "")}
                           {c.property_name ? ` · ${c.property_name}` : ""}
                         </span>
                       </td>
-                      <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">
+                      <td className="hidden px-4 py-3 text-ink-3 sm:table-cell">
                         {extra.is_joint ? (
                           <span className="inline-flex flex-col items-start gap-0.5">
-                            <Badge variant="outline" className="bg-slate-50 text-xs font-normal">
-                              <Users className="mr-1 h-3 w-3 text-slate-400" /> Household
+                            <Badge variant="outline" className="bg-canvas text-xs font-normal">
+                              <Users className="mr-1 h-3 w-3 text-ink-4" /> Household
                             </Badge>
                             {c.property_name && (
-                              <span className="text-xs text-slate-400">{c.property_name}</span>
+                              <span className="text-xs text-ink-4">{c.property_name}</span>
                             )}
                           </span>
                         ) : extra.tenant && (c.tenant_name || extra.tenant_name) ? (
                           <button type="button"
-                                  className="inline-flex items-center gap-1 text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                                  className="inline-flex items-center gap-1 text-ink-2 underline-offset-2 hover:text-ink hover:underline"
                                   title="View this tenant's profile"
                                   onClick={() => onTenant(
                                     extra.tenant as number | string,
                                     (c.tenant_name || extra.tenant_name) as string,
                                   )}>
-                            <UserRound className="h-3.5 w-3.5 text-slate-400" />
+                            <UserRound className="h-3.5 w-3.5 text-ink-4" />
                             {c.tenant_name || extra.tenant_name}
                           </button>
                         ) : (c.tenant_name || "—")}
                       </td>
                       <td className="px-4 py-3 text-right font-medium">{money(c.amount)}</td>
-                      <td className="hidden px-4 py-3 text-right text-slate-500 md:table-cell">
+                      <td className="hidden px-4 py-3 text-right text-ink-3 md:table-cell">
                         {money(c.outstanding)}
                       </td>
                       <td className="px-4 py-3"><Pill status={st} /></td>
@@ -530,44 +530,44 @@ function ChargesTable({ rows, loading, properties, onPay, onCredit, onVoid, onCo
                     </tr>
 
                     {isOpen && (
-                      <tr className="bg-slate-50/60">
+                      <tr className="bg-canvas/60">
                         <td colSpan={8} className="px-4 py-3 sm:px-12">
                           <div className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
                             {extra.lease_number && (
                               <div>
-                                <p className="uppercase tracking-wide text-slate-400">Lease</p>
+                                <p className="uppercase tracking-wide text-ink-4">Lease</p>
                                 {leaseId ? (
                                   <button type="button"
-                                          className="inline-flex items-center gap-1 font-medium text-slate-700 underline-offset-2 hover:underline"
+                                          className="inline-flex items-center gap-1 font-medium text-ink-2 underline-offset-2 hover:underline"
                                           onClick={() => onOpenLease(leaseId)}>
-                                    {extra.lease_number} <ExternalLink className="h-3 w-3 text-slate-400" />
+                                    {extra.lease_number} <ExternalLink className="h-3 w-3 text-ink-4" />
                                   </button>
                                 ) : (
-                                  <p className="font-medium text-slate-700">{extra.lease_number}</p>
+                                  <p className="font-medium text-ink-2">{extra.lease_number}</p>
                                 )}
                               </div>
                             )}
                             {(c.property_name || kind) && (
                               <div>
-                                <p className="uppercase tracking-wide text-slate-400">Property</p>
-                                <p className="inline-flex items-center gap-1 font-medium text-slate-700">
-                                  <Home className="h-3 w-3 text-slate-400" />
+                                <p className="uppercase tracking-wide text-ink-4">Property</p>
+                                <p className="inline-flex items-center gap-1 font-medium text-ink-2">
+                                  <Home className="h-3 w-3 text-ink-4" />
                                   {c.property_name || "—"}{kind ? ` · ${kind}` : ""}
                                 </p>
-                                {prop?.address && <p className="text-slate-500">{prop.address}</p>}
+                                {prop?.address && <p className="text-ink-3">{prop.address}</p>}
                               </div>
                             )}
                             <div>
-                              <p className="uppercase tracking-wide text-slate-400">Billed to</p>
-                              <p className="font-medium text-slate-700">
+                              <p className="uppercase tracking-wide text-ink-4">Billed to</p>
+                              <p className="font-medium text-ink-2">
                                 {extra.is_joint
                                   ? "The whole household jointly — any tenant on the lease can pay it"
                                   : (c.tenant_name || extra.tenant_name || "—")}
                               </p>
                             </div>
                             <div>
-                              <p className="uppercase tracking-wide text-slate-400">Posted</p>
-                              <p className="font-medium text-slate-700">
+                              <p className="uppercase tracking-wide text-ink-4">Posted</p>
+                              <p className="font-medium text-ink-2">
                                 {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
                               </p>
                             </div>
@@ -597,8 +597,8 @@ function ExpensesTable({ rows, loading, onVoid, onCorrect, onMarkPaid }: {
     <Card>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+          <table className="min-w-full divide-y divide-line text-sm">
+            <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-3">
               <tr>
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Category</th>
@@ -610,26 +610,26 @@ function ExpensesTable({ rows, loading, onVoid, onCorrect, onMarkPaid }: {
                 <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {rows.map((e) => {
                 const paidOn = ex(e).paid_on
                 return (
-                  <tr key={e.id} className={`hover:bg-slate-50 ${e.voided ? "opacity-50" : ""}`}>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-500">{e.effective_date}</td>
+                  <tr key={e.id} className={`hover:bg-canvas ${e.voided ? "opacity-50" : ""}`}>
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-3">{e.effective_date}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                      <span className="inline-flex items-center rounded-full bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink-2">
                         {e.category_display || e.category}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{e.description}</td>
-                    <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.vendor || "—"}</td>
+                    <td className="px-4 py-3 font-medium text-ink">{e.description}</td>
+                    <td className="hidden px-4 py-3 text-ink-3 lg:table-cell">{e.vendor || "—"}</td>
 
                     {/* Has the money actually gone? Until paid_on existed, the app
                         conflated "I recorded this bill" with "I paid this bill", which
                         are days or weeks apart in real life. */}
                     <td className="px-4 py-3">
                       {e.voided ? (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-ink-4">—</span>
                       ) : paidOn ? (
                         <button type="button"
                                 onClick={() => onMarkPaid(e)}
@@ -647,7 +647,7 @@ function ExpensesTable({ rows, loading, onVoid, onCorrect, onMarkPaid }: {
                       )}
                     </td>
 
-                    <td className="hidden px-4 py-3 text-slate-500 md:table-cell">
+                    <td className="hidden px-4 py-3 text-ink-3 md:table-cell">
                       {e.property_name || "Portfolio"}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-red-600">{money(e.amount)}</td>
@@ -688,8 +688,8 @@ function ExpensesTable({ rows, loading, onVoid, onCorrect, onMarkPaid }: {
 function EmptyState({ label }: { label: string }) {
   return (
     <div className="p-10 text-center">
-      <Receipt className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-      <p className="text-sm text-slate-500">{label}</p>
+      <Receipt className="mx-auto mb-3 h-10 w-10 text-ink-5" />
+      <p className="text-sm text-ink-3">{label}</p>
     </div>
   )
 }
@@ -768,7 +768,7 @@ function RecordPaymentDialog({ charge, token, onClose, onDone }: {
                 </SelectContent>
               </Select>
               {isJoint && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-3">
                   Recording the payer keeps who-paid-what on the household&apos;s record.
                 </p>
               )}
@@ -797,7 +797,7 @@ function RecordPaymentDialog({ charge, token, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submit} disabled={busy}>
+          <Button className="" onClick={submit} disabled={busy}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Record {money(amount)}
           </Button>
         </DialogFooter>
@@ -843,10 +843,10 @@ function MarkPaidDialog({ entry, token, onClose, onDone }: {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-xs">
-            <Landmark className="h-3.5 w-3.5 text-slate-400" /> Taken from my account on
+            <Landmark className="h-3.5 w-3.5 text-ink-4" /> Taken from my account on
           </Label>
           <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-3">
             Only this date changes. The amount, the payee and the date you incurred it
             stay exactly as recorded.
           </p>
@@ -861,7 +861,7 @@ function MarkPaidDialog({ entry, token, onClose, onDone }: {
           ) : <span />}
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-            <Button className="bg-teal-600 hover:bg-teal-700" disabled={busy || !date}
+            <Button className="" disabled={busy || !date}
                     onClick={() => save(date)}>
               {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save
             </Button>
@@ -919,7 +919,7 @@ function TenantQuickViewDialog({ tenantId, tenantName, token, leases, onOpenLeas
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-sm text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm text-white">
               {tenantName.charAt(0).toUpperCase()}
             </span>
             {tenantName}
@@ -930,23 +930,23 @@ function TenantQuickViewDialog({ tenantId, tenantName, token, leases, onOpenLeas
         </DialogHeader>
 
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-ink-4" /></div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-md border p-3">
-                <p className="text-xs text-slate-500">Outstanding</p>
+                <p className="text-xs text-ink-3">Outstanding</p>
                 <p className={`text-lg font-semibold ${outstanding > 0 ? "text-amber-600" : "text-green-600"}`}>
                   {money(outstanding)}
                 </p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-ink-4">
                   {openCharges.length} open charge(s){overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
                 </p>
               </div>
               <div className="rounded-md border p-3">
-                <p className="text-xs text-slate-500">Payments recorded</p>
+                <p className="text-xs text-ink-3">Payments recorded</p>
                 <p className="text-lg font-semibold">{payments.length}</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-ink-4">
                   {payments[0] ? `last on ${payments[0].effective_date}` : "none yet"}
                 </p>
               </div>
@@ -954,24 +954,24 @@ function TenantQuickViewDialog({ tenantId, tenantName, token, leases, onOpenLeas
 
             {leaseIds.length > 0 && (
               <div>
-                <p className="mb-1.5 text-xs font-medium text-slate-500">Leases</p>
+                <p className="mb-1.5 text-xs font-medium text-ink-3">Leases</p>
                 <div className="space-y-1.5">
                   {leaseIds.map((id) => {
                     const l = leaseById.get(String(id))
                     return (
                       <button key={id} type="button" onClick={() => onOpenLease(id)}
-                              className="flex w-full items-center justify-between rounded-md border p-2.5 text-left text-sm hover:bg-slate-50">
+                              className="flex w-full items-center justify-between rounded-md border p-2.5 text-left text-sm hover:bg-canvas">
                         <span className="min-w-0 truncate">
                           <span className="font-medium">
                             {l ? (l.property_name || l.group_name || l.lease_number) : "Lease"}
                           </span>
                           {l && (
-                            <span className="text-slate-400">
+                            <span className="text-ink-4">
                               {" "}· {l.lease_number}{l.status ? ` · ${l.status}` : ""}
                             </span>
                           )}
                         </span>
-                        <ExternalLink className="ml-2 h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+                        <ExternalLink className="ml-2 h-3.5 w-3.5 flex-shrink-0 text-ink-4" />
                       </button>
                     )
                   })}
@@ -980,16 +980,16 @@ function TenantQuickViewDialog({ tenantId, tenantName, token, leases, onOpenLeas
             )}
 
             <div>
-              <p className="mb-1.5 text-xs font-medium text-slate-500">Recent payments</p>
+              <p className="mb-1.5 text-xs font-medium text-ink-3">Recent payments</p>
               {payments.length === 0 ? (
-                <p className="text-sm text-slate-400">No payments recorded yet.</p>
+                <p className="text-sm text-ink-4">No payments recorded yet.</p>
               ) : (
                 <ul className="divide-y rounded-md border">
                   {payments.slice(0, 5).map((p) => (
                     <li key={p.id} className="flex items-center justify-between p-2.5 text-sm">
-                      <span className="text-slate-600">
+                      <span className="text-ink-2">
                         {p.effective_date}
-                        <span className="text-slate-400"> · {p.payment_method || "Payment"}</span>
+                        <span className="text-ink-4"> · {p.payment_method || "Payment"}</span>
                       </span>
                       <span className="font-medium">{money(p.amount)}</span>
                     </li>
@@ -1048,7 +1048,7 @@ function CreditDialog({ charge, token, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submit} disabled={busy || !amount}>
+          <Button className="" onClick={submit} disabled={busy || !amount}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Apply credit
           </Button>
         </DialogFooter>
@@ -1164,7 +1164,7 @@ function CorrectDialog({ entry, token, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submit} disabled={busy}>
+          <Button className="" onClick={submit} disabled={busy}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save changes
           </Button>
         </DialogFooter>
@@ -1264,11 +1264,11 @@ function ExpenseDialog({ open, token, properties, onClose, onDone }: {
               up unable to reconcile against a bank statement. */}
           <div className="space-y-2 rounded-lg border p-3.5" style={{ borderColor: "hsl(var(--line))" }}>
             <Label className="flex items-center gap-1.5 text-xs">
-              <Landmark className="h-3.5 w-3.5 text-slate-400" /> Taken from my account on
+              <Landmark className="h-3.5 w-3.5 text-ink-4" /> Taken from my account on
             </Label>
             <Input type="date" max={today()} value={paidOn}
                    onChange={(e) => setPaidOn(e.target.value)} />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-3">
               {paidOn
                 ? `Recorded as paid on ${prettyDate(paidOn)}.`
                 : "Leave blank if it hasn't cleared yet — it'll show as \"Not yet taken\", and you can mark it paid later."}
@@ -1277,7 +1277,7 @@ function ExpenseDialog({ open, token, properties, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submit}
+          <Button className="" onClick={submit}
                   disabled={busy || !amount || !description}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Record expense
           </Button>
@@ -1423,7 +1423,7 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
         <SheetHeader className="border-b px-6 py-4 text-left"
                      style={{ borderColor: "hsl(var(--line))" }}>
           <SheetTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-teal-600" /> Add utility bill
+            <Zap className="h-4 w-4 text-brand" /> Add utility bill
           </SheetTitle>
           <SheetDescription>
             Enter the <strong>full</strong> bill amount. Tenants are charged only their share
@@ -1441,7 +1441,7 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
               </SelectTrigger>
               <SelectContent className="max-w-[min(90vw,24rem)]">
                 {activeLeases.length === 0 && (
-                  <div className="px-2 py-3 text-sm text-slate-400">No active leases.</div>
+                  <div className="px-2 py-3 text-sm text-ink-4">No active leases.</div>
                 )}
                 {activeLeases.map((l) => (
                   <SelectItem key={l.id} value={l.id} className="whitespace-normal break-words">
@@ -1456,7 +1456,7 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 Which utility?
-                {loadingBills && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+                {loadingBills && <Loader2 className="h-3 w-3 animate-spin text-ink-4" />}
               </Label>
               <Select value={billKey} onValueChange={setBillKey}>
                 <SelectTrigger className="w-full [&>span]:truncate [&>span]:text-left">
@@ -1484,7 +1484,7 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
             <div className={`rounded-lg border p-3 text-sm ${
               tenantShare === 0
                 ? "border-blue-200 bg-blue-50 text-blue-800"
-                : "border-slate-200 bg-slate-50 text-slate-700"
+                : "border-line bg-canvas text-ink-2"
             }`}>
               {tenantShare === 0 ? (
                 <>Tenants will be charged <strong>$0.00</strong> — under this lease the bill is
@@ -1517,12 +1517,12 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
 
           <div className="rounded-lg border p-3.5" style={{ borderColor: "hsl(var(--line))" }}>
             <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-              <input type="checkbox" className="mt-0.5 accent-teal-600"
+              <input type="checkbox" className="mt-0.5 accent-[hsl(var(--brand))]"
                      checked={recordExpense}
                      onChange={(e) => setRecordExpense(e.target.checked)} />
               <span>
-                <span className="font-medium text-slate-800">Record the full amount as my expense</span>
-                <span className="mt-0.5 block text-xs text-slate-500">
+                <span className="font-medium text-ink">Record the full amount as my expense</span>
+                <span className="mt-0.5 block text-xs text-ink-3">
                   Providers usually auto-debit you, and the tenants send you their share afterwards.
                   Uncheck only if this bill isn&apos;t yours to pay.
                 </span>
@@ -1533,11 +1533,11 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
               <div className="mt-4 space-y-3 border-t pt-3.5" style={{ borderColor: "hsl(var(--line))" }}>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5 text-xs">
-                    <Landmark className="h-3.5 w-3.5 text-slate-400" /> Taken from my account on
+                    <Landmark className="h-3.5 w-3.5 text-ink-4" /> Taken from my account on
                   </Label>
                   <Input type="date" max={today()} value={paidOn}
                          onChange={(e) => setPaidOn(e.target.value)} />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ink-3">
                     {paidOn
                       ? `Recorded as paid on ${prettyDate(paidOn)}.`
                       : "Leave blank if it hasn't cleared yet — it'll show as \"Not yet taken\", and you can mark it paid later."}
@@ -1555,7 +1555,7 @@ function UtilityBillSheet({ open, token, leases, onClose, onDone }: {
         <SheetFooter className="flex-row justify-end gap-2 border-t px-6 py-4"
                      style={{ borderColor: "hsl(var(--line))" }}>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submit} disabled={busy || !valid}>
+          <Button className="" onClick={submit} disabled={busy || !valid}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Post bill
           </Button>
         </SheetFooter>

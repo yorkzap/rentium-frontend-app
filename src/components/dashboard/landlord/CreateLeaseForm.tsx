@@ -802,7 +802,7 @@ export function CreateLeaseForm() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Create New Lease</h1>
-      <p className="text-sm text-slate-500 mb-6">Set up a new lease agreement in three quick steps.</p>
+      <p className="text-sm text-ink-3 mb-6">Set up a new lease agreement in three quick steps.</p>
       <div className="flex items-center mb-8">
         {[
           { num: 1, label: "Property" },
@@ -815,10 +815,10 @@ export function CreateLeaseForm() {
                 className={cn(
                   "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
                   step === s.num
-                    ? "bg-slate-900 text-white"
+                    ? "bg-brand text-white"
                     : step > s.num
                     ? "bg-green-100 text-green-700"
-                    : "bg-slate-100 text-slate-400"
+                    : "bg-surface-sunken text-ink-4"
                 )}
               >
                 {step > s.num ? "✓" : s.num}
@@ -826,14 +826,14 @@ export function CreateLeaseForm() {
               <span
                 className={cn(
                   "text-xs mt-1.5 whitespace-nowrap",
-                  step === s.num ? "text-slate-900 font-medium" : "text-slate-400"
+                  step === s.num ? "text-ink font-medium" : "text-ink-4"
                 )}
               >
                 {s.label}
               </span>
             </div>
             {i < arr.length - 1 && (
-              <div className={cn("h-0.5 flex-1 mx-2 mb-4", step > s.num ? "bg-green-200" : "bg-slate-100")} />
+              <div className={cn("h-0.5 flex-1 mx-2 mb-4", step > s.num ? "bg-green-200" : "bg-surface-sunken")} />
             )}
           </div>
         ))}
@@ -1085,7 +1085,7 @@ export function CreateLeaseForm() {
                 {/* Financials Section */}
                 <div className="space-y-4 border p-4 rounded-md">
                   <h2 className="text-lg font-semibold">Financial Details</h2>
-                  <div className="space-y-2 p-4 bg-slate-50 rounded-md border">
+                  <div className="space-y-2 p-4 bg-canvas rounded-md border">
                     <Label htmlFor="totalRent">Total Monthly Rent ($) *</Label>
                     <Controller
                       control={form.control}
@@ -1102,7 +1102,7 @@ export function CreateLeaseForm() {
                         />
                       )}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink-3">
                       The full rent for this unit/room. On the next step, you'll split this
                       across the tenant(s) you invite — if it's just one person, they're
                       automatically responsible for the whole amount.
@@ -1168,7 +1168,7 @@ export function CreateLeaseForm() {
                         />
                       )}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink-3">
                       Where tenants should send their e-transfers. Shown in their dashboard's
                       "Make a Payment" section. Left blank, your service email (or account
                       email) is shown instead.
@@ -1231,7 +1231,7 @@ export function CreateLeaseForm() {
                           onWheel={blurOnWheel} {...field} value={field.value ?? 1} />
                       )}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink-3">
                       How many months' notice the tenant must give to move out. This only takes
                       effect when you (or your relatives) share the kitchen/common areas with the
                       tenancy — the provincial tenancy act doesn't apply there, so the lease's own
@@ -1445,7 +1445,7 @@ export function CreateLeaseForm() {
                                         }
                                       }}
                                     />
-                                    <p className="text-xs text-slate-500 mt-1">
+                                    <p className="text-xs text-ink-3 mt-1">
                                       Type the provider name, then click away to confirm.
                                     </p>
                                   </div>
@@ -1733,7 +1733,7 @@ export function CreateLeaseForm() {
                     ) : (
                       <div className="w-40 space-y-2">
                         <Label>Monthly Rent</Label>
-                        <div className="h-10 flex items-center px-3 text-sm text-slate-600 bg-slate-50 rounded-md border">
+                        <div className="h-10 flex items-center px-3 text-sm text-ink-2 bg-canvas rounded-md border">
                           ${row.rentAmount || "0.00"} (full amount)
                         </div>
                       </div>
@@ -1752,7 +1752,7 @@ export function CreateLeaseForm() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 text-slate-400 cursor-help" />
+                          <Info className="h-3.5 w-3.5 text-ink-4 cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="w-[220px] text-xs">

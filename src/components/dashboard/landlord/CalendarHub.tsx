@@ -29,8 +29,8 @@ const TYPE_STYLE: Record<AgendaType, { cls: string; icon: React.ReactNode; label
   work_order: { cls: "bg-amber-100 text-amber-700", icon: <Wrench className="h-3 w-3" />, label: "Work order" },
   move: { cls: "bg-cyan-100 text-cyan-700", icon: <Home className="h-3 w-3" />, label: "Move in/out" },
   inspection: { cls: "bg-rose-100 text-rose-700", icon: <CalendarClock className="h-3 w-3" />, label: "Inspection" },
-  reminder: { cls: "bg-slate-100 text-slate-700", icon: <CalendarClock className="h-3 w-3" />, label: "Reminder" },
-  custom: { cls: "bg-slate-100 text-slate-700", icon: <CalendarClock className="h-3 w-3" />, label: "Custom" },
+  reminder: { cls: "bg-surface-sunken text-ink-2", icon: <CalendarClock className="h-3 w-3" />, label: "Reminder" },
+  custom: { cls: "bg-surface-sunken text-ink-2", icon: <CalendarClock className="h-3 w-3" />, label: "Custom" },
 }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -88,10 +88,10 @@ export default function CalendarHub() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Calendar</h1>
-          <p className="text-slate-500 text-sm mt-1">Lease dates, rent, scheduled work, and your own events.</p>
+          <h1 className="text-2xl font-semibold text-ink">Calendar</h1>
+          <p className="text-ink-3 text-sm mt-1">Lease dates, rent, scheduled work, and your own events.</p>
         </div>
-        <Button className="bg-slate-900 hover:bg-slate-800" onClick={() => setAddOpen(true)}>
+        <Button className="" onClick={() => setAddOpen(true)}>
           <Plus className="h-4 w-4 mr-1" /> Add Event
         </Button>
       </div>
@@ -103,7 +103,7 @@ export default function CalendarHub() {
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle className="text-lg">{monthName(cursor)}</CardTitle>
               <div className="flex items-center gap-2">
-                {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-ink-4" />}
                 <Button variant="outline" size="icon" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -114,20 +114,20 @@ export default function CalendarHub() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-7 text-xs font-medium text-slate-400 mb-1">
+              <div className="grid grid-cols-7 text-xs font-medium text-ink-4 mb-1">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                   <div key={d} className="px-2 py-1 text-center">{d}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {cells.map((d, idx) => {
-                  if (!d) return <div key={idx} className="min-h-[84px] rounded-md bg-slate-50/50" />
+                  if (!d) return <div key={idx} className="min-h-[84px] rounded-md bg-canvas/60" />
                   const key = iso(d)
                   const dayItems = byDay[key] || []
                   const isToday = key === todayStr
                   return (
-                    <div key={idx} className={`min-h-[84px] rounded-md border p-1 ${isToday ? "border-slate-900" : "border-slate-100"}`}>
-                      <div className={`text-xs px-1 ${isToday ? "font-semibold text-slate-900" : "text-slate-400"}`}>{d.getDate()}</div>
+                    <div key={idx} className={`min-h-[84px] rounded-md border p-1 ${isToday ? "border-ink" : "border-line"}`}>
+                      <div className={`text-xs px-1 ${isToday ? "font-semibold text-ink" : "text-ink-4"}`}>{d.getDate()}</div>
                       <div className="space-y-0.5 mt-0.5">
                         {dayItems.slice(0, 3).map((i, k) => (
                           <button
@@ -139,7 +139,7 @@ export default function CalendarHub() {
                             {i.title}
                           </button>
                         ))}
-                        {dayItems.length > 3 && <div className="text-[10px] text-slate-400 px-1">+{dayItems.length - 3} more</div>}
+                        {dayItems.length > 3 && <div className="text-[10px] text-ink-4 px-1">+{dayItems.length - 3} more</div>}
                       </div>
                     </div>
                   )
@@ -167,20 +167,20 @@ export default function CalendarHub() {
             <CardHeader><CardTitle className="text-lg">This month</CardTitle></CardHeader>
             <CardContent className="p-0">
               {filtered.length === 0 ? (
-                <p className="p-6 text-center text-sm text-slate-500">Nothing scheduled.</p>
+                <p className="p-6 text-center text-sm text-ink-3">Nothing scheduled.</p>
               ) : (
-                <div className="divide-y divide-slate-100 max-h-[440px] overflow-y-auto">
+                <div className="divide-y divide-line max-h-[440px] overflow-y-auto">
                   {filtered.map((i, k) => {
                     const s = TYPE_STYLE[i.type]
                     return (
                       <button
                         key={k} onClick={() => i.url && router.push(i.url)}
-                        className="w-full text-left flex items-start gap-3 p-3 hover:bg-slate-50"
+                        className="w-full text-left flex items-start gap-3 p-3 hover:bg-canvas"
                       >
                         <div className={`p-1.5 rounded-full shrink-0 ${s.cls}`}>{s.icon}</div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{i.title}</p>
-                          <p className="text-xs text-slate-500">{new Date(i.date).toLocaleDateString([], { month: "short", day: "numeric" })}{i.subtitle ? ` · ${i.subtitle}` : ""}</p>
+                          <p className="text-sm font-medium text-ink truncate">{i.title}</p>
+                          <p className="text-xs text-ink-3">{new Date(i.date).toLocaleDateString([], { month: "short", day: "numeric" })}{i.subtitle ? ` · ${i.subtitle}` : ""}</p>
                         </div>
                       </button>
                     )
@@ -262,7 +262,7 @@ function AddEventDialog({ open, token, defaultMonth, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button className="bg-slate-900 hover:bg-slate-800" onClick={submit} disabled={busy || !title || !startDate}>
+          <Button className="" onClick={submit} disabled={busy || !title || !startDate}>
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Add event
           </Button>
         </DialogFooter>

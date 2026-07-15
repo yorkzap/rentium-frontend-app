@@ -115,8 +115,8 @@ function DetailItem({ icon: Icon, value, label }: DetailItemProps) {
     if (displayValue === '-' && value !== 0) return null;
     return (
         <div className="flex items-center space-x-1.5" title={title}>
-            <Icon className="h-4 w-4 text-slate-500 flex-shrink-0" aria-hidden="true" />
-            <span className="truncate text-slate-800 text-sm">{displayValue}</span>
+            <Icon className="h-4 w-4 text-ink-3 flex-shrink-0" aria-hidden="true" />
+            <span className="truncate text-ink text-sm">{displayValue}</span>
         </div>
     );
 }
@@ -167,12 +167,12 @@ export function PropertyList({
          actionText = `Add ${actionType}`;
      }
      return (
-         <Card className="mt-4 border-dashed border-slate-300 bg-slate-50/50 col-span-1 md:col-span-2 xl:col-span-3">
+         <Card className="mt-4 border-dashed border-line-strong bg-canvas/60 col-span-1 md:col-span-2 xl:col-span-3">
             <CardContent className="p-8 text-center flex flex-col items-center">
-                <Building2 className="h-16 w-16 text-slate-300 mb-4" />
-                <h3 className="text-xl font-medium text-slate-700 mb-1">No Properties Found</h3>
-                <p className="text-sm text-slate-500 mb-5 max-w-sm">{emptyMessage}</p>
-                <Button className="bg-slate-900 hover:bg-slate-800" onClick={handleCreateListing}>
+                <Building2 className="h-16 w-16 text-ink-5 mb-4" />
+                <h3 className="text-xl font-medium text-ink-2 mb-1">No Properties Found</h3>
+                <p className="text-sm text-ink-3 mb-5 max-w-sm">{emptyMessage}</p>
+                <Button className="" onClick={handleCreateListing}>
                     <Plus className="h-4 w-4 mr-1.5" /> {actionText}
                 </Button>
             </CardContent>
@@ -225,7 +225,7 @@ export function PropertyList({
           return (
             <div key={`group-${key}`} className="space-y-4">
               {/* Group Header */}
-              <div className="border-b border-slate-200 pb-2">
+              <div className="border-b border-line pb-2">
                 <h2 className="text-lg font-semibold text-indigo-700 flex items-center">
                   <Group className="mr-2 h-5 w-5" /> {groupName}
                 </h2>
@@ -270,7 +270,7 @@ export function PropertyList({
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(`/dashboard/properties/${property.id}`) }}
       >
-        <div className="relative bg-slate-100 border-b w-full h-80 overflow-hidden">
+        <div className="relative bg-surface-sunken border-b w-full h-80 overflow-hidden">
           {imageUrl ? ( 
             <img 
               src={imageUrl} 
@@ -285,7 +285,7 @@ export function PropertyList({
               }} 
             />
           ) : ( 
-            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-200"> 
+            <div className="w-full h-full flex items-center justify-center text-ink-4 bg-line"> 
               <ImageIcon className="h-12 w-12" /> 
             </div> 
           )}
@@ -303,7 +303,7 @@ export function PropertyList({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 shrink-0 text-slate-500 hover:text-slate-900 focus-visible:ring-1 focus-visible:ring-ring" 
+                    className="h-8 w-8 shrink-0 text-ink-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-ring" 
                     onClick={(e) => e.stopPropagation()} 
                     aria-label="Property Actions"
                   >
@@ -320,14 +320,14 @@ export function PropertyList({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex items-center text-sm text-slate-500 mb-4">
+            <div className="flex items-center text-sm text-ink-3 mb-4">
               <MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />
               <span className="truncate" title={`${property.address || ''}, ${property.city || ''}`}> 
                 {property.address || '-'}, {property.city || '-'} 
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-auto pt-3 border-t border-slate-100">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-auto pt-3 border-t border-line">
             <DetailItem 
               icon={property.property_category === 'COMPLETE_UNIT' ? Home : Key} 
               value={typeDetailDisplay} 

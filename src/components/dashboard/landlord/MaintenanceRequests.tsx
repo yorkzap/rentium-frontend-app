@@ -33,11 +33,11 @@ const STATUS_PILL: Record<WorkOrderStatus, string> = {
   SCHEDULED: "bg-purple-50 text-purple-700",
   IN_PROGRESS: "bg-blue-50 text-blue-700",
   COMPLETED: "bg-green-50 text-green-700",
-  CANCELLED: "bg-slate-100 text-slate-500",
+  CANCELLED: "bg-surface-sunken text-ink-3",
 }
 
 const PRIORITY_PILL: Record<WorkOrderPriority, string> = {
-  LOW: "bg-slate-100 text-slate-600",
+  LOW: "bg-surface-sunken text-ink-2",
   MEDIUM: "bg-blue-50 text-blue-700",
   HIGH: "bg-amber-50 text-amber-700",
   EMERGENCY: "bg-red-50 text-red-700",
@@ -49,7 +49,7 @@ function slaLabel(wo: WorkOrder): { text: string; cls: string } | null {
   if (!wo.sla_due_at || wo.status !== "NEW") return null
   const hrs = (new Date(wo.sla_due_at).getTime() - Date.now()) / 36e5
   if (hrs <= 24) return { text: `${Math.max(0, Math.round(hrs))}h to respond`, cls: "bg-amber-50 text-amber-700" }
-  return { text: `${Math.round(hrs / 24)}d to respond`, cls: "bg-slate-100 text-slate-500" }
+  return { text: `${Math.round(hrs / 24)}d to respond`, cls: "bg-surface-sunken text-ink-3" }
 }
 
 export default function MaintenanceRequests() {
@@ -92,15 +92,15 @@ export default function MaintenanceRequests() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Maintenance</h1>
-          <p className="text-slate-500 text-sm mt-1">Track work orders, response deadlines, and costs.</p>
+          <h1 className="text-2xl font-semibold text-ink">Maintenance</h1>
+          <p className="text-ink-3 text-sm mt-1">Track work orders, response deadlines, and costs.</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-4" />
             <Input placeholder="Search…" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Button className="bg-slate-900 hover:bg-slate-800 whitespace-nowrap" onClick={() => setCreateOpen(true)}>
+          <Button className="whitespace-nowrap" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1" /> New Work Order
           </Button>
         </div>
@@ -140,8 +140,8 @@ export default function MaintenanceRequests() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <table className="min-w-full divide-y divide-line text-sm">
+              <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-3">
                 <tr>
                   <th className="px-4 py-3 text-left">Issue</th>
                   <th className="px-4 py-3 text-left">Property / Area</th>
@@ -152,20 +152,20 @@ export default function MaintenanceRequests() {
                   <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {orders.map((wo) => {
                   const sla = slaLabel(wo)
                   return (
-                    <tr key={wo.id} className="hover:bg-slate-50">
+                    <tr key={wo.id} className="hover:bg-canvas">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900 flex items-center gap-1.5">
+                        <div className="font-medium text-ink flex items-center gap-1.5">
                           {wo.is_rta_emergency && <Flame className="h-3.5 w-3.5 text-red-600" title="RTA emergency" />}
                           {wo.title}
                         </div>
-                        <div className="text-xs text-slate-400">{wo.category_display}</div>
+                        <div className="text-xs text-ink-4">{wo.category_display}</div>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {wo.property_name}{wo.area_name ? <span className="text-slate-400"> · {wo.area_name}</span> : null}
+                      <td className="px-4 py-3 text-ink-3">
+                        {wo.property_name}{wo.area_name ? <span className="text-ink-4"> · {wo.area_name}</span> : null}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_PILL[wo.priority]}`}>
@@ -180,9 +180,9 @@ export default function MaintenanceRequests() {
                       <td className="px-4 py-3">
                         {sla
                           ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${sla.cls}`}>{sla.text}</span>
-                          : <span className="text-slate-300">—</span>}
+                          : <span className="text-ink-5">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{wo.origin_display}</td>
+                      <td className="px-4 py-3 text-ink-3 text-xs">{wo.origin_display}</td>
                       <td className="px-4 py-3 text-right">
                         <Button variant="ghost" size="sm" onClick={() => setManage(wo)}>Manage</Button>
                       </td>
@@ -194,11 +194,11 @@ export default function MaintenanceRequests() {
           </div>
           {!loading && orders.length === 0 && (
             <div className="p-10 text-center">
-              <Wrench className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">{search ? `No work orders match "${search}"` : "No work orders yet."}</p>
+              <Wrench className="h-10 w-10 text-ink-5 mx-auto mb-3" />
+              <p className="text-sm text-ink-3">{search ? `No work orders match "${search}"` : "No work orders yet."}</p>
             </div>
           )}
-          {loading && <div className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>}
+          {loading && <div className="p-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ink-4" /></div>}
         </CardContent>
       </Card>
 
@@ -228,7 +228,7 @@ function MiniStat({ label, value, icon, tone }: {
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="text-sm font-medium text-ink-3">{label}</p>
             <p className="text-2xl font-semibold">{value}</p>
           </div>
           <div className={`p-2 rounded-full ${tones[tone]}`}>{icon}</div>
@@ -334,7 +334,7 @@ function CreateWorkOrderDialog({ token, properties, onClose, onDone }: {
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button
-            className="bg-slate-900 hover:bg-slate-800" onClick={submit}
+            className="" onClick={submit}
             disabled={busy || !property || !title || !description}
           >
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Create
@@ -424,20 +424,20 @@ function ManageWorkOrderDialog({ token, workOrder, onChanged, onClosedDialog }: 
         </DialogHeader>
 
         <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
-          <p className="text-sm text-slate-600 whitespace-pre-wrap">{wo.description}</p>
+          <p className="text-sm text-ink-2 whitespace-pre-wrap">{wo.description}</p>
 
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-500">Status:</span>
+            <span className="text-ink-3">Status:</span>
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL[wo.status]}`}>
               {wo.status_display}
             </span>
-            <span className="text-slate-400 text-xs ml-auto">Reported by {wo.reported_by_name}</span>
+            <span className="text-ink-4 text-xs ml-auto">Reported by {wo.reported_by_name}</span>
           </div>
 
           {!terminal && (
             <>
               {/* schedule + contractor */}
-              <div className="space-y-3 border rounded-md p-3 bg-slate-50">
+              <div className="space-y-3 border rounded-md p-3 bg-canvas">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" /> Scheduled date</Label>
@@ -477,12 +477,12 @@ function ManageWorkOrderDialog({ token, workOrder, onChanged, onClosedDialog }: 
                       <Label className="text-xs">Actual cost (optional)</Label>
                       <Input type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
                     </div>
-                    <label className="flex items-center gap-2 text-xs text-slate-600 pb-2.5">
+                    <label className="flex items-center gap-2 text-xs text-ink-2 pb-2.5">
                       <input type="checkbox" checked={postExpense} onChange={(e) => setPostExpense(e.target.checked)} />
                       Book cost as an expense
                     </label>
                   </div>
-                  <Button className="bg-slate-900 hover:bg-slate-800 w-full" size="sm" onClick={doComplete} disabled={busy === "complete"}>
+                  <Button className="w-full" size="sm" onClick={doComplete} disabled={busy === "complete"}>
                     {busy === "complete" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     <CheckCircle className="h-4 w-4 mr-1.5" /> Mark completed
                   </Button>
@@ -492,21 +492,21 @@ function ManageWorkOrderDialog({ token, workOrder, onChanged, onClosedDialog }: 
           )}
 
           {terminal && wo.cost && (
-            <p className="text-sm text-slate-600">Final cost: <span className="font-medium">{money(wo.cost)}</span></p>
+            <p className="text-sm text-ink-2">Final cost: <span className="font-medium">{money(wo.cost)}</span></p>
           )}
 
           {/* comments */}
           <div className="space-y-2">
             <Label className="text-xs flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Activity</Label>
             <div className="space-y-2">
-              {wo.comments.length === 0 && <p className="text-xs text-slate-400">No comments yet.</p>}
+              {wo.comments.length === 0 && <p className="text-xs text-ink-4">No comments yet.</p>}
               {wo.comments.map((c) => (
-                <div key={c.id} className="text-sm bg-slate-50 rounded-md p-2.5">
+                <div key={c.id} className="text-sm bg-canvas rounded-md p-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-xs">{c.author_name}{c.is_landlord ? " (you)" : ""}</span>
-                    <span className="text-[11px] text-slate-400">{new Date(c.created_at).toLocaleString()}</span>
+                    <span className="text-[11px] text-ink-4">{new Date(c.created_at).toLocaleString()}</span>
                   </div>
-                  <p className="text-slate-600 mt-0.5">{c.body}</p>
+                  <p className="text-ink-2 mt-0.5">{c.body}</p>
                 </div>
               ))}
             </div>

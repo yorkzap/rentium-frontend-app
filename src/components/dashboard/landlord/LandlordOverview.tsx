@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { DJANGO_API_URL } from "@/lib/config";
 import { toast } from "sonner";
 import { fetchSummary, type LedgerSummary } from "@/lib/financeApi";
+import { HouseKeys, InspectionWalk } from "@/components/public/illustrations/spots";
 import { fetchWorkOrders, type WorkOrder } from "@/lib/maintenanceApi";
 
 // --- Helper: Derive Base URL ---
@@ -171,7 +172,7 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
   if (isLoading && properties.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-slate-600" />
+        <Loader2 className="h-12 w-12 animate-spin text-ink-2" />
       </div>
     );
   }
@@ -192,10 +193,10 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-ink">
             Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
           </h1>
-          <p className="text-slate-500 mt-1">Here's what's happening with your properties today.</p>
+          <p className="text-ink-3 mt-1">Here's what's happening with your properties today.</p>
         </div>
       </div>
 
@@ -206,9 +207,9 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
             <CardContent className="p-5 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-slate-500">{stat.title}</p>
+                  <p className="text-sm font-medium text-ink-3">{stat.title}</p>
                   <div className="text-2xl md:text-3xl font-semibold h-8 flex items-center">{stat.value}</div>
-                  <p className="text-xs text-slate-500 pt-0.5">{stat.details}</p>
+                  <p className="text-xs text-ink-3 pt-0.5">{stat.details}</p>
                 </div>
                 <div className={`p-3 rounded-lg ${stat.color}`}><stat.icon className="h-5 w-5 md:h-6 md:w-6" /></div>
               </div>
@@ -221,7 +222,7 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
         {/* Listings */}
         <div className="lg:col-span-2">
           <Card className="h-full shadow-sm border">
-            <CardHeader className="flex flex-row justify-between items-center bg-slate-50/50 border-b px-4 py-3 md:px-6 md:py-4">
+            <CardHeader className="flex flex-row justify-between items-center bg-canvas/60 border-b px-4 py-3 md:px-6 md:py-4">
               <div>
                 <CardTitle className="text-lg">Your Listings</CardTitle>
                 <CardDescription className="text-xs md:text-sm">Quick overview of your properties.</CardDescription>
@@ -232,14 +233,14 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
             </CardHeader>
             <CardContent className="p-0">
               {properties.length > 0 ? (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                   {properties.slice(0, 5).map((listing) => {
                     const imageUrl = getFullImageUrl(listing.primary_image);
                     const handleClick = () => router.push(`/dashboard/properties/${listing.id}`);
                     return (
                       <li
                         key={listing.id}
-                        className={cn("hover:bg-slate-50 cursor-pointer transition-colors", hoveredListing === listing.id && "bg-slate-50")}
+                        className={cn("hover:bg-canvas cursor-pointer transition-colors", hoveredListing === listing.id && "bg-canvas")}
                         onClick={handleClick}
                         onMouseEnter={() => setHoveredListing(listing.id)}
                         onMouseLeave={() => setHoveredListing(null)}
@@ -247,16 +248,16 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(); }}
                       >
                         <div className="flex items-center justify-between p-3 md:p-4 space-x-3">
-                          <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-md overflow-hidden border">
+                          <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 bg-surface-sunken rounded-md overflow-hidden border">
                             {imageUrl ? (
                               <img src={imageUrl} alt={listing.name ?? 'Property'} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }} loading="lazy" />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-400"><ImageIcon className="w-6 h-6" /></div>
+                              <div className="w-full h-full flex items-center justify-center text-ink-4"><ImageIcon className="w-6 h-6" /></div>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-slate-900 truncate">{listing.name ?? 'Unnamed Property'}</h3>
-                            <p className="text-xs text-slate-500 truncate">{listing.address}, {listing.city}</p>
+                            <h3 className="text-sm font-medium text-ink truncate">{listing.name ?? 'Unnamed Property'}</h3>
+                            <p className="text-xs text-ink-3 truncate">{listing.address}, {listing.city}</p>
                             <div className="flex items-center mt-1.5 space-x-2 flex-wrap gap-y-1">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${listing.property_category === 'COMPLETE_UNIT' ? 'bg-purple-100 text-purple-800' : 'bg-cyan-100 text-cyan-800'}`}>
                                 {listing.type_display || listing.property_category_display || '-'}
@@ -267,7 +268,7 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
                             </div>
                           </div>
                           <div className="ml-2 text-right flex items-center shrink-0">
-                            <ChevronRight className={cn("h-5 w-5 text-slate-400 transition-transform duration-150", hoveredListing === listing.id ? "translate-x-0.5" : "")} />
+                            <ChevronRight className={cn("h-5 w-5 text-ink-4 transition-transform duration-150", hoveredListing === listing.id ? "translate-x-0.5" : "")} />
                           </div>
                         </div>
                       </li>
@@ -275,14 +276,15 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
                   })}
                 </ul>
               ) : (
-                <div className="p-6 text-center text-slate-500">
-                  <p>No properties added yet.</p>
+                <div className="p-6 text-center text-ink-3">
+                  <HouseKeys className="mx-auto h-20 opacity-90" />
+                  <p className="mt-2">No properties added yet.</p>
                   <Button variant="link" size="sm" className="mt-2 h-auto p-0" onClick={() => onNavigate("properties")}>Add your first property</Button>
                 </div>
               )}
               {properties.length > 5 && (
                 <div className="p-3 text-center border-t">
-                  <Button variant="ghost" size="sm" onClick={() => onNavigate("properties")} className="text-slate-600 hover:text-slate-900">
+                  <Button variant="ghost" size="sm" onClick={() => onNavigate("properties")} className="text-ink-2 hover:text-ink">
                     View all properties <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
@@ -294,44 +296,49 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
         {/* Occupancy & Tasks */}
         <div className="space-y-6 xl:space-y-8">
           <Card className="shadow-sm border">
-            <CardHeader className="bg-slate-50/50 border-b px-4 py-3 md:px-6 md:py-4"><CardTitle className="text-lg">Occupancy Rate</CardTitle></CardHeader>
+            <CardHeader className="bg-canvas/60 border-b px-4 py-3 md:px-6 md:py-4"><CardTitle className="text-lg">Occupancy Rate</CardTitle></CardHeader>
             <CardContent className="p-5 md:p-6">
               {totalUnits > 0 ? (
                 <div className="flex flex-col items-center">
                   <div className="relative h-28 w-28 md:h-32 md:w-32 flex items-center justify-center mb-4">
                     <svg className="h-full w-full" viewBox="0 0 100 100">
-                      <circle className="text-slate-100" strokeWidth="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
+                      <circle className="text-ink-inverse" strokeWidth="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
                       <circle className="text-blue-600" strokeWidth="10" strokeDasharray={`${overallOccupancyRate * 2.512} 251.2`} strokeLinecap="round" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" transform="rotate(-90 50 50)" />
                     </svg>
-                    <div className="absolute text-center"><div className="text-3xl font-bold">{overallOccupancyRate}%</div><div className="text-xs text-slate-500">Overall</div></div>
+                    <div className="absolute text-center"><div className="text-3xl font-bold">{overallOccupancyRate}%</div><div className="text-xs text-ink-3">Overall</div></div>
                   </div>
                   <div className="mt-4 w-full space-y-4">
-                    {totalCompleteUnits > 0 && (<div className="space-y-1"><div className="flex justify-between text-xs md:text-sm"><span className="text-slate-600">Full Units</span><span className="font-medium">{unitOccupancyRate}%</span></div><Progress value={unitOccupancyRate} className="h-2" /></div>)}
-                    {totalRooms > 0 && (<div className="space-y-1"><div className="flex justify-between text-xs md:text-sm"><span className="text-slate-600">Rooms</span><span className="font-medium">{roomOccupancyRate}%</span></div><Progress value={roomOccupancyRate} className="h-2 bg-cyan-100 [&>div]:bg-cyan-500" /></div>)}
+                    {totalCompleteUnits > 0 && (<div className="space-y-1"><div className="flex justify-between text-xs md:text-sm"><span className="text-ink-2">Full Units</span><span className="font-medium">{unitOccupancyRate}%</span></div><Progress value={unitOccupancyRate} className="h-2" /></div>)}
+                    {totalRooms > 0 && (<div className="space-y-1"><div className="flex justify-between text-xs md:text-sm"><span className="text-ink-2">Rooms</span><span className="font-medium">{roomOccupancyRate}%</span></div><Progress value={roomOccupancyRate} className="h-2 bg-cyan-100 [&>div]:bg-cyan-500" /></div>)}
                   </div>
                 </div>
-              ) : (<p className="text-center text-sm text-slate-500 py-8">No occupancy data available yet.</p>)}
+              ) : (<p className="text-center text-sm text-ink-3 py-8">No occupancy data available yet.</p>)}
             </CardContent>
           </Card>
 
           <Card className="shadow-sm border">
-            <CardHeader className="bg-slate-50/50 border-b px-4 py-3 md:px-6 md:py-4"><CardTitle className="text-lg">Needs Attention</CardTitle></CardHeader>
+            <CardHeader className="bg-canvas/60 border-b px-4 py-3 md:px-6 md:py-4"><CardTitle className="text-lg">Needs Attention</CardTitle></CardHeader>
             <CardContent className="p-0">
               {taskItems.length > 0 ? (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                   {taskItems.map((task) => (
-                    <li key={task.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => onNavigate(task.navigate)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate(task.navigate); }}>
+                    <li key={task.id} className="hover:bg-canvas cursor-pointer transition-colors" onClick={() => onNavigate(task.navigate)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate(task.navigate); }}>
                       <div className="flex items-center p-3 md:p-4">
                         <div className={`p-2 rounded-lg mr-3 ${task.type === "lease" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>
                           {task.type === "lease" ? <FileText className="h-4 w-4" /> : <Wrench className="h-4 w-4" />}
                         </div>
-                        <div className="flex-1 min-w-0"><p className="text-sm font-medium text-slate-900 truncate">{task.title}</p><p className="text-xs text-slate-500 truncate">{task.sub}</p></div>
-                        <ChevronRight className="h-5 w-5 text-slate-400 ml-2 shrink-0" />
+                        <div className="flex-1 min-w-0"><p className="text-sm font-medium text-ink truncate">{task.title}</p><p className="text-xs text-ink-3 truncate">{task.sub}</p></div>
+                        <ChevronRight className="h-5 w-5 text-ink-4 ml-2 shrink-0" />
                       </div>
                     </li>
                   ))}
                 </ul>
-              ) : (<p className="p-6 text-center text-sm text-slate-500">Nothing needs attention. Nice.</p>)}
+              ) : (
+                <div className="p-6 text-center">
+                  <InspectionWalk className="mx-auto h-20 opacity-90" />
+                  <p className="mt-2 text-sm text-ink-3">Nothing needs attention. Nice.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

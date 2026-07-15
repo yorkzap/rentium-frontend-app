@@ -55,12 +55,12 @@ export default function MoveInOut() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Move In/Out Management</h1>
+        <h1 className="text-2xl font-bold text-ink">Move In/Out Management</h1>
         <div className="flex space-x-2">
           <Button variant="outline">
             <MoveLeft className="h-4 w-4 mr-1" /> Schedule Move-Out
           </Button>
-          <Button className="bg-teal-600 hover:bg-teal-700">
+          <Button className="">
             <MoveRight className="h-4 w-4 mr-1" /> Schedule Move-In
           </Button>
         </div>
@@ -80,7 +80,7 @@ export default function MoveInOut() {
             </div>
             <div className="space-y-2">
               {moveIns.map((moveIn) => (
-                <div key={moveIn.id} className="p-2 bg-slate-50 rounded-md text-sm">
+                <div key={moveIn.id} className="p-2 bg-canvas rounded-md text-sm">
                   <div className="flex justify-between">
                     <div className="font-medium">{moveIn.tenant}</div>
                     <div
@@ -91,7 +91,7 @@ export default function MoveInOut() {
                       {moveIn.status}
                     </div>
                   </div>
-                  <div className="text-slate-500 mt-1">{moveIn.property}</div>
+                  <div className="text-ink-3 mt-1">{moveIn.property}</div>
                   <div className="flex justify-between mt-2 text-xs">
                     <div className="flex items-center">
                       <Calendar className="h-3 w-3 mr-1" /> {moveIn.moveInDate}
@@ -119,7 +119,7 @@ export default function MoveInOut() {
             </div>
             <div className="space-y-2">
               {moveOuts.map((moveOut) => (
-                <div key={moveOut.id} className="p-2 bg-slate-50 rounded-md text-sm">
+                <div key={moveOut.id} className="p-2 bg-canvas rounded-md text-sm">
                   <div className="flex justify-between">
                     <div className="font-medium">{moveOut.tenant}</div>
                     <div
@@ -130,7 +130,7 @@ export default function MoveInOut() {
                       {moveOut.status}
                     </div>
                   </div>
-                  <div className="text-slate-500 mt-1">{moveOut.property}</div>
+                  <div className="text-ink-3 mt-1">{moveOut.property}</div>
                   <div className="flex justify-between mt-2 text-xs">
                     <div className="flex items-center">
                       <Calendar className="h-3 w-3 mr-1" /> {moveOut.moveOutDate}
@@ -160,7 +160,7 @@ export default function MoveInOut() {
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
-                <div className="grid grid-cols-6 bg-slate-50 p-3 text-sm font-medium text-slate-600">
+                <div className="grid grid-cols-6 bg-canvas p-3 text-sm font-medium text-ink-2">
                   <div>Tenant</div>
                   <div>Property</div>
                   <div>Move-In Date</div>
@@ -205,7 +205,7 @@ export default function MoveInOut() {
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
-                <div className="grid grid-cols-7 bg-slate-50 p-3 text-sm font-medium text-slate-600">
+                <div className="grid grid-cols-7 bg-canvas p-3 text-sm font-medium text-ink-2">
                   <div>Tenant</div>
                   <div>Property</div>
                   <div>Move-Out Date</div>
@@ -252,30 +252,30 @@ export default function MoveInOut() {
               </p>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
+                <div className="flex justify-between items-center p-3 bg-canvas rounded-md">
                   <div>
                     <div className="font-medium">Move-In Inspection Checklist</div>
-                    <div className="text-xs text-slate-500">For documenting property condition at tenant move-in</div>
+                    <div className="text-xs text-ink-3">For documenting property condition at tenant move-in</div>
                   </div>
                   <Button variant="outline" size="sm">
                     View
                   </Button>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
+                <div className="flex justify-between items-center p-3 bg-canvas rounded-md">
                   <div>
                     <div className="font-medium">Move-Out Inspection Checklist</div>
-                    <div className="text-xs text-slate-500">For documenting property condition at tenant move-out</div>
+                    <div className="text-xs text-ink-3">For documenting property condition at tenant move-out</div>
                   </div>
                   <Button variant="outline" size="sm">
                     View
                   </Button>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
+                <div className="flex justify-between items-center p-3 bg-canvas rounded-md">
                   <div>
                     <div className="font-medium">Damage Assessment Form</div>
-                    <div className="text-xs text-slate-500">For calculating deposit deductions</div>
+                    <div className="text-xs text-ink-3">For calculating deposit deductions</div>
                   </div>
                   <Button variant="outline" size="sm">
                     View

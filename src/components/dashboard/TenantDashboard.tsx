@@ -393,8 +393,8 @@ export default function TenantDashboard() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="mr-3 h-8 w-8 animate-spin text-slate-500" />
-        <span className="text-slate-600">Loading your dashboard…</span>
+        <Loader2 className="mr-3 h-8 w-8 animate-spin text-ink-3" />
+        <span className="text-ink-2">Loading your dashboard…</span>
       </div>
     );
   }
@@ -418,16 +418,16 @@ export default function TenantDashboard() {
   if (!currentLease) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <Home className="mx-auto mb-4 h-14 w-14 text-slate-300" />
-        <h2 className="mb-2 text-2xl font-semibold text-slate-800">No active lease</h2>
-        <p className="mb-6 text-slate-500">
+        <Home className="mx-auto mb-4 h-14 w-14 text-ink-5" />
+        <h2 className="mb-2 text-2xl font-semibold text-ink">No active lease</h2>
+        <p className="mb-6 text-ink-3">
           You aren&apos;t currently on an active lease. If you think that&apos;s wrong,
           your landlord may not have finished setting it up — talk to them directly.
         </p>
         {leases.length > 0 && (
           <div className="mt-6 text-left">
-            <h3 className="mb-2 text-sm font-medium text-slate-600">Past leases</h3>
-            <ul className="list-inside list-disc text-sm text-slate-500">
+            <h3 className="mb-2 text-sm font-medium text-ink-2">Past leases</h3>
+            <ul className="list-inside list-disc text-sm text-ink-3">
               {leases.map((l) => (
                 <li key={l.id}>
                   {l.property_name || l.group_name || l.lease_number} ({l.status_display})
@@ -466,10 +466,10 @@ export default function TenantDashboard() {
       {/* Page head. NOT an app header — the shell in dashboard/layout.tsx owns that. */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
             Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-ink-3">
             {currentLease.property_name || currentLease.group_name} · {currentLease.lease_number}
           </p>
         </div>
@@ -546,7 +546,7 @@ export default function TenantDashboard() {
             <Card className="overflow-hidden md:col-span-2">
               <CardHeader className="border-b bg-white pb-3">
                 <CardTitle className="flex items-center text-lg">
-                  <Home className="mr-2 h-5 w-5 text-slate-600" /> Your place
+                  <Home className="mr-2 h-5 w-5 text-ink-2" /> Your place
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 p-6">
@@ -554,7 +554,7 @@ export default function TenantDashboard() {
                   <h3 className="text-lg font-semibold">
                     {currentLease.property_name || currentLease.group_name || "N/A"}
                   </h3>
-                  <p className="text-slate-500">
+                  <p className="text-ink-3">
                     {currentLease.property_address || `Lease ${currentLease.lease_number}`}
                   </p>
                   <Badge variant={getStatusBadgeVariant(currentLease.status)} className="mt-2">
@@ -563,15 +563,15 @@ export default function TenantDashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><p className="text-slate-500">Landlord</p><p>{currentLease.landlord_name}</p></div>
+                  <div><p className="text-ink-3">Landlord</p><p>{currentLease.landlord_name}</p></div>
                   <div>
-                    <p className="text-slate-500">Landlord contact</p>
+                    <p className="text-ink-3">Landlord contact</p>
                     <p>{currentLease.effective_landlord_contact?.daytime_phone
                       || currentLease.effective_landlord_contact?.email
                       || "Not provided"}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Lease period</p>
+                    <p className="text-ink-3">Lease period</p>
                     <p>
                       {format(parseISO(currentLease.start_date), "MMM d, yyyy")} —{" "}
                       {currentLease.end_date
@@ -580,51 +580,51 @@ export default function TenantDashboard() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-slate-500">
+                    <p className="text-ink-3">
                       {hasJointCharges ? `${groupLabel} monthly rent` : "Your monthly rent"}
                     </p>
                     <p className="font-semibold">{formatCurrency(currentLease.total_rent)}</p>
                     {hasJointCharges && (
-                      <p className="text-xs text-slate-400">One shared bill — any of you can pay it</p>
+                      <p className="text-xs text-ink-4">One shared bill — any of you can pay it</p>
                     )}
                   </div>
                   {leaseTenantInfo?.room_name && (
-                    <div><p className="text-slate-500">Your room</p><p>{leaseTenantInfo.room_name}</p></div>
+                    <div><p className="text-ink-3">Your room</p><p>{leaseTenantInfo.room_name}</p></div>
                   )}
-                  <div><p className="text-slate-500">Lease type</p><p>{currentLease.lease_type_display}</p></div>
+                  <div><p className="text-ink-3">Lease type</p><p>{currentLease.lease_type_display}</p></div>
                 </div>
 
                 {currentLease.bills_summary && (
                   <div className="mt-4 border-t pt-4">
                     <p className="mb-1 text-sm font-medium">Bills included in rent</p>
-                    <p className="text-sm text-slate-600">{currentLease.bills_summary}</p>
+                    <p className="text-sm text-ink-2">{currentLease.bills_summary}</p>
                   </div>
                 )}
 
                 {myAreas.length > 0 && (
                   <div className="mt-4 border-t pt-4">
                     <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-                      <DoorOpen className="h-4 w-4 text-slate-500" /> What&apos;s included
+                      <DoorOpen className="h-4 w-4 text-ink-3" /> What&apos;s included
                     </p>
                     <div className="space-y-2">
                       {privateAreas.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="mr-1 text-xs text-slate-500">Just yours:</span>
+                          <span className="mr-1 text-xs text-ink-3">Just yours:</span>
                           {privateAreas.map((a) => (
                             <Badge key={a.id} variant="outline" className="text-xs font-normal">
-                              <Lock className="mr-1 h-3 w-3 text-slate-400" /> {a.name}
+                              <Lock className="mr-1 h-3 w-3 text-ink-4" /> {a.name}
                             </Badge>
                           ))}
                         </div>
                       )}
                       {sharedAreas.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="mr-1 text-xs text-slate-500">
+                          <span className="mr-1 text-xs text-ink-3">
                             {privateAreas.length > 0 ? "Shared:" : "Included:"}
                           </span>
                           {sharedAreas.map((a) => (
                             <Badge key={a.id} variant="secondary" className="text-xs font-normal">
-                              <Users className="mr-1 h-3 w-3 text-slate-500" /> {a.name}
+                              <Users className="mr-1 h-3 w-3 text-ink-3" /> {a.name}
                             </Badge>
                           ))}
                         </div>
@@ -644,18 +644,18 @@ export default function TenantDashboard() {
                         .map((lt) => (
                           <li key={lt.id} className="flex items-center justify-between text-sm">
                             <span className="flex items-center gap-2">
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-sunken text-xs font-medium text-ink-2">
                                 {(lt.tenant_name || lt.invited_email || "?").charAt(0).toUpperCase()}
                               </span>
                               {lt.tenant_name || lt.invited_email}
-                              {lt.room_name && <span className="text-slate-400">· {lt.room_name}</span>}
+                              {lt.room_name && <span className="text-ink-4">· {lt.room_name}</span>}
                             </span>
                             {lt.has_signed ? (
                               <span className="text-xs text-green-700">Signed</span>
                             ) : lt.declined ? (
                               <span className="text-xs text-red-600">Declined</span>
                             ) : (
-                              <span className="text-xs text-slate-400">Pending</span>
+                              <span className="text-xs text-ink-4">Pending</span>
                             )}
                           </li>
                         ))}
@@ -674,7 +674,7 @@ export default function TenantDashboard() {
               <Card className="overflow-hidden">
                 <CardHeader className="border-b bg-white pb-3">
                   <CardTitle className="flex items-center text-lg">
-                    <CreditCard className="mr-2 h-5 w-5 text-slate-600" /> Next payment
+                    <CreditCard className="mr-2 h-5 w-5 text-ink-2" /> Next payment
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
@@ -682,7 +682,7 @@ export default function TenantDashboard() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-slate-500">Due</p>
+                          <p className="text-ink-3">Due</p>
                           <p className="text-lg font-semibold">
                             {nextDueCharge.due_date
                               ? format(parseISO(nextDueCharge.due_date), "MMM d, yyyy")
@@ -690,16 +690,16 @@ export default function TenantDashboard() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Amount</p>
+                          <p className="text-ink-3">Amount</p>
                           <p className="text-lg font-semibold">
                             {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)}
                           </p>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-3">
                         {nextDueCharge.description}
                         {entryIsJoint(nextDueCharge) && (
-                          <span className="block text-slate-400">
+                          <span className="block text-ink-4">
                             {groupLabel} total — any roommate&apos;s payment counts.
                           </span>
                         )}
@@ -718,13 +718,13 @@ export default function TenantDashboard() {
                             : `${daysUntilPayment} days until due`}
                         </div>
                       )}
-                      <Button className="w-full bg-teal-600 hover:bg-teal-700"
+                      <Button className="w-full"
                               onClick={() => setActiveTab("payments")}>
                         How to pay
                       </Button>
                     </div>
                   ) : (
-                    <div className="py-4 text-center text-slate-500">
+                    <div className="py-4 text-center text-ink-3">
                       Nothing due — you&apos;re all paid up.
                     </div>
                   )}
@@ -757,7 +757,7 @@ export default function TenantDashboard() {
                 <Card className="overflow-hidden">
                   <CardHeader className="border-b bg-white pb-3">
                     <CardTitle className="flex items-center text-lg">
-                      <FileText className="mr-2 h-5 w-5 text-slate-600" /> Lease progress
+                      <FileText className="mr-2 h-5 w-5 text-ink-2" /> Lease progress
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
@@ -767,7 +767,7 @@ export default function TenantDashboard() {
                         <span className="font-medium">{leaseProgress}%</span>
                       </div>
                       <Progress value={leaseProgress} className="h-2" />
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-3">
                         Ends {format(parseISO(currentLease.end_date), "MMM d, yyyy")}
                       </p>
                     </div>
@@ -781,7 +781,7 @@ export default function TenantDashboard() {
             <Card className="overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between border-b bg-white pb-3">
                 <CardTitle className="flex items-center text-lg">
-                  <Receipt className="mr-2 h-5 w-5 text-slate-600" /> Recent payments
+                  <Receipt className="mr-2 h-5 w-5 text-ink-2" /> Recent payments
                 </CardTitle>
                 <Button variant="ghost" size="sm" onClick={() => setActiveTab("payments")}>
                   View all
@@ -789,16 +789,16 @@ export default function TenantDashboard() {
               </CardHeader>
               <CardContent className="p-0">
                 {myPayments.length > 0 ? (
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-line">
                     {myPayments.slice(0, 3).map((entry) => (
-                      <li key={entry.id} className="transition-colors hover:bg-slate-50">
+                      <li key={entry.id} className="transition-colors hover:bg-canvas">
                         <div className="flex items-center justify-between p-4">
                           <div className="flex-1">
                             <div className="text-sm font-medium">
                               {format(parseISO(entry.effective_date), "MMM d, yyyy")}
                               {entry.entry_type === "CREDIT" && " (Credit)"}
                             </div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-ink-3">
                               {entry.payment_method || entry.description}
                               {entryPayerName(entry) && ` · from ${entryPayerName(entry)}`}
                             </div>
@@ -811,7 +811,7 @@ export default function TenantDashboard() {
                                     onClick={() => handleDownloadReceipt(entry.id)}>
                               {receiptBusyId === entry.id
                                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <Download className="h-3.5 w-3.5 text-slate-400" />}
+                                : <Download className="h-3.5 w-3.5 text-ink-4" />}
                             </Button>
                           ) : (
                             <Badge variant="active" className="ml-2">Credited</Badge>
@@ -821,7 +821,7 @@ export default function TenantDashboard() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="p-6 text-center text-sm text-slate-500">No payments recorded yet.</p>
+                  <p className="p-6 text-center text-sm text-ink-3">No payments recorded yet.</p>
                 )}
               </CardContent>
             </Card>
@@ -829,15 +829,15 @@ export default function TenantDashboard() {
             <Card className="overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between border-b bg-white pb-3">
                 <CardTitle className="flex items-center text-lg">
-                  <Wrench className="mr-2 h-5 w-5 text-slate-600" /> Maintenance
+                  <Wrench className="mr-2 h-5 w-5 text-ink-2" /> Maintenance
                 </CardTitle>
-                <Button size="sm" className="bg-teal-600 hover:bg-teal-700"
+                <Button size="sm" className=""
                         onClick={() => setActiveTab("maintenance")}>
                   New request
                 </Button>
               </CardHeader>
               <CardContent className="p-6">
-                <p className="text-center text-sm text-slate-500">
+                <p className="text-center text-sm text-ink-3">
                   Something broken or not working? Report it and follow what happens next.
                 </p>
               </CardContent>
@@ -848,9 +848,9 @@ export default function TenantDashboard() {
         {/* ================================================== PAYMENTS */}
         <TabsContent value="payments" className="mt-6 space-y-6">
           {hasJointCharges && (
-            <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-100 p-4">
-              <Users className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500" />
-              <p className="text-sm text-slate-600">
+            <div className="flex items-start gap-3 rounded-md border border-line bg-surface-sunken p-4">
+              <Users className="mt-0.5 h-5 w-5 flex-shrink-0 text-ink-3" />
+              <p className="text-sm text-ink-2">
                 Your lease bills your {groupNoun} together: rent and the deposit are one
                 shared amount, and a payment from <span className="font-medium">any</span>{" "}
                 roommate settles it for everyone. Each payment below shows who it came from.
@@ -904,13 +904,13 @@ export default function TenantDashboard() {
               <CardContent className="p-0">
                 {myCharges.length > 0 ? (
                   <div className="rounded-md border">
-                    <div className="grid grid-cols-5 bg-slate-50 p-3 text-sm font-medium text-slate-600">
+                    <div className="grid grid-cols-5 bg-canvas p-3 text-sm font-medium text-ink-2">
                       <div>Due</div>
                       <div className="col-span-2">Description</div>
                       <div>Amount</div>
                       <div>Status</div>
                     </div>
-                    <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+                    <div className="max-h-96 divide-y divide-line overflow-y-auto">
                       {myCharges.map((entry) => {
                         const settled = entry.settled_amount ? parseFloat(entry.settled_amount) : 0;
                         return (
@@ -922,10 +922,10 @@ export default function TenantDashboard() {
                             </div>
                             <div className="col-span-2">
                               <span className="font-medium">{entry.description}</span>
-                              <span className="block text-xs text-slate-500">
+                              <span className="block text-xs text-ink-3">
                                 {entry.entry_type_display}
                                 {entryIsJoint(entry) && (
-                                  <span className="ml-1 text-slate-400">
+                                  <span className="ml-1 text-ink-4">
                                     · {isRoomShare ? "Shared (room)" : "Household"}
                                   </span>
                                 )}
@@ -934,7 +934,7 @@ export default function TenantDashboard() {
                             <div className="font-medium">
                               {formatCurrency(entry.amount)}
                               {settled > 0 && settled < parseFloat(entry.amount) && (
-                                <span className="block text-xs text-slate-500">
+                                <span className="block text-xs text-ink-3">
                                   Paid: {formatCurrency(settled)}
                                 </span>
                               )}
@@ -950,7 +950,7 @@ export default function TenantDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <p className="p-6 text-center text-sm text-slate-500">
+                  <p className="p-6 text-center text-sm text-ink-3">
                     No charges yet — they&apos;ll appear once your lease is active.
                   </p>
                 )}
@@ -966,23 +966,23 @@ export default function TenantDashboard() {
                 <CardContent className="space-y-4">
                   {nextDueCharge ? (
                     <>
-                      <div className="rounded-md bg-slate-50 p-4">
+                      <div className="rounded-md bg-canvas p-4">
                         <div className="mb-2 flex justify-between">
-                          <span className="text-sm text-slate-600">{nextDueCharge.description}</span>
+                          <span className="text-sm text-ink-2">{nextDueCharge.description}</span>
                           <span className="text-sm font-medium">
                             {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)}
                           </span>
                         </div>
-                        <div className="flex justify-between border-t border-slate-200 pt-2">
+                        <div className="flex justify-between border-t border-line pt-2">
                           <span className="text-sm font-medium">Total outstanding</span>
                           <span className="text-sm font-bold">{formatCurrency(totalOutstanding)}</span>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-3">
                         {etransferEmail ? (
                           <>
                             Send your e-transfer to{" "}
-                            <span className="select-all font-medium text-slate-700">
+                            <span className="select-all font-medium text-ink-2">
                               {etransferEmail}
                             </span>
                             . Once your landlord records it, it appears here automatically
@@ -997,7 +997,7 @@ export default function TenantDashboard() {
                       </p>
                     </>
                   ) : (
-                    <p className="py-4 text-center text-sm text-slate-500">
+                    <p className="py-4 text-center text-sm text-ink-3">
                       No payments currently due.
                     </p>
                   )}
@@ -1011,14 +1011,14 @@ export default function TenantDashboard() {
                 </CardHeader>
                 <CardContent className="p-0">
                   {myPayments.length > 0 ? (
-                    <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+                    <ul className="max-h-72 divide-y divide-line overflow-y-auto">
                       {myPayments.map((entry) => (
                         <li key={entry.id} className="flex items-center justify-between gap-2 p-3 text-sm">
                           <div className="min-w-0">
                             <div className="font-medium">
                               {format(parseISO(entry.effective_date), "MMM d, yyyy")}
                             </div>
-                            <div className="truncate text-xs text-slate-500">
+                            <div className="truncate text-xs text-ink-3">
                               {entry.entry_type === "CREDIT" ? "Credit" : (entry.payment_method || "Payment")}
                               {entryPayerName(entry) ? ` · from ${entryPayerName(entry)}` : ""}
                               {entry.reference_number ? ` · Ref ${entry.reference_number}` : ""}
@@ -1033,7 +1033,7 @@ export default function TenantDashboard() {
                                       onClick={() => handleDownloadReceipt(entry.id)}>
                                 {receiptBusyId === entry.id
                                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  : <Download className="h-3.5 w-3.5 text-slate-400" />}
+                                  : <Download className="h-3.5 w-3.5 text-ink-4" />}
                               </Button>
                             )}
                           </div>
@@ -1041,7 +1041,7 @@ export default function TenantDashboard() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="p-6 text-center text-sm text-slate-500">No payments recorded yet.</p>
+                    <p className="p-6 text-center text-sm text-ink-3">No payments recorded yet.</p>
                   )}
                 </CardContent>
               </Card>
@@ -1067,12 +1067,12 @@ export default function TenantDashboard() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="border-b">
-                <div className="flex items-center justify-between p-4 hover:bg-slate-50">
+                <div className="flex items-center justify-between p-4 hover:bg-canvas">
                   <div className="flex items-center">
-                    <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-slate-400" />
+                    <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-ink-4" />
                     <div>
                       <span className="text-sm font-medium">Your lease agreement (PDF)</span>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-3">
                         The exact document you signed, generated on demand
                       </p>
                     </div>
@@ -1088,14 +1088,14 @@ export default function TenantDashboard() {
               </div>
 
               {documents.length > 0 ? (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                   {documents.map((doc) => (
-                    <li key={doc.id} className="flex items-center justify-between p-4 hover:bg-slate-50">
+                    <li key={doc.id} className="flex items-center justify-between p-4 hover:bg-canvas">
                       <div className="flex min-w-0 items-center">
-                        <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-slate-400" />
+                        <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-ink-4" />
                         <div className="min-w-0">
                           <span className="truncate text-sm font-medium">{doc.title}</span>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-ink-3">
                             {doc.uploaded_at
                               ? format(parseISO(doc.uploaded_at), "MMM d, yyyy")
                               : "—"}
@@ -1111,7 +1111,7 @@ export default function TenantDashboard() {
                   ))}
                 </ul>
               ) : (
-                <p className="p-6 text-center text-sm text-slate-500">
+                <p className="p-6 text-center text-sm text-ink-3">
                   No other documents on this lease.
                 </p>
               )}
@@ -1129,13 +1129,13 @@ function TenancyLink({ href, icon: Icon, title, body }: {
 }) {
   return (
     <Link href={href}
-          className="flex items-center gap-3 border-b p-4 transition-colors last:border-0 hover:bg-slate-50">
-      <Icon className="h-5 w-5 flex-shrink-0 text-teal-600" />
+          className="flex items-center gap-3 border-b p-4 transition-colors last:border-0 hover:bg-canvas">
+      <Icon className="h-5 w-5 flex-shrink-0 text-brand" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-slate-900">{title}</p>
-        <p className="text-xs text-slate-500">{body}</p>
+        <p className="text-sm font-medium text-ink">{title}</p>
+        <p className="text-xs text-ink-3">{body}</p>
       </div>
-      <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-400" />
+      <ChevronRight className="h-4 w-4 flex-shrink-0 text-ink-4" />
     </Link>
   );
 }
@@ -1148,19 +1148,19 @@ function SummaryCard({ label, value, hint, extra, icon, tone }: {
     amber: "bg-amber-50 text-amber-600",
     green: "bg-green-50 text-green-600",
     blue: "bg-blue-50 text-blue-600",
-    slate: "bg-slate-100 text-slate-600",
+    slate: "bg-surface-sunken text-ink-2",
   };
   return (
     <Card>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="text-sm font-medium text-ink-3">{label}</p>
             <p className="truncate text-2xl font-semibold">{value}</p>
           </div>
           <div className={cn("flex-shrink-0 rounded-full p-2", tones[tone])}>{icon}</div>
         </div>
-        {hint && <p className="mt-2 text-xs text-slate-500">{hint}</p>}
+        {hint && <p className="mt-2 text-xs text-ink-3">{hint}</p>}
         {extra && <p className="mt-0.5 text-xs text-amber-600">{extra}</p>}
       </CardContent>
     </Card>

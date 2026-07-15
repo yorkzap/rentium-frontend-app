@@ -30,7 +30,7 @@ const ICON_BG: Record<NotificationCategory, string> = {
   MAINTENANCE: "bg-amber-100 text-amber-700",
   PAYMENT: "bg-green-100 text-green-700",
   MESSAGE: "bg-purple-100 text-purple-700",
-  SYSTEM: "bg-slate-100 text-slate-700",
+  SYSTEM: "bg-surface-sunken text-ink-2",
 }
 
 function timeAgo(iso: string): string {
@@ -95,8 +95,8 @@ export default function NotificationCenter() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
-          <p className="text-slate-500 text-sm mt-1">Everything happening across your properties.</p>
+          <h1 className="text-2xl font-semibold text-ink">Notifications</h1>
+          <p className="text-ink-3 text-sm mt-1">Everything happening across your properties.</p>
         </div>
         <Button variant="outline" size="sm" onClick={onReadAll} disabled={unreadCount === 0}>
           <CheckCircle className="h-4 w-4 mr-1" /> Mark all read
@@ -104,7 +104,7 @@ export default function NotificationCenter() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="All" value={items.length} icon={<Bell className="h-5 w-5" />} tone="bg-slate-100 text-slate-700" />
+        <StatCard label="All" value={items.length} icon={<Bell className="h-5 w-5" />} tone="bg-surface-sunken text-ink-2" />
         <StatCard label="Unread" value={unreadCount} icon={<AlertTriangle className="h-5 w-5" />} tone="bg-blue-100 text-blue-700" />
         <StatCard label="Maintenance" value={items.filter((n) => n.category === "MAINTENANCE").length} icon={<Wrench className="h-5 w-5" />} tone="bg-amber-100 text-amber-700" />
         <StatCard label="This week" value={weekCount} icon={<CalendarDays className="h-5 w-5" />} tone="bg-green-100 text-green-700" />
@@ -130,11 +130,11 @@ export default function NotificationCenter() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+                <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-ink-4" /></div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-10">
-                  <Bell className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm text-slate-500">You're all caught up.</p>
+                  <Bell className="h-12 w-12 text-ink-5 mx-auto mb-3" />
+                  <p className="text-sm text-ink-3">You're all caught up.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -142,20 +142,20 @@ export default function NotificationCenter() {
                     <div
                       key={n.id}
                       className={`flex items-start p-4 rounded-lg border cursor-pointer transition-colors ${
-                        !n.is_read ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100 hover:bg-slate-50"
+                        !n.is_read ? "bg-canvas border-line" : "bg-white border-line hover:bg-canvas"
                       }`}
                       onClick={() => onOpen(n)}
                     >
                       <div className={`p-2 rounded-full mr-4 shrink-0 ${ICON_BG[n.category]}`}>{ICON[n.category]}</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className={`font-medium ${!n.is_read ? "text-slate-900" : "text-slate-700"}`}>
+                          <h3 className={`font-medium ${!n.is_read ? "text-ink" : "text-ink-2"}`}>
                             {n.title}
                             {!n.is_read && <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600 align-middle" />}
                           </h3>
-                          <span className="text-xs text-slate-400 whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                          <span className="text-xs text-ink-4 whitespace-nowrap">{timeAgo(n.created_at)}</span>
                         </div>
-                        {n.body && <p className="text-sm text-slate-600 mt-1">{n.body}</p>}
+                        {n.body && <p className="text-sm text-ink-2 mt-1">{n.body}</p>}
                       </div>
                     </div>
                   ))}
@@ -175,7 +175,7 @@ function StatCard({ label, value, icon, tone }: { label: string; value: number; 
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="text-sm font-medium text-ink-3">{label}</p>
             <p className="text-2xl font-semibold">{value}</p>
           </div>
           <div className={`p-2 rounded-full ${tone}`}>{icon}</div>

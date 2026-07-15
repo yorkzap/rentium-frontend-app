@@ -35,7 +35,7 @@ interface LeaseListItem {
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-green-50 text-green-700",
   PENDING: "bg-amber-50 text-amber-700",
-  DRAFT: "bg-slate-100 text-slate-700",
+  DRAFT: "bg-surface-sunken text-ink-2",
   EXPIRED: "bg-red-50 text-red-700",
   TERMINATED: "bg-red-50 text-red-700",
   RENEWED: "bg-blue-50 text-blue-700",
@@ -109,7 +109,7 @@ export default function LeaseManagement() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     )
   }
@@ -132,12 +132,12 @@ export default function LeaseManagement() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Leases</h1>
-          <p className="text-slate-500 text-sm mt-1">Manage tenant agreements and renewals</p>
+          <h1 className="text-2xl font-semibold text-ink">Leases</h1>
+          <p className="text-ink-3 text-sm mt-1">Manage tenant agreements and renewals</p>
         </div>
         <div className="flex space-x-2 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-4" />
             <Input
               type="search"
               placeholder="Search leases..."
@@ -147,7 +147,7 @@ export default function LeaseManagement() {
             />
           </div>
           <Button
-            className="bg-slate-900 hover:bg-slate-800 whitespace-nowrap"
+            className="whitespace-nowrap"
             onClick={() => router.push("/dashboard/leases/create")}
           >
             <Plus className="h-4 w-4 mr-1" /> New Lease
@@ -160,7 +160,7 @@ export default function LeaseManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Active Leases</p>
+                <p className="text-sm font-medium text-ink-3">Active Leases</p>
                 <p className="text-2xl font-semibold">{activeCount}</p>
               </div>
               <div className="p-2 rounded-full bg-green-50 text-green-600">
@@ -174,7 +174,7 @@ export default function LeaseManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Expiring Within 30 Days</p>
+                <p className="text-sm font-medium text-ink-3">Expiring Within 30 Days</p>
                 <p className="text-2xl font-semibold">{expiringSoonCount}</p>
               </div>
               <div className="p-2 rounded-full bg-amber-50 text-amber-600">
@@ -188,7 +188,7 @@ export default function LeaseManagement() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Pending Signatures</p>
+                <p className="text-sm font-medium text-ink-3">Pending Signatures</p>
                 <p className="text-2xl font-semibold">{pendingCount}</p>
               </div>
               <div className="p-2 rounded-full bg-blue-50 text-blue-600">
@@ -227,28 +227,28 @@ export default function LeaseManagement() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
+            <table className="min-w-full divide-y divide-line">
+              <thead className="bg-canvas">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Lease
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Start Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     End Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Tenants
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Monthly Rent
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ink-3 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="relative px-4 py-3">
@@ -256,12 +256,12 @@ export default function LeaseManagement() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
+              <tbody className="bg-white divide-y divide-line">
                 {filteredLeases.map((lease) => (
-                  <tr key={lease.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">
+                  <tr key={lease.id} className="hover:bg-canvas">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-ink">
                       <div>{lease.property_name || lease.group_name || lease.lease_number}</div>
-                      <div className="text-xs text-slate-500">{lease.property_address || lease.lease_number}</div>
+                      <div className="text-xs text-ink-3">{lease.property_address || lease.lease_number}</div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span
@@ -274,18 +274,18 @@ export default function LeaseManagement() {
                         {lease.lease_type_display}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{lease.start_date}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-3">{lease.start_date}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-3">
                       {lease.is_month_to_month ? "Month-to-month" : lease.end_date || "—"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{lease.tenant_count}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-3">{lease.tenant_count}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-3">
                       {formatCurrency(lease.total_rent)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          STATUS_STYLES[lease.status] || "bg-slate-100 text-slate-700"
+                          STATUS_STYLES[lease.status] || "bg-surface-sunken text-ink-2"
                         }`}
                       >
                         {lease.status_display}
@@ -308,9 +308,9 @@ export default function LeaseManagement() {
 
           {filteredLeases.length === 0 && (
             <div className="p-6 text-center">
-              <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-slate-700">No leases found</h3>
-              <p className="text-sm text-slate-500 mt-1">
+              <FileText className="h-12 w-12 text-ink-5 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-ink-2">No leases found</h3>
+              <p className="text-sm text-ink-3 mt-1">
                 {searchTerm || statusFilter !== "all"
                   ? "No leases match your current filters"
                   : "You don't have any leases yet"}

@@ -75,7 +75,7 @@ export default function AreaList({ areas, onEdit, onDelete, isLoading = false, c
     };
 
     if (!areas || areas.length === 0) {
-        return <p className="text-center text-slate-500 py-6">No specific areas defined yet.</p>;
+        return <p className="text-center text-ink-3 py-6">No specific areas defined yet.</p>;
     }
 
     return (
@@ -110,8 +110,8 @@ export default function AreaList({ areas, onEdit, onDelete, isLoading = false, c
                                         <TooltipContent><p>{statusInfo.tooltip}</p></TooltipContent>
                                     </Tooltip>
                                 </TableCell>
-                                <TableCell className="text-sm text-slate-600">
-                                    {area.description || <span className="text-slate-400">-</span>}
+                                <TableCell className="text-sm text-ink-2">
+                                    {area.description || <span className="text-ink-4">-</span>}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>

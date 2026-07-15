@@ -16,7 +16,7 @@ export default function PropertiesPage() {
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
+            <Loader2 className="h-10 w-10 animate-spin text-brand" />
             <p className="text-sm text-muted-foreground">Loading dashboard...</p>
           </div>
         </div>
