@@ -4,7 +4,8 @@
 // `fetchLeases`/`signLease`/etc. from "@/lib/leaseApi" keep working unchanged —
 // this is the same file, expanded, not a new path to migrate to.
 
-import { DJANGO_API_URL } from "@/lib/config";
+import { DJANGO_API_URL } from '@/lib/config';
+import type { Lease, LeaseTenant, LeaseDocument } from '@/types/lease';
 
 // ---------------------------------------------------------------------------
 // Shared request helpers — one place that knows how to attach auth headers and
@@ -12,65 +13,87 @@ import { DJANGO_API_URL } from "@/lib/config";
 // `body.detail || body.field?.join(" ") || fallback` themselves.
 // ---------------------------------------------------------------------------
 
-async function extractApiError(res: Response, fallback: string): Promise<string> {
-  const body = await res.json().catch(() => ({} as Record<string, unknown>));
+async function extractApiError(
+  res: Response,
+  fallback: string
+): Promise<string> {
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
 
-  if (typeof body.detail === "string") return body.detail;
+  if (typeof body.detail === 'string') return body.detail;
 
   // DRF field errors come back as {"field_name": ["message", ...]}. Grab the
   // first one we find rather than requiring every caller to know which field
   // name might be relevant to their particular request.
   for (const value of Object.values(body)) {
-    if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-    if (typeof value === "string") return value;
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+    if (typeof value === 'string') return value;
   }
 
   return fallback;
 }
 
-async function apiGet(token: string, path: string) {
+async function apiGet<T = unknown>(token: string, path: string): Promise<T> {
   const res = await fetch(`${DJANGO_API_URL}${path}`, {
     headers: { Authorization: `Token ${token}` },
   });
-  if (!res.ok) throw new Error(await extractApiError(res, `Request failed (${res.status})`));
+  if (!res.ok)
+    throw new Error(
+      await extractApiError(res, `Request failed (${res.status})`)
+    );
   return res.json();
 }
 
-async function apiPost(token: string, path: string, body?: unknown) {
+async function apiPost<T = unknown>(
+  token: string,
+  path: string,
+  body?: unknown
+): Promise<T> {
   const res = await fetch(`${DJANGO_API_URL}${path}`, {
-    method: "POST",
+    method: 'POST',
     headers: {
       Authorization: `Token ${token}`,
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(await extractApiError(res, `Request failed (${res.status})`));
+  if (!res.ok)
+    throw new Error(
+      await extractApiError(res, `Request failed (${res.status})`)
+    );
   // Some POST actions (e.g. resend_invite) return a plain {"detail": "..."}
   // rather than a resource — .json() handles both fine.
   return res.json();
 }
 
-async function apiPatch(token: string, path: string, body: unknown) {
+async function apiPatch<T = unknown>(
+  token: string,
+  path: string,
+  body: unknown
+): Promise<T> {
   const res = await fetch(`${DJANGO_API_URL}${path}`, {
-    method: "PATCH",
+    method: 'PATCH',
     headers: {
       Authorization: `Token ${token}`,
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await extractApiError(res, `Request failed (${res.status})`));
+  if (!res.ok)
+    throw new Error(
+      await extractApiError(res, `Request failed (${res.status})`)
+    );
   return res.json();
 }
 
 async function apiDelete(token: string, path: string) {
   const res = await fetch(`${DJANGO_API_URL}${path}`, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: { Authorization: `Token ${token}` },
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await extractApiError(res, `Request failed (${res.status})`));
+    throw new Error(
+      await extractApiError(res, `Request failed (${res.status})`)
+    );
   }
 }
 
@@ -79,11 +102,14 @@ async function apiDownload(token: string, path: string, filename: string) {
   const res = await fetch(`${DJANGO_API_URL}${path}`, {
     headers: { Authorization: `Token ${token}` },
   });
-  if (!res.ok) throw new Error(await extractApiError(res, `Failed to download (${res.status})`));
+  if (!res.ok)
+    throw new Error(
+      await extractApiError(res, `Failed to download (${res.status})`)
+    );
 
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
+  const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -100,16 +126,19 @@ async function apiDownload(token: string, path: string, filename: string) {
  *  shape (LeaseListSerializer) — no lease_tenants, no bills_summary. Use it to
  *  pick WHICH lease, then fetchLeaseDetails() for the full one. */
 export async function fetchLeases(token: string) {
-  return apiGet(token, "/leases/");
+  return apiGet<Lease[]>(token, '/leases/');
 }
 
 /** Full detail for a single lease. */
 export async function fetchLeaseDetails(token: string, leaseId: string) {
-  return apiGet(token, `/leases/${leaseId}/`);
+  return apiGet<Lease>(token, `/leases/${leaseId}/`);
 }
 
-export async function createLease(token: string, payload: Record<string, unknown>) {
-  return apiPost(token, "/leases/", payload);
+export async function createLease(
+  token: string,
+  payload: Record<string, unknown>
+) {
+  return apiPost(token, '/leases/', payload);
 }
 
 /** Only works while the lease is still DRAFT — see LeaseViewSet.destroy(). */
@@ -117,11 +146,15 @@ export async function deleteLeaseDraft(token: string, leaseId: string) {
   return apiDelete(token, `/leases/${leaseId}/`);
 }
 
-export async function terminateLease(token: string, leaseId: string, terminationDate?: string) {
+export async function terminateLease(
+  token: string,
+  leaseId: string,
+  terminationDate?: string
+) {
   return apiPost(
     token,
     `/leases/${leaseId}/terminate/`,
-    terminationDate ? { termination_date: terminationDate } : {},
+    terminationDate ? { termination_date: terminationDate } : {}
   );
 }
 
@@ -129,8 +162,16 @@ export async function landlordSignLease(token: string, leaseId: string) {
   return apiPost(token, `/leases/${leaseId}/landlord_sign/`);
 }
 
-export async function downloadLeasePdf(token: string, leaseId: string, leaseNumber: string) {
-  return apiDownload(token, `/leases/${leaseId}/pdf/`, `lease_${leaseNumber}.pdf`);
+export async function downloadLeasePdf(
+  token: string,
+  leaseId: string,
+  leaseNumber: string
+) {
+  return apiDownload(
+    token,
+    `/leases/${leaseId}/pdf/`,
+    `lease_${leaseNumber}.pdf`
+  );
 }
 
 /** The rendered agreement as structured JSON — the SAME object the PDF renders
@@ -169,7 +210,7 @@ export interface RentSplitResult {
 export async function previewRentSplit(
   token: string,
   leaseId: string,
-  rows: RentSplitRow[],
+  rows: RentSplitRow[]
 ): Promise<RentSplitResult> {
   return apiPost(token, `/leases/${leaseId}/preview-split/`, { rows });
 }
@@ -187,15 +228,19 @@ export async function createLeaseTenant(
     invited_phone?: string;
     rent_amount?: number;
     is_primary_tenant?: boolean;
-  },
+  }
 ) {
-  return apiPost(token, "/leases/tenants/", payload);
+  return apiPost(token, '/leases/tenants/', payload);
 }
 
 export async function updateLeaseTenant(
   token: string,
   leaseTenantId: string,
-  payload: Partial<{ rent_amount: number; is_primary_tenant: boolean; tenant_notes: string }>,
+  payload: Partial<{
+    rent_amount: number;
+    is_primary_tenant: boolean;
+    tenant_notes: string;
+  }>
 ) {
   return apiPatch(token, `/leases/tenants/${leaseTenantId}/`, payload);
 }
@@ -207,7 +252,7 @@ export async function fetchPaymentsForLease(token: string, leaseId: string) {
 
 /** All documents attached to a lease. */
 export async function fetchDocumentsForLease(token: string, leaseId: string) {
-  return apiGet(token, `/leases/documents/?lease=${leaseId}`);
+  return apiGet<LeaseDocument[]>(token, `/leases/documents/?lease=${leaseId}`);
 }
 
 /**
@@ -225,11 +270,15 @@ export async function fetchDocumentsForLease(token: string, leaseId: string) {
  * contact details FOR a legal document, rather than being nagged for a field on
  * a settings page they'll never open.
  */
-export async function signLease(token: string, leaseTenantId: string, phone?: string) {
-  return apiPost(
+export async function signLease(
+  token: string,
+  leaseTenantId: string,
+  phone?: string
+) {
+  return apiPost<LeaseTenant>(
     token,
     `/leases/tenants/${leaseTenantId}/sign/`,
-    phone ? { phone } : undefined,
+    phone ? { phone } : undefined
   );
 }
 
@@ -237,11 +286,15 @@ export async function signLease(token: string, leaseTenantId: string, phone?: st
  * Tenant declines to sign. The backend does not touch the parent Lease's status —
  * the landlord sees the decline on the lease detail page and decides next steps.
  */
-export async function declineLease(token: string, leaseTenantId: string, reason?: string) {
-  return apiPost(
+export async function declineLease(
+  token: string,
+  leaseTenantId: string,
+  reason?: string
+) {
+  return apiPost<LeaseTenant>(
     token,
     `/leases/tenants/${leaseTenantId}/decline/`,
-    reason ? { reason } : undefined,
+    reason ? { reason } : undefined
   );
 }
 
@@ -265,31 +318,39 @@ export async function copyInviteLink(inviteUrl: string): Promise<void> {
 // --- Unauthenticated invite-acceptance flow (no token yet — the whole point is
 //     creating the account) ---
 
-export async function fetchInvitePreview(leaseTenantId: string, inviteToken: string) {
+export async function fetchInvitePreview(
+  leaseTenantId: string,
+  inviteToken: string
+) {
   const res = await fetch(
-    `${DJANGO_API_URL}/leases/tenants/${leaseTenantId}/invite-preview/?token=${encodeURIComponent(inviteToken)}`,
+    `${DJANGO_API_URL}/leases/tenants/${leaseTenantId}/invite-preview/?token=${encodeURIComponent(inviteToken)}`
   );
   if (!res.ok) {
-    throw new Error(await extractApiError(res, "This invite link is invalid or has expired."));
+    throw new Error(
+      await extractApiError(res, 'This invite link is invalid or has expired.')
+    );
   }
   return res.json();
 }
 
 export async function activateInviteAccount(
   leaseTenantId: string,
-  payload: { token: string; password: string; name: string },
+  payload: { token: string; password: string; name: string }
 ) {
-  const res = await fetch(`${DJANGO_API_URL}/leases/tenants/${leaseTenantId}/activate-account/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  const res = await fetch(
+    `${DJANGO_API_URL}/leases/tenants/${leaseTenantId}/activate-account/`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
   if (!res.ok) {
     throw new Error(
       await extractApiError(
         res,
-        "Couldn't create your account. The link may have already been used.",
-      ),
+        "Couldn't create your account. The link may have already been used."
+      )
     );
   }
   return res.json();

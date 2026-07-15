@@ -246,10 +246,9 @@ export default function MaintenanceRequests() {
                       <td className="px-4 py-3">
                         <div className="font-medium text-ink flex items-center gap-1.5">
                           {wo.is_rta_emergency && (
-                            <Flame
-                              className="h-3.5 w-3.5 text-red-600"
-                              title="RTA emergency"
-                            />
+                            <span title="RTA emergency">
+                              <Flame className="h-3.5 w-3.5 text-red-600" />
+                            </span>
                           )}
                           {wo.title}
                         </div>
@@ -466,7 +465,7 @@ function CreateWorkOrderDialog({
                 <SelectContent>
                   <SelectItem value="none">Whole unit</SelectItem>
                   {areas.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
+                    <SelectItem key={a.id} value={String(a.id)}>
                       {a.name} · {a.kind_display}
                     </SelectItem>
                   ))}

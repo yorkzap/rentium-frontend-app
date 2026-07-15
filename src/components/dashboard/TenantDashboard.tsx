@@ -374,7 +374,7 @@ export default function TenantDashboard() {
   };
 
   // ------------------------------------------------------------- derived
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
   const myCharges = useMemo(
     () =>
