@@ -18,7 +18,7 @@ import { listAppointments, type Appointment } from "@/lib/appointmentsApi";
 // ---------------------------------------------------------------- types
 export type CalEventKind =
   | "RENT_DUE" | "CHARGE_DUE" | "PAYMENT" | "APPOINTMENT" | "VIEWING_REQUEST"
-  | "MOVE_IN" | "MOVE_OUT" | "LEASE_END";
+  | "MOVE_IN" | "MOVE_OUT" | "LEASE_END" | "DEADLINE";
 
 export interface CalEvent {
   id: string;
@@ -40,12 +40,15 @@ export const KIND_STYLES: Record<CalEventKind, string> = {
   MOVE_IN: "bg-blue-50 text-blue-700 border-blue-200",
   MOVE_OUT: "bg-rose-50 text-rose-700 border-rose-200",
   LEASE_END: "bg-slate-100 text-slate-600 border-slate-200",
+  // Compliance / attention deadlines (inspection due, report delivery, …)
+  DEADLINE: "bg-danger-soft text-danger-ink border-danger/30",
 };
 // solid dot colors for the phone-sized grid
 const KIND_DOTS: Record<CalEventKind, string> = {
   RENT_DUE: "bg-emerald-500", CHARGE_DUE: "bg-amber-500", PAYMENT: "bg-teal-600",
   APPOINTMENT: "bg-indigo-500", VIEWING_REQUEST: "bg-purple-500",
   MOVE_IN: "bg-blue-500", MOVE_OUT: "bg-rose-500", LEASE_END: "bg-slate-400",
+  DEADLINE: "bg-danger",
 };
 
 // ---------------------------------------------------------------- utils

@@ -43,6 +43,7 @@ import {
   declineAppointment, listAppointments,
   type Appointment, type AppointmentKind,
 } from "@/lib/appointmentsApi";
+import { fetchAttention, type ActionItem } from "@/lib/attentionApi";
 
 const money = (v: number) =>
   `$${v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -59,6 +60,7 @@ const LEGEND: { kind: keyof typeof KIND_STYLES; label: string }[] = [
   { kind: "VIEWING_REQUEST", label: "Viewing request" },
   { kind: "MOVE_IN", label: "Move-in" },
   { kind: "MOVE_OUT", label: "Move-out" },
+  { kind: "DEADLINE", label: "Deadline" },
 ];
 
 type PanelAction = null | "schedule" | "expense" | "utility";
@@ -72,6 +74,7 @@ export default function LandlordCalendarPage() {
   const [leases, setLeases] = useState<LeaseLite[]>([]);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [attentionItems, setAttentionItems] = useState<ActionItem[]>([]);
   const [propertyFilter, setPropertyFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -100,13 +103,17 @@ export default function LandlordCalendarPage() {
   // ---- resilient loading: each source degrades independently -----------
   const load = useCallback(async () => {
     if (!token) return;
-    const [props, ls, ents, appts] = await Promise.all([
+    const [props, ls, ents, appts, att] = await Promise.all([
       fetchProperties(token).catch(() => [] as PropertyLite[]),
       fetchLeasesLite(token).catch(() => [] as LeaseLite[]),
       fetchEntries(token, {}).catch(() => [] as LedgerEntry[]),
       listAppointments(token, {}).catch(() => [] as Appointment[]),
+      // Action Center deadlines (inspections due, report delivery, …).
+      // Endpoint ships with backend Phase B; until then this is just [].
+      fetchAttention(token).catch(() => [] as ActionItem[]),
     ]);
     setProperties(props); setLeases(ls); setEntries(ents); setAppointments(appts);
+    setAttentionItems(att);
     setLoading(false);
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -150,8 +157,17 @@ export default function LandlordCalendarPage() {
         });
       }
     }
+    for (const item of attentionItems) {
+      if (!item.due_date) continue; // undated items live on the dashboard card
+      evts.push({
+        id: `att-${item.key}`, date: item.due_date, kind: "DEADLINE",
+        label: item.title,
+        detail: item.detail,
+        href: item.url,
+      });
+    }
     return evts;
-  }, [entries, appointments, leases, propId, propName]);
+  }, [entries, appointments, leases, attentionItems, propId, propName]);
 
   // ---- month money strip --------------------------------------------------
   const mk = `${month.year}-${`${month.month + 1}`.padStart(2, "0")}`;

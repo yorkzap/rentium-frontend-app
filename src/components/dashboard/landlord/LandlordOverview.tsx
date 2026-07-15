@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { DJANGO_API_URL } from "@/lib/config";
 import { toast } from "sonner";
 import { fetchSummary, type LedgerSummary } from "@/lib/financeApi";
+import { fetchAttention, type ActionItem } from "@/lib/attentionApi";
 import { HouseKeys, InspectionWalk } from "@/components/public/illustrations/spots";
 import { fetchWorkOrders, type WorkOrder } from "@/lib/maintenanceApi";
 
@@ -69,6 +70,10 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
   const [properties, setProperties] = useState<PropertyListSummary[]>([]);
   const [summary, setSummary] = useState<LedgerSummary | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  // Server-computed Action Center items. null = endpoint not available
+  // (backend Phase B not deployed yet) → fall back to the client-side
+  // assembly below. See docs/phase-b-spec.md.
+  const [attention, setAttention] = useState<ActionItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,13 +93,15 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
           throw new Error(e.detail || `Failed to fetch properties (${propsRes.status})`);
         }
         setProperties(await propsRes.json());
-        // These two are best-effort — a failure here shouldn't blank the page.
-        const [sum, wos] = await Promise.all([
+        // These are best-effort — a failure here shouldn't blank the page.
+        const [sum, wos, att] = await Promise.all([
           fetchSummary(token, { months: 1 }).catch(() => null),
           fetchWorkOrders(token).catch(() => [] as WorkOrder[]),
+          fetchAttention(token).catch(() => null),
         ]);
         setSummary(sum);
         setWorkOrders(wos);
+        setAttention(att);
       } catch (err) {
         const message = err instanceof Error ? err.message : "An unknown error occurred";
         setError(message);
@@ -129,7 +136,22 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
     {
       title: "Expected This Month",
       value: thisMonth ? money(thisMonth.expected_income) : (isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : "$0"),
-      details: thisMonth ? `${money(thisMonth.collected_income)} collected so far` : "From active leases",
+      // "Expected $0 · $0 collected" is technically right and practically
+      // misleading when a deposit landed or rent starts next month — say
+      // what actually happened with the money (docs/phase-b-spec.md B1).
+      details: thisMonth ? (
+        <>
+          {money(thisMonth.collected_income)} collected so far
+          {Number(thisMonth.deposits_collected ?? 0) > 0 && (
+            <span className="text-ok-ink"> · +{money(thisMonth.deposits_collected)} deposits</span>
+          )}
+          {Number(thisMonth.expected_income) === 0 && summary?.next_charge && (
+            <span className="block">
+              Next charge: {new Date(summary.next_charge.due_date + "T00:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })} — {money(summary.next_charge.amount)} ({summary.next_charge.property_name})
+            </span>
+          )}
+        </>
+      ) : "From active leases",
       icon: DollarSign, color: "bg-amber-50 text-amber-600", navigate: "financial",
     },
   ];
@@ -319,7 +341,40 @@ export default function LandlordOverview({ onNavigate }: { onNavigate: (section:
           <Card className="shadow-sm border">
             <CardHeader className="bg-canvas/60 border-b px-4 py-3 md:px-6 md:py-4"><CardTitle className="text-lg">Needs Attention</CardTitle></CardHeader>
             <CardContent className="p-0">
-              {taskItems.length > 0 ? (
+              {attention !== null ? (
+                // Server-computed Action Center (Phase B): province-aware
+                // requirements, deadlines, overdue money — one source.
+                attention.length > 0 ? (
+                  <ul className="divide-y divide-line">
+                    {attention.map((item) => {
+                      const tint =
+                        item.severity === "urgent" ? "bg-danger-soft text-danger-ink"
+                        : item.severity === "soon" ? "bg-warn-soft text-warn-ink"
+                        : "bg-info-soft text-info-ink";
+                      const go = () => {
+                        const section = item.url.match(/^\/dashboard\/([^/]+)/)?.[1];
+                        if (section) onNavigate(section); else router.push(item.url);
+                      };
+                      return (
+                        <li key={item.key} className="hover:bg-canvas cursor-pointer transition-colors" onClick={go} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') go(); }}>
+                          <div className="flex items-center p-3 md:p-4">
+                            <div className={`p-2 rounded-lg mr-3 ${tint}`}>
+                              {item.source === "maintenance" ? <Wrench className="h-4 w-4" /> : item.source === "ledger" ? <DollarSign className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0"><p className="text-sm font-medium text-ink truncate">{item.title}</p><p className="text-xs text-ink-3 truncate">{item.detail}</p></div>
+                            <ChevronRight className="h-5 w-5 text-ink-4 ml-2 shrink-0" />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="p-6 text-center">
+                    <InspectionWalk className="mx-auto h-20 opacity-90" />
+                    <p className="mt-2 text-sm text-ink-3">Nothing needs attention. Nice.</p>
+                  </div>
+                )
+              ) : taskItems.length > 0 ? (
                 <ul className="divide-y divide-line">
                   {taskItems.map((task) => (
                     <li key={task.id} className="hover:bg-canvas cursor-pointer transition-colors" onClick={() => onNavigate(task.navigate)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate(task.navigate); }}>

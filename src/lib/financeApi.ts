@@ -110,6 +110,13 @@ export interface MonthlyRow {
   collected_income: string
   expenses: string
   net: string
+  /**
+   * Deposit payments received this month. Deposits stay excluded from
+   * income (they're a refundable liability) — this exists so the UI can
+   * say what actually hit the bank. Optional until the backend ships it
+   * (docs/phase-b-spec.md, B1); absent means "not reported", treated as 0.
+   */
+  deposits_collected?: string
 }
 
 export interface LedgerSummary {
@@ -121,6 +128,16 @@ export interface LedgerSummary {
   /** Expenses you've recorded but that haven't cleared your bank yet. */
   expenses_not_yet_paid: string
   expenses_not_yet_paid_count: number
+  /** Income + deposit payments received in the current month (B1). */
+  collected_this_month_total?: string
+  /** Earliest unpaid charge with a future due date, if any (B1). */
+  next_charge?: {
+    due_date: string
+    amount: string
+    entry_type: string
+    lease_id: number
+    property_name: string
+  } | null
 }
 
 export interface PropertyLite {
