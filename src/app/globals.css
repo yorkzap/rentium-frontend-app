@@ -70,7 +70,7 @@
     --popover: 187 40% 11%;
     --popover-foreground: 44 20% 97%;
 
-    --primary: 172 66% 50%;
+    --primary: 173 42% 56%;
     --primary-foreground: 187 46% 8%;
 
     --secondary: 187 30% 15%;
@@ -80,16 +80,16 @@
     --muted-foreground: 40 6% 70%;
 
     --accent: 187 30% 15%;
-    --accent-foreground: 172 66% 60%;
+    --accent-foreground: 173 42% 62%;
 
     --destructive: 0 62.8% 45%;
     --destructive-foreground: 44 20% 97%;
 
     --border: 187 25% 20%;
     --input: 187 25% 20%;
-    --ring: 172 66% 50%;
+    --ring: 173 42% 56%;
 
-    --chart-1: 172 66% 50%;
+    --chart-1: 173 42% 56%;
     --chart-2: 44 20% 97%;
     --chart-3: 40 6% 70%;
     --chart-4: 168 84% 78%;
@@ -147,7 +147,11 @@
   --deep-raised: 187 38% 14%;
   --ink-inverse: 44 20% 97%;
   --ink-inverse-muted: 186 12% 68%;
-  --brand-bright: 172 66% 50%; /* accents that must survive on --deep */
+  /* Accent for dark surfaces. Deliberately NOT the max-saturation teal —
+     full chroma at mid lightness reads "neon" on a dark panel. A lighter,
+     desaturated sea-glass tint of the same hue keeps the brand and stays
+     calm (still >4.5:1 on --deep). */
+  --brand-bright: 173 42% 56%;
 
   /* Semantic — exactly one of each. Not four ambers. */
   --warn: 38 92% 50%;

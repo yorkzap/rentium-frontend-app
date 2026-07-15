@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 
 import { PROVINCES, getListing, money, prettyDate } from "@/lib/publicApi";
 import InquiryForm from "@/components/public/InquiryForm";
+import ListingsMapLazy from "@/components/public/ListingsMapLazy";
 
 export const revalidate = 300;
 
@@ -172,6 +173,19 @@ export default async function ListingPage({
                   </li>
                 ))}
               </ul>
+            </Section>
+          )}
+
+          {p.coords && (
+            <Section title="Location">
+              <ListingsMapLazy
+                area={{ coords: p.coords }}
+                className="h-64 w-full rounded-xl border border-neutral-200"
+              />
+              <p className="mt-2 text-xs text-neutral-500">
+                Approximate area — the circle shows the neighbourhood, not the
+                door.
+              </p>
             </Section>
           )}
 

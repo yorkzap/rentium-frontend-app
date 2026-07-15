@@ -20,6 +20,7 @@ import {
   prettyDate,
   type PublicCard,
 } from "@/lib/publicApi";
+import CityMap from "@/components/public/CityMap";
 
 export const revalidate = 300;
 
@@ -157,11 +158,24 @@ export default async function CityPage({
       )}
 
       {results.length > 0 ? (
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {results.map((p) => (
-            <ListingCard key={p.slug} p={p} href={`${base}/${p.slug}`} />
-          ))}
-        </ul>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8">
+          <ul className="grid gap-6 sm:grid-cols-2">
+            {results.map((p) => (
+              <ListingCard key={p.slug} p={p} href={`${base}/${p.slug}`} />
+            ))}
+          </ul>
+          <CityMap
+            pins={results
+              .filter((p) => p.coords)
+              .map((p) => ({
+                id: p.slug,
+                title: p.name,
+                href: `${base}/${p.slug}`,
+                priceLabel: p.asking_rent ? `${money(p.asking_rent)}/mo` : undefined,
+                coords: p.coords!,
+              }))}
+          />
+        </div>
       ) : (
         <EmptyState city={data.city} filtered={Object.keys(search).length > 0} base={base} />
       )}
