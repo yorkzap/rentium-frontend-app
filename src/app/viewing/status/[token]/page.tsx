@@ -120,7 +120,7 @@ export default function ViewingStatusPage() {
             <p className="mt-1 flex items-center gap-1 text-sm text-neutral-500">
               <MapPin className="h-3.5 w-3.5" />
               {status.property.location || status.property.city},{' '}
-              {status.property.province}
+              {status.property.province?.toUpperCase()}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
               {status.property.type_label}

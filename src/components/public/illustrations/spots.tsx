@@ -579,3 +579,196 @@ export function CanadaMap({ className }: SpotProps) {
     </svg>
   );
 }
+
+/** Autopilot: a paper plane cruising a dotted loop past a wound-up clock —
+ *  the system flying the route while the clock takes care of itself. */
+export function AutopilotSpot({ className }: SpotProps) {
+  return (
+    <svg
+      viewBox="0 0 160 140"
+      fill="none"
+      className={cn('h-32 w-auto', className)}
+      aria-hidden
+    >
+      {/* soft backdrop blob */}
+      <path
+        d="M30 78c-6-28 14-50 44-54s58 10 60 34-14 44-44 50-54-4-60-30z"
+        fill={SOFT}
+        opacity="0.55"
+      />
+      {/* dotted flight loop */}
+      <path
+        d="M28 96c10-30 38-46 64-42 24 4 40 22 36 40-3 14-18 22-32 18"
+        stroke={INK}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="1 7"
+        opacity="0.6"
+      />
+      {/* paper plane, mid-banking */}
+      <g transform="rotate(14 96 108)">
+        <path
+          d="M78 104l40-14-16 26-6-9z"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M118 90l-22 17 6 9"
+          fill={BRAND}
+          opacity="0.25"
+          stroke={INK}
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      </g>
+      {/* small wound clock, ticking along on its own */}
+      <g transform="rotate(-6 52 52)">
+        <circle
+          cx="52"
+          cy="52"
+          r="17"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="2.4"
+        />
+        <path
+          d="M52 42v10l7 5"
+          stroke={INK}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* wind-up key */}
+        <path
+          d="M52 33v-6M48 27h8"
+          stroke={INK}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        {/* tick marks */}
+        <path
+          d="M62 38l2-2M64 52h3M40 64l-2 2"
+          stroke={BRAND}
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+      </g>
+      {/* motion dashes behind the plane */}
+      <path
+        d="M64 118c4-1.5 8-2 12-2M60 126c5-2 10-3 15-3"
+        stroke={BRAND}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
+    </svg>
+  );
+}
+
+/** A spreadsheet page flowing into the bound ledger — bring your own rows,
+ *  take them back out any time. */
+export function SpreadsheetSwap({ className }: SpotProps) {
+  return (
+    <svg
+      viewBox="0 0 160 140"
+      fill="none"
+      className={cn('h-32 w-auto', className)}
+      aria-hidden
+    >
+      {/* warm backdrop */}
+      <path
+        d="M26 80c-4-26 16-48 44-52s60 6 64 30-12 46-42 52-60-4-66-30z"
+        fill={WARM}
+        opacity="0.55"
+      />
+      {/* spreadsheet page, tilted left */}
+      <g transform="rotate(-7 52 68)">
+        <rect
+          x="26"
+          y="34"
+          width="52"
+          height="66"
+          rx="3"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="2.4"
+        />
+        {/* grid lines, hand-ruled */}
+        <path
+          d="M27 50c17-.6 34-.8 50-.6M27.5 64c16-.7 32-.8 49-.5M28 78c16-.5 32-.6 48-.4"
+          stroke={INK}
+          strokeWidth="1.8"
+          opacity="0.5"
+        />
+        <path
+          d="M44 35.5c.6 21 .8 42 .6 63M61 35c.5 21 .6 43 .4 64"
+          stroke={INK}
+          strokeWidth="1.8"
+          opacity="0.5"
+        />
+        {/* a few filled cells */}
+        <rect x="30" y="53" width="11" height="8" fill={BRAND} opacity="0.3" />
+        <rect x="47" y="67" width="11" height="8" fill={SOFT} />
+      </g>
+      {/* two-way arrows between the artifacts */}
+      <path
+        d="M84 60c8-4 16-5 24-3"
+        stroke={INK}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M104 53l5 4-6 3"
+        stroke={INK}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M108 84c-8 4-16 5-24 3"
+        stroke={INK}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M88 91l-5-4 6-3"
+        stroke={INK}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* bound ledger, tilted right */}
+      <g transform="rotate(6 122 72)">
+        <rect
+          x="104"
+          y="40"
+          width="40"
+          height="58"
+          rx="4"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="2.4"
+        />
+        {/* spine stitches */}
+        <path
+          d="M109 46v46"
+          stroke={BRAND}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeDasharray="4 5"
+        />
+        {/* entry lines with amounts */}
+        <path
+          d="M116 54c8-.5 15-.6 22-.4M116 66c8-.4 14-.5 21-.3M116 78c7-.4 13-.4 20-.2"
+          stroke={INK}
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+        <circle cx="138" cy="88" r="4" fill={BRAND} opacity="0.4" />
+      </g>
+    </svg>
+  );
+}

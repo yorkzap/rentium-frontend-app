@@ -2,8 +2,7 @@ import Link from 'next/link';
 import Wordmark from './Wordmark';
 
 // The one public-site footer. Dark editorial close to every public page.
-// TODO(local): add a Cities column fed by publicApi getCities(), and legal
-// pages (privacy/terms) once the documents exist — no placeholder legalese.
+// TODO(local): add a Cities column fed by publicApi getCities().
 
 const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] =
   [
@@ -11,6 +10,7 @@ const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] =
       heading: 'Product',
       links: [
         { href: '/#product', label: 'How it works' },
+        { href: '/#autopilot', label: 'On autopilot' },
         { href: '/#compliance', label: 'BC compliance' },
         { href: '/pricing', label: 'Pricing' },
       ],
@@ -30,6 +30,13 @@ const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] =
         { href: '/auth/login', label: 'Log in' },
       ],
     },
+    {
+      heading: 'Legal',
+      links: [
+        { href: '/privacy', label: 'Privacy policy' },
+        { href: '/terms', label: 'Terms of service' },
+      ],
+    },
   ];
 
 export default function SiteFooter() {
@@ -46,7 +53,7 @@ export default function SiteFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {COLUMNS.map((col) => (
               <div key={col.heading}>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-inverse-muted">

@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 
 import { PROVINCES, getListing, money, prettyDate } from '@/lib/publicApi';
 import InquiryForm from '@/components/public/InquiryForm';
+import ListingGallery from '@/components/public/ListingGallery';
 import ListingsMapLazy from '@/components/public/ListingsMapLazy';
 
 export const revalidate = 300;
@@ -64,28 +65,22 @@ export default async function ListingPage({
         <span className="text-neutral-900">{p.location}</span>
       </nav>
 
-      {/* Gallery */}
-      {p.images.length > 0 || p.image ? (
-        <div className="mb-8 grid gap-2 overflow-hidden rounded-xl sm:grid-cols-3">
-          {/* eslint-disable @next/next/no-img-element */}
-          <img
-            src={p.images[0]?.url ?? p.image ?? ''}
-            alt={p.name}
-            className="aspect-[4/3] w-full object-cover sm:col-span-2 sm:aspect-[16/10]"
-          />
-          <div className="grid gap-2">
-            {p.images.slice(1, 3).map((img, i) => (
-              <img
-                key={i}
-                src={img.url ?? ''}
-                alt={img.caption || p.name}
-                className="aspect-[4/3] w-full object-cover"
-              />
-            ))}
-          </div>
-          {/* eslint-enable @next/next/no-img-element */}
-        </div>
-      ) : null}
+      {/* Gallery — grid + full-screen lightbox (keyboard/swipe) */}
+      <ListingGallery
+        images={
+          p.images.length > 0
+            ? p.images
+                .filter((img) => img.url)
+                .map((img) => ({
+                  url: img.url as string,
+                  caption: img.caption,
+                }))
+            : p.image
+              ? [{ url: p.image }]
+              : []
+        }
+        alt={p.name}
+      />
 
       <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
         {/* ------------------------------------------------------- left */}
