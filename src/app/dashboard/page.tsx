@@ -1,84 +1,55 @@
+// page.tsx
+//
+// The dashboard ROOT. Nothing else.
+//
+// This file used to render `<LandlordDashboard />` — which, after the
+// double-navbar cleanup, became a pass-through that returns its children. No
+// children were passed. So the landlord's home page rendered an empty <> and the
+// page was blank, silently, with no error anywhere. The shell (nav, header, bell)
+// lives in dashboard/layout.tsx; this file's only job is to pick which overview
+// to show.
+
 "use client";
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import LandlordDashboard from '@/components/dashboard/LandlordDashboard';
-import TenantDashboard from '@/components/dashboard/TenantDashboard';
-import { USER_TYPES } from '@/lib/config';
+
+import { useAuth } from "@/contexts/AuthContext";
+import { USER_TYPES } from "@/lib/config";
+import LandlordOverview from "@/components/dashboard/landlord/LandlordOverview";
+import TenantDashboard from "@/components/dashboard/TenantDashboard";
+import { Skeleton } from "@/components/ui/page";
 
 export default function DashboardPage() {
-  const { user, logout, token } = useAuth();
-  const [userType, setUserType] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
 
-  // Debug log when dashboard page renders
-  useEffect(() => {
-    console.log("Dashboard page rendering with:", { 
-      user: user ? `${user.email}` : "no user", 
-      authenticated: !!token,
-      userType: user?.user_type || 'not set'
-    });
-    
-    // Set user type from user object if available
-    if (user?.user_type) {
-      setUserType(user.user_type);
-      setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, [user, token]);
-
-  const handleLogout = () => {
-    console.log("Logout button clicked");
-    logout();
-  };
-
-  // Loading state
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
-        <span className="ml-3 text-slate-600">Loading dashboard...</span>
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-56" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
-  
+
+  const type = (user?.user_type || "").toUpperCase();
+
+  if (type === USER_TYPES.LANDLORD) return <LandlordOverview />;
+  if (type === USER_TYPES.TENANT) return <TenantDashboard />;
+
+  // Not a silent blank. If we get here, something is genuinely wrong with the
+  // account and the person deserves to be told, not shown an empty page.
   return (
-    <>
-      {/* Render different dashboard based on user type */}
-      {userType === USER_TYPES.LANDLORD && <LandlordDashboard />}
-      {userType === USER_TYPES.TENANT && <TenantDashboard />}
-      
-      {/* Fallback if user type is not recognized */}
-      {userType !== USER_TYPES.LANDLORD && userType !== USER_TYPES.TENANT && (
-        <div className="min-h-screen bg-slate-50 p-8">
-          <div className="mx-auto max-w-5xl">
-            <div className="flex justify-between items-center mb-8">
-              <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-slate-600">
-                  Logged in as <span className="font-medium">{user?.email || 'User'}</span>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="border-slate-200 hover:bg-slate-50"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </Button>
-              </div>
-            </div>
-            
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to Rentium</h2>
-              <p className="text-slate-600 mb-6">
-                Your user type ({userType || 'unknown'}) is not recognized. 
-                Please contact support for assistance.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <div className="card mx-auto max-w-lg p-8 text-center">
+      <h1 className="text-lg font-semibold">We couldn&apos;t work out your account type</h1>
+      <p className="mt-2 text-sm text-[hsl(var(--ink-3))]">
+        Your account is signed in as{" "}
+        <span className="font-medium">{user?.email || "unknown"}</span> but has no
+        landlord or tenant profile attached, so there&apos;s no dashboard to show
+        you. This is a fault on our side — please get in touch and we&apos;ll fix it.
+      </p>
+    </div>
   );
 }

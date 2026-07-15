@@ -1,365 +1,186 @@
+// src/components/dashboard/landlord/NotificationCenter.tsx
 "use client"
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  Bell,
-  FileText,
-  Wrench,
-  Building2,
-  Users,
-  DollarSign,
-  CalendarDays,
-  CheckCircle,
-  AlertTriangle,
+  Bell, FileText, Wrench, DollarSign, MessageSquare, CheckCircle, AlertTriangle,
+  CalendarDays, Loader2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import {
+  fetchNotifications, markNotificationRead, markAllNotificationsRead,
+  type AppNotification, type NotificationCategory,
+} from "@/lib/engagementApi"
+
+const ICON: Record<NotificationCategory, React.ReactNode> = {
+  LEASE: <FileText className="h-5 w-5" />,
+  MAINTENANCE: <Wrench className="h-5 w-5" />,
+  PAYMENT: <DollarSign className="h-5 w-5" />,
+  MESSAGE: <MessageSquare className="h-5 w-5" />,
+  SYSTEM: <Bell className="h-5 w-5" />,
+}
+
+const ICON_BG: Record<NotificationCategory, string> = {
+  LEASE: "bg-blue-100 text-blue-700",
+  MAINTENANCE: "bg-amber-100 text-amber-700",
+  PAYMENT: "bg-green-100 text-green-700",
+  MESSAGE: "bg-purple-100 text-purple-700",
+  SYSTEM: "bg-slate-100 text-slate-700",
+}
+
+function timeAgo(iso: string): string {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60) return "just now"
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`
+  return new Date(iso).toLocaleDateString()
+}
 
 export default function NotificationCenter() {
-  const [activeTab, setActiveTab] = useState("all")
+  const { token } = useAuth()
+  const router = useRouter()
+  const [items, setItems] = useState<AppNotification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState("all")
 
-  // Mock notifications data
-  const notifications = [
-    {
-      id: 1,
-      title: "Lease expiring soon",
-      description: "The lease for 456 Park Ave will expire in 15 days",
-      date: "2 hours ago",
-      type: "lease",
-      read: false,
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Maintenance request submitted",
-      description: "New request: Leaking faucet at 123 Main St, Apt 4B",
-      date: "5 hours ago",
-      type: "maintenance",
-      read: false,
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Rent payment received",
-      description: "Received $1,800 from John Tenant for 123 Main St",
-      date: "Yesterday",
-      type: "payment",
-      read: true,
-      priority: "low",
-    },
-    {
-      id: 4,
-      title: "Move-out inspection scheduled",
-      description: "Inspection for 101 Pine St, Room 2 on Jun 28, 2023",
-      date: "2 days ago",
-      type: "inspection",
-      read: true,
-      priority: "medium",
-    },
-    {
-      id: 5,
-      title: "New message from tenant",
-      description: 'Sarah Renter: "When will the plumber arrive?"',
-      date: "3 days ago",
-      type: "message",
-      read: true,
-      priority: "medium",
-    },
-  ]
+  const load = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      setItems(await fetchNotifications(token))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load notifications.")
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
-  // Filter notifications based on active tab
-  const filteredNotifications = notifications.filter((notification) => {
-    if (activeTab === "all") return true
-    if (activeTab === "unread") return !notification.read
-    if (activeTab === "high") return notification.priority === "high"
-    return notification.type === activeTab
-  })
+  useEffect(() => { load() }, [load])
 
-  // Count unread notifications
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const unreadCount = items.filter((n) => !n.is_read).length
+  const weekCount = items.filter((n) => Date.now() - new Date(n.created_at).getTime() < 6048e5).length
+
+  const filtered = useMemo(() => {
+    if (tab === "all") return items
+    if (tab === "unread") return items.filter((n) => !n.is_read)
+    return items.filter((n) => n.category === tab.toUpperCase())
+  }, [items, tab])
+
+  const onRead = async (n: AppNotification) => {
+    if (n.is_read) return
+    setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)))
+    try { await markNotificationRead(token!, n.id) } catch { load() }
+  }
+
+  const onOpen = async (n: AppNotification) => {
+    await onRead(n)
+    if (n.url) router.push(n.url)
+  }
+
+  const onReadAll = async () => {
+    setItems((prev) => prev.map((x) => ({ ...x, is_read: true })))
+    try {
+      await markAllNotificationsRead(token!)
+      toast.success("All caught up.")
+    } catch { load() }
+  }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notification Center</h1>
-          <p className="text-slate-500 text-sm mt-1">Stay updated on important events</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
+          <p className="text-slate-500 text-sm mt-1">Everything happening across your properties.</p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
-            <CheckCircle className="h-4 w-4 mr-1" />
-            Mark All Read
-          </Button>
-          <Button size="sm" className="bg-teal-600 hover:bg-teal-700">
-            <Bell className="h-4 w-4 mr-1" />
-            Notification Settings
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={onReadAll} disabled={unreadCount === 0}>
+          <CheckCircle className="h-4 w-4 mr-1" /> Mark all read
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">All Notifications</p>
-                <p className="text-2xl font-bold">{notifications.length}</p>
-              </div>
-              <div className="p-2 rounded-full bg-slate-100 text-slate-700">
-                <Bell className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Unread</p>
-                <p className="text-2xl font-bold">{unreadCount}</p>
-              </div>
-              <div className="p-2 rounded-full bg-blue-100 text-blue-700">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-                <p className="text-2xl font-bold">{notifications.filter((n) => n.priority === "high").length}</p>
-              </div>
-              <div className="p-2 rounded-full bg-red-100 text-red-700">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">This Week</p>
-                <p className="text-2xl font-bold">{notifications.length}</p>
-              </div>
-              <div className="p-2 rounded-full bg-green-100 text-green-700">
-                <CalendarDays className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="All" value={items.length} icon={<Bell className="h-5 w-5" />} tone="bg-slate-100 text-slate-700" />
+        <StatCard label="Unread" value={unreadCount} icon={<AlertTriangle className="h-5 w-5" />} tone="bg-blue-100 text-blue-700" />
+        <StatCard label="Maintenance" value={items.filter((n) => n.category === "MAINTENANCE").length} icon={<Wrench className="h-5 w-5" />} tone="bg-amber-100 text-amber-700" />
+        <StatCard label="This week" value={weekCount} icon={<CalendarDays className="h-5 w-5" />} tone="bg-green-100 text-green-700" />
       </div>
 
-      <Tabs defaultValue="all" onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-6 w-full">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="unread">
-            Unread
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {unreadCount}
-              </Badge>
-            )}
+            Unread {unreadCount > 0 && <Badge variant="destructive" className="ml-2">{unreadCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="high">High Priority</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="lease">Leases</TabsTrigger>
           <TabsTrigger value="payment">Payments</TabsTrigger>
+          <TabsTrigger value="lease">Leases</TabsTrigger>
+          <TabsTrigger value="message">Messages</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="mt-4">
+        <TabsContent value={tab} className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>
-                {activeTab === "all" && "All Notifications"}
-                {activeTab === "unread" && "Unread Notifications"}
-                {activeTab === "high" && "High Priority Notifications"}
-                {activeTab === "maintenance" && "Maintenance Notifications"}
-                {activeTab === "lease" && "Lease Notifications"}
-                {activeTab === "payment" && "Payment Notifications"}
-              </CardTitle>
-              <CardDescription>
-                {filteredNotifications.length} notification{filteredNotifications.length !== 1 ? "s" : ""}
-              </CardDescription>
+              <CardTitle className="text-lg capitalize">{tab === "all" ? "All notifications" : tab}</CardTitle>
+              <CardDescription>{filtered.length} notification{filtered.length !== 1 ? "s" : ""}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {filteredNotifications.length > 0 ? (
-                  filteredNotifications.map((notification) => (
+              {loading ? (
+                <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-10">
+                  <Bell className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">You're all caught up.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filtered.map((n) => (
                     <div
-                      key={notification.id}
-                      className={`flex items-start p-4 rounded-lg border ${
-                        !notification.read ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100"
+                      key={n.id}
+                      className={`flex items-start p-4 rounded-lg border cursor-pointer transition-colors ${
+                        !n.is_read ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100 hover:bg-slate-50"
                       }`}
+                      onClick={() => onOpen(n)}
                     >
-                      <div
-                        className={`p-2 rounded-full mr-4 ${
-                          notification.type === "lease"
-                            ? "bg-blue-100 text-blue-700"
-                            : notification.type === "maintenance"
-                              ? "bg-amber-100 text-amber-700"
-                              : notification.type === "payment"
-                                ? "bg-green-100 text-green-700"
-                                : notification.type === "inspection"
-                                  ? "bg-purple-100 text-purple-700"
-                                  : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {notification.type === "lease" && <FileText className="h-5 w-5" />}
-                        {notification.type === "maintenance" && <Wrench className="h-5 w-5" />}
-                        {notification.type === "payment" && <DollarSign className="h-5 w-5" />}
-                        {notification.type === "inspection" && <Building2 className="h-5 w-5" />}
-                        {notification.type === "message" && <Users className="h-5 w-5" />}
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className={`font-medium ${!notification.read ? "text-slate-900" : "text-slate-700"}`}>
-                            {notification.title}
-                            {!notification.read && (
-                              <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600"></span>
-                            )}
+                      <div className={`p-2 rounded-full mr-4 shrink-0 ${ICON_BG[n.category]}`}>{ICON[n.category]}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className={`font-medium ${!n.is_read ? "text-slate-900" : "text-slate-700"}`}>
+                            {n.title}
+                            {!n.is_read && <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600 align-middle" />}
                           </h3>
-                          <span className="text-xs text-slate-500">{notification.date}</span>
+                          <span className="text-xs text-slate-400 whitespace-nowrap">{timeAgo(n.created_at)}</span>
                         </div>
-                        <p className="text-sm text-slate-600 mt-1">{notification.description}</p>
-
-                        <div className="flex justify-between items-center mt-3">
-                          <div className="flex space-x-2">
-                            {notification.priority === "high" && <Badge variant="destructive">High Priority</Badge>}
-                            {notification.priority === "medium" && (
-                              <Badge variant="default" className="bg-amber-500">
-                                Medium Priority
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">
-                              {notification.read ? "Mark Unread" : "Mark Read"}
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              View
-                            </Button>
-                          </div>
-                        </div>
+                        {n.body && <p className="text-sm text-slate-600 mt-1">{n.body}</p>}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Bell className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                    <h3 className="text-lg font-medium text-slate-700">No notifications</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      You don't have any {activeTab !== "all" ? activeTab : ""} notifications at the moment
-                    </p>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Notification Preferences</CardTitle>
-          <CardDescription>Customize how you receive notifications</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Email Notifications</h3>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="email-maintenance" className="text-sm">
-                    Maintenance Requests
-                  </Label>
-                  <Switch id="email-maintenance" defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="email-lease" className="text-sm">
-                    Lease Renewals
-                  </Label>
-                  <Switch id="email-lease" defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="email-payment" className="text-sm">
-                    Payment Notifications
-                  </Label>
-                  <Switch id="email-payment" defaultChecked />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">SMS Notifications</h3>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="sms-maintenance" className="text-sm">
-                    Maintenance Requests
-                  </Label>
-                  <Switch id="sms-maintenance" defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="sms-lease" className="text-sm">
-                    Lease Renewals
-                  </Label>
-                  <Switch id="sms-lease" />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="sms-payment" className="text-sm">
-                    Payment Notifications
-                  </Label>
-                  <Switch id="sms-payment" />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">In-App Notifications</h3>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="app-maintenance" className="text-sm">
-                    Maintenance Requests
-                  </Label>
-                  <Switch id="app-maintenance" defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="app-lease" className="text-sm">
-                    Lease Renewals
-                  </Label>
-                  <Switch id="app-lease" defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="app-payment" className="text-sm">
-                    Payment Notifications
-                  </Label>
-                  <Switch id="app-payment" defaultChecked />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button className="bg-teal-600 hover:bg-teal-700">Save Preferences</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
 
+function StatCard({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="text-2xl font-semibold">{value}</p>
+          </div>
+          <div className={`p-2 rounded-full ${tone}`}>{icon}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

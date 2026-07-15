@@ -1,4 +1,4 @@
-/* src/app/globals.css */
+/* globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -106,67 +106,88 @@
   }
 }
 
-@layer components {
-  /* Background colors */
-  .bg-brand-primary {
-    background-color: var(--brand-primary);
-  }
-  
-  .hover\:bg-brand-primary-hover:hover {
-    background-color: var(--brand-primary-hover);
-  }
-  
-  .bg-brand-dark {
-    background-color: var(--brand-dark);
-  }
 
-  .bg-brand-dark-lighter {
-    background-color: var(--brand-dark-lighter);
-  }
-  
-  .hover\:bg-brand-dark-lighter:hover {
-    background-color: var(--brand-dark-lighter);
-  }
-  
-  /* Border colors */
-  .border-brand-dark-lighter {
-    border-color: var(--brand-dark-lighter);
-  }
-  
-  .hover\:border-brand-primary:hover {
-    border-color: var(--brand-primary);
-  }
+/* ---------------------------------------------------------------------------
+   DESIGN TOKENS
 
-  /* Text colors */
-  .text-brand-primary {
-    color: var(--brand-primary);
-  }
+   One place. Every colour, radius and shadow in the app resolves here, so the
+   difference between "looks like a school project" and "looks finished" is a
+   set of decisions made once rather than a hundred ad-hoc hex codes made in a
+   hurry. The old code had teal-600, slate-900 and #0f766e all acting as "the
+   primary colour" in different files, which is exactly how an interface stops
+   feeling like one product.
 
-  .hover\:text-brand-primary:hover {
-    color: var(--brand-primary);
-  }
-  
-  /* Ghost button styles */
-  .ghost-brand {
-    @apply text-gray-300 hover:text-brand-primary hover:bg-brand-dark-lighter/50 transition-colors;
-  }
+   The palette is warm-neutral rather than cold-grey: pure #ffffff on #f8fafc is
+   the default every unfinished admin panel ships with, and it reads as unfinished
+   because it IS the default. A warm off-white background with near-black (not
+   black) text is what serious document-handling software looks like, and this
+   app handles legal documents.
+--------------------------------------------------------------------------- */
+:root {
+  /* Surfaces */
+  --canvas: 44 20% 97%;        /* #faf9f7 — the page */
+  --surface: 0 0% 100%;        /* cards, sheets */
+  --surface-sunken: 40 12% 95%;/* wells, disabled */
 
-  /* Focus states */
-  .focus\:ring-brand-primary:focus {
-    --tw-ring-color: var(--brand-primary);
-  }
+  /* Ink */
+  --ink: 60 5% 11%;            /* #1c1c1a — body text. Not #000; nothing is #000 */
+  --ink-2: 40 5% 30%;          /* #3a3833 — secondary */
+  --ink-3: 40 5% 45%;          /* #6b6862 — muted */
+  --ink-4: 40 5% 57%;          /* #8a8681 — labels, hints */
+  --ink-5: 40 6% 70%;          /* #a5a19a — placeholders */
 
-  /* Active states */
-  .active\:bg-brand-primary-hover:active {
-    background-color: var(--brand-primary-hover);
-  }
+  /* Lines */
+  --line: 38 13% 89%;          /* #e6e3de — every border in the app */
+  --line-strong: 38 10% 78%;
+
+  /* Brand */
+  --brand: 175 77% 26%;        /* #0f766e teal-700 */
+  --brand-hover: 175 84% 20%;
+  --brand-soft: 166 76% 97%;
+  --brand-ink: 175 84% 15%;
+
+  /* Semantic — exactly one of each. Not four ambers. */
+  --warn: 38 92% 50%;
+  --warn-soft: 48 96% 89%;
+  --warn-ink: 26 90% 31%;
+
+  --danger: 0 72% 51%;
+  --danger-soft: 0 86% 97%;
+  --danger-ink: 0 70% 35%;
+
+  --ok: 160 84% 39%;
+  --ok-soft: 152 76% 96%;
+  --ok-ink: 158 64% 25%;
+
+  --info: 217 91% 60%;
+  --info-soft: 214 95% 96%;
+  --info-ink: 224 64% 33%;
+
+  --radius: 0.625rem;
 }
+
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply bg-background text-foreground;
-    font-family: Arial, Helvetica, sans-serif;
+    background: hsl(var(--canvas));
+    color: hsl(var(--ink));
+    -webkit-font-smoothing: antialiased;
   }
+  /* Cards get a 1px line, not a shadow. Shadows on every card is how a UI ends
+     up looking like a pile of floating debris; a hairline border is what a
+     document looks like. Shadow is reserved for things that genuinely float:
+     dropdowns, sheets, popovers. */
+  h1, h2, h3 { letter-spacing: -0.011em; }
+}
+
+@layer utilities {
+  .card {
+    @apply rounded-xl border bg-white;
+    border-color: hsl(var(--line));
+  }
+  .field {
+    @apply w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition-colors;
+    border-color: hsl(var(--line));
+  }
+  .field:focus { border-color: hsl(var(--brand)); }
+  .field::placeholder { color: hsl(var(--ink-5)); }
 }

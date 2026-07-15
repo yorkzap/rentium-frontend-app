@@ -1,23 +1,33 @@
-// src/components/dashboard/landlord/properties/AreaList.tsx
+// AreaList.tsx
 "use client";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash2, Home, Users, Lock } from "lucide-react"; // Added Lock icon
+import { MoreHorizontal, Edit, Trash2, Home, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Updated interface matching PropertyAreaSerializer (with is_private_to_room)
+// Minimal property info nested in shared_by_details (from BasicPropertySerializer)
+export interface SharedByPropertyInfo {
+    id: number;
+    name: string;
+    property_category: "ROOM" | "COMPLETE_UNIT";
+}
+
+// Matches the refactored PropertyAreaSerializer:
+// - is_shared / is_private_to_room are GONE
+// - shared_by: writable list of Property IDs (returned on read too)
+// - shared_by_details: read-only nested property info
+// - 'property' FK is write_only on the serializer, so it is NOT in responses
 export interface AreaData {
     id: number;
-    property: number; // Or string depending on API
-    area_type: string; // e.g., 'KITCHEN', 'BATHROOM'
-    area_type_display: string; // e.g., 'Kitchen', 'Bathroom'
+    area_type: string;          // e.g. 'KITCHEN'
+    area_type_display: string;  // e.g. 'Kitchen'
     count: number;
-    is_shared: boolean;          // Shared with group?
-    is_private_to_room: boolean; // Exclusive to this room?
     description?: string | null;
+    shared_by: number[];
+    shared_by_details: SharedByPropertyInfo[];
     created_at: string;
     updated_at: string;
 }
@@ -27,21 +37,41 @@ interface AreaListProps {
     onEdit: (area: AreaData) => void;
     onDelete: (areaId: number) => void;
     isLoading?: boolean;
-    propertyCategory?: 'ROOM' | 'COMPLETE_UNIT'; // Pass category to adjust display (optional, but good practice)
+    /** ID of the property whose detail page is rendering this list.
+     *  Used to phrase sharing status from this property's perspective. */
+    currentPropertyId?: number;
 }
 
-export default function AreaList({ areas, onEdit, onDelete, isLoading = false, propertyCategory }: AreaListProps) {
+export default function AreaList({ areas, onEdit, onDelete, isLoading = false, currentPropertyId }: AreaListProps) {
+    // Status is now DERIVED from the single shared_by relation — no parallel flags.
+    const getStatusInfo = (
+        area: AreaData,
+    ): { icon: React.ElementType; text: string; tooltip: string; variant: "outline" | "secondary" } => {
+        const details = area.shared_by_details ?? [];
 
-    // Function to determine the display status based on flags
-    const getStatusInfo = (area: AreaData): { icon: React.ElementType; text: string; tooltip: string; variant: 'outline' | 'secondary' | 'default' } => {
-        if (area.is_private_to_room && propertyCategory === 'ROOM') { // Check category for clarity
-            return { icon: Lock, text: "Private (Room)", tooltip: "Exclusive to this Room", variant: 'default' };
-        } else if (area.is_shared && propertyCategory === 'ROOM') { // Check category for clarity
-            return { icon: Users, text: "Shared (Group)", tooltip: "Shared with Group", variant: 'secondary' };
-        } else {
-            // Default: General private area (within unit or room, but not group-shared or room-exclusive)
-            return { icon: Home, text: "Private (General)", tooltip: "General Private Area", variant: 'outline' };
+        // Properties sharing this area other than the one we're currently viewing
+        const others = currentPropertyId != null
+            ? details.filter((p) => p.id !== currentPropertyId)
+            : details;
+
+        // Empty shared_by (or only the primary/current property) => private
+        const isShared = others.length > 0 && details.length > 1;
+
+        if (isShared) {
+            const names = others.map((p) => p.name).join(", ");
+            return {
+                icon: Users,
+                text: `Shared (${details.length})`,
+                tooltip: `Shared with: ${names}`,
+                variant: "secondary",
+            };
         }
+        return {
+            icon: Home,
+            text: "Private",
+            tooltip: "Private to this property",
+            variant: "outline",
+        };
     };
 
     if (!areas || areas.length === 0) {
@@ -55,7 +85,7 @@ export default function AreaList({ areas, onEdit, onDelete, isLoading = false, p
                     <TableRow>
                         <TableHead>Area Type</TableHead>
                         <TableHead className="w-[60px] text-center">Count</TableHead>
-                        <TableHead className="w-[140px]">Status</TableHead> {/* Increased width */}
+                        <TableHead className="w-[140px]">Status</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead className="w-[60px] text-right">Actions</TableHead>
                     </TableRow>
@@ -70,9 +100,8 @@ export default function AreaList({ areas, onEdit, onDelete, isLoading = false, p
                                 <TableCell>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                             {/* Wrap Badge in span for tooltip trigger */}
                                             <span className="inline-block">
-                                                <Badge variant={statusInfo.variant} className="cursor-help text-xs"> {/* Ensure text-xs */}
+                                                <Badge variant={statusInfo.variant} className="cursor-help text-xs">
                                                     <statusInfo.icon className="h-3 w-3 mr-1 flex-shrink-0" />
                                                     {statusInfo.text}
                                                 </Badge>
@@ -81,13 +110,26 @@ export default function AreaList({ areas, onEdit, onDelete, isLoading = false, p
                                         <TooltipContent><p>{statusInfo.tooltip}</p></TooltipContent>
                                     </Tooltip>
                                 </TableCell>
-                                <TableCell className="text-sm text-slate-600">{area.description || <span className="text-slate-400">-</span>}</TableCell>
+                                <TableCell className="text-sm text-slate-600">
+                                    {area.description || <span className="text-slate-400">-</span>}
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" disabled={isLoading}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isLoading}>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => onEdit(area)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => onDelete(area.id)}><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onEdit(area)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-red-600 focus:text-red-600"
+                                                onClick={() => onDelete(area.id)}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>

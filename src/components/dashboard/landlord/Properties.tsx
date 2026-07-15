@@ -1,4 +1,4 @@
-// src/components/dashboard/landlord/Properties.tsx
+// Properties.tsx
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,7 +127,7 @@ export default function AssetManagement() {
 
       try {
           const propPromise = fetch(`${DJANGO_API_URL}/properties/`, { headers: { 'Authorization': `Token ${token}` } });
-          const groupPromise = fetch(`${DJANGO_API_URL}/property-groups/`, { headers: { 'Authorization': `Token ${token}` } });
+          const groupPromise = fetch(`${DJANGO_API_URL}/properties/groups/`, { headers: { 'Authorization': `Token ${token}` } });
 
           const [propResponse, groupResponse] = await Promise.all([propPromise, groupPromise]);
 
@@ -213,7 +213,7 @@ export default function AssetManagement() {
       const name = groups.find(g => g.id === groupToDeleteId)?.name ?? 'Unknown Group';
       setIsDeleting(true);
       try {
-          const res = await fetch(`${DJANGO_API_URL}/property-groups/${groupToDeleteId}/`, { method: 'DELETE', headers: { 'Authorization': `Token ${token}` } });
+          const res = await fetch(`{DJANGO_API_URL}/property-groups/${groupToDeleteId}/`, { method: 'DELETE', headers: { 'Authorization': `Token ${token}` } });
            if (!res.ok && res.status !== 204) throw new Error(`Delete failed (${res.status})`);
           setGroups(prev => prev.filter(g => g.id !== groupToDeleteId)); toast.success(`Group "${name}" deleted.`);
           setProperties(prev => prev.map(p => p.group?.id === groupToDeleteId ? { ...p, group: null } : p));

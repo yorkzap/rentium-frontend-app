@@ -1,815 +1,1168 @@
-// src/components/dashboard/TenantDashboard.tsx
+// TenantDashboard.tsx
+//
+// The tenant's HOME. Rent, repairs, documents. Nothing else.
+//
+// Three things changed, and they're all the same underlying mistake — this file was
+// trying to be the whole app:
+//
+// 1. IT RENDERED A SECOND HEADER. dashboard/layout.tsx's tenant shell already draws
+//    the brand, the notification bell, the avatar and the logout button. This file
+//    drew all four again, inside it. The landlord side had exactly this bug and it
+//    was fixed; the tenant side was never touched.
+//
+// 2. THE MOVE-OUT FORM AND THE CALENDAR LIVED AT THE BOTTOM OF THE PAYMENTS TAB.
+//    Below the charges table. Below the payment history. To end their tenancy, a
+//    tenant had to click "Payments" — which they would have no reason to do — and
+//    then scroll past two tables. They now have their own pages under /dashboard/
+//    tenancy, and this page links to them prominently.
+//
+// 3. "CONTACT LANDLORD" WAS A BUTTON WITH NO onClick. Not broken in some subtle
+//    way — it had no handler at all. It now opens a real conversation.
 "use client";
-import { useState, useEffect, useMemo } from "react"; // Added useMemo import
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Home, CreditCard, FileText, Wrench, MessageSquare, Receipt, Bolt, Droplet,
-  Flame, Wifi, Bell, User, ChevronRight, Settings, Download, CreditCardIcon,
-  CheckCircle, Upload, Search, Filter, Plus, Shield, Building, AlertCircle,
-  Calendar, Clock, MoreHorizontal, Loader2, Signature // Added Signature icon
+  Home, CreditCard, FileText, Wrench, MessageSquare, Receipt, DoorOpen,
+  CheckCircle, Download, Loader2, Users, Lock, AlertCircle, Calendar, Clock,
+  CalendarDays, ChevronRight,
 } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge"; // Import Badge
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import ProfileSettings from "./profile/ProfileSettings";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Lease, LeaseTenant, Payment, LeaseDocument } from "@/types/lease"; // Adjust path
-// Mock API functions since real API is unavailable
-// These functions return hardcoded data for testing purposes
-const fetchLeases = async (token) => {
-  console.log("Mock fetchLeases called with token:", token);
-  return [
-    {
-      id: "lease-123",
-      lease_number: "L-2025-001",
-      property_name: "Sunset Apartments",
-      property_address: "123 Main St, Anytown, CA 94105",
-      group_name: "Unit 203",
-      status: "ACTIVE",
-      status_display: "Active",
-      landlord_name: "Property Management Inc.",
-      start_date: "2025-01-01",
-      end_date: "2025-12-31",
-      lease_type: "RESIDENTIAL",
-      lease_type_display: "Residential",
-      bills_summary: "Water, electricity, and internet included",
-      lease_tenants: [
-        {
-          id: "lt-123",
-          tenant_id: "user-123", // This should match the current user.id
-          has_signed: true,
-          rent_amount: 1500,
-          room_name: "Master Bedroom"
-        }
-      ]
-    }
-  ];
-};
-
-const fetchPaymentsForLease = async (token, leaseId) => {
-  console.log("Mock fetchPaymentsForLease called:", token, leaseId);
-  return [
-    {
-      id: "payment-001",
-      lease_id: leaseId,
-      payment_type: "RENT",
-      payment_type_display: "Monthly Rent",
-      amount_due: 1500,
-      amount_paid: 1500,
-      due_date: "2025-01-05",
-      payment_date: "2025-01-03",
-      status: "COMPLETED",
-      status_display: "Completed",
-      payment_method: "CREDIT_CARD",
-      payment_method_display: "Credit Card"
-    },
-    {
-      id: "payment-002",
-      lease_id: leaseId,
-      payment_type: "RENT",
-      payment_type_display: "Monthly Rent",
-      amount_due: 1500,
-      amount_paid: 1500,
-      due_date: "2025-02-05",
-      payment_date: "2025-02-02",
-      status: "COMPLETED",
-      status_display: "Completed",
-      payment_method: "BANK_TRANSFER",
-      payment_method_display: "Bank Transfer"
-    },
-    {
-      id: "payment-003",
-      lease_id: leaseId,
-      payment_type: "RENT",
-      payment_type_display: "Monthly Rent",
-      amount_due: 1500,
-      due_date: "2025-05-01",
-      status: "PENDING",
-      status_display: "Pending"
-    }
-  ];
-};
-
-const fetchDocumentsForLease = async (token, leaseId) => {
-  console.log("Mock fetchDocumentsForLease called:", token, leaseId);
-  return [
-    {
-      id: "doc-001",
-      document_name: "Lease Agreement",
-      document_type: "LEASE",
-      document_type_display: "Lease Agreement",
-      file: "#" // Would be a URL in real implementation
-    },
-    {
-      id: "doc-002",
-      document_name: "Property Rules",
-      document_type: "RULES",
-      document_type_display: "Property Rules",
-      file: "#"
-    }
-  ];
-};
-
-const signLease = async (token, leaseTenantId) => {
-  console.log("Mock signLease called:", token, leaseTenantId);
-  // Return the updated lease tenant object
-  return {
-    id: leaseTenantId,
-    tenant_id: "user-123",
-    has_signed: true,
-    rent_amount: 1500,
-    room_name: "Master Bedroom"
-  };
-};
-
-const fetchLeaseDetails = async (token, leaseId) => {
-  console.log("Mock fetchLeaseDetails called:", token, leaseId);
-  // Return the same data structure as fetchLeases but for a single lease
-  return {
-    id: leaseId,
-    lease_number: "L-2025-001",
-    property_name: "Sunset Apartments",
-    property_address: "34 Main St, Regina, CA S4W 0P4",
-    group_name: "Unit 203",
-    status: "ACTIVE",
-    status_display: "Active",
-    landlord_name: "Anna M.",
-    start_date: "2025-01-01",
-    end_date: "2025-12-31",
-    lease_type: "RESIDENTIAL",
-    lease_type_display: "Residential",
-    bills_summary: "Water, electricity, and internet included",
-    lease_tenants: [
-      {
-        id: "lt-123",
-        tenant_id: "user-123",
-        has_signed: true,
-        rent_amount: 1500,
-        room_name: "Master Bedroom"
-      }
-    ]
-  };
-};
+import { Lease, LeaseTenant, LeaseDocument } from "@/types/lease";
+import {
+  fetchLeases, fetchDocumentsForLease, signLease, declineLease, fetchLeaseDetails,
+} from "@/lib/leaseApi";
+// The tenant's financial view is the LEDGER. /api/ledger/entries/ is scoped by the
+// backend to this tenant: their OWN entries PLUS the household's JOINT charges
+// (tenant=null on a roommate lease) and every payment any roommate made toward
+// those joint charges — so when one roommate pays, the balance clears for everyone.
+import {
+  fetchEntries, downloadReceipt, LedgerEntry, ChargeStatus,
+  CHARGE_TYPES as LEDGER_CHARGE_TYPES,
+} from "@/lib/financeApi";
+import { startConversation } from "@/lib/engagementApi";
+import { fetchMaintenanceAreas, MaintenanceArea } from "@/lib/maintenanceApi";
+import { DJANGO_API_URL } from "@/lib/config";
+import LeaseSignGate from "./tenant/LeaseSignGate";
+import InspectionSignCard from "./tenant/InspectionSignCard";
+import TenantMaintenance from "./tenant/TenantMaintenance";
 import { toast } from "sonner";
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { format, differenceInDays, parseISO } from "date-fns";
 
-// Improved formatCurrency helper function to better handle edge cases
 const formatCurrency = (amount: number | string | null | undefined): string => {
-  // If amount is null or undefined, return $0.00 instead of N/A
   if (amount === null || amount === undefined) return "$0.00";
-  
-  let numericAmount: number;
-  
-  // Handle string conversion more robustly
-  if (typeof amount === 'string') {
-    // Remove any non-numeric characters except decimal point
-    const cleanedString = amount.replace(/[^0-9.]/g, '');
-    numericAmount = parseFloat(cleanedString);
-  } else {
-    numericAmount = amount;
-  }
-  
-  // If conversion failed and resulted in NaN, return $0.00 instead of N/A
-  if (isNaN(numericAmount)) return "$0.00";
-  
-  // Format the currency
-  return numericAmount.toLocaleString("en-US", { 
-    style: "currency", 
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+  const numeric = typeof amount === "string"
+    ? parseFloat(amount.replace(/[^0-9.\-]/g, ""))
+    : amount;
+  if (isNaN(numeric)) return "$0.00";
+  return numeric.toLocaleString("en-US", {
+    style: "currency", currency: "USD",
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
 };
 
-// Helper function to get status badge color (reuse from LeaseManagement)
-const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "pending" | "active" | "expired" | "terminated" => {
-    // ... (same implementation as in LeaseManagement)
-    switch (status?.toUpperCase()) {
-        case 'ACTIVE': return 'active';
-        case 'PENDING_SIGNATURES': return 'pending';
-        case 'DRAFT': return 'secondary'; // Should not be visible to tenant ideally
-        case 'EXPIRED': return 'expired';
-        case 'TERMINATED': return 'terminated';
-        case 'RENEWED': return 'outline';
-        default: return 'default';
-    }
-};
+const entryPayerName = (e: LedgerEntry): string | null =>
+  (e as LedgerEntry & { tenant_name?: string | null }).tenant_name ?? null;
+const entryIsJoint = (e: LedgerEntry): boolean =>
+  Boolean((e as LedgerEntry & { is_joint?: boolean }).is_joint);
 
+// The backend status code for "pending signatures" is 'PENDING'
+// (Lease.LeaseStatus.PENDING_SIGNATURES = "PENDING"), not the label string.
+const getStatusBadgeVariant = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case "ACTIVE": return "active" as const;
+    case "PENDING": return "pending" as const;
+    case "DRAFT": return "secondary" as const;
+    case "EXPIRED": return "expired" as const;
+    case "TERMINATED": return "terminated" as const;
+    case "RENEWED": return "outline" as const;
+    default: return "default" as const;
+  }
+};
+const getChargeStatusBadgeVariant = (status: ChargeStatus | null) => {
+  switch (status) {
+    case "PAID": return "active" as const;
+    case "PARTIALLY_PAID": return "pending" as const;
+    case "DUE": return "pending" as const;
+    case "OVERDUE": return "destructive" as const;
+    case "SCHEDULED": return "secondary" as const;
+    case "VOIDED": return "outline" as const;
+    default: return "default" as const;
+  }
+};
+const chargeStatusLabel = (status: ChargeStatus | null): string => {
+  switch (status) {
+    case "PAID": return "Paid";
+    case "PARTIALLY_PAID": return "Partially Paid";
+    case "DUE": return "Due Today";
+    case "OVERDUE": return "Overdue";
+    case "SCHEDULED": return "Scheduled";
+    case "VOIDED": return "Voided";
+    default: return status ?? "—";
+  }
+};
+const OPEN_CHARGE_STATUSES: ChargeStatus[] = ["SCHEDULED", "DUE", "OVERDUE", "PARTIALLY_PAID"];
 
 export default function TenantDashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
-  const [notifications, setNotifications] = useState(0); // Keep mock or implement later
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("credit-card"); // Mock
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
   const [leases, setLeases] = useState<Lease[]>([]);
   const [currentLease, setCurrentLease] = useState<Lease | null>(null);
   const [leaseTenantInfo, setLeaseTenantInfo] = useState<LeaseTenant | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [documents, setDocuments] = useState<LeaseDocument[]>([]);
+  const [myAreas, setMyAreas] = useState<MaintenanceArea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSigning, setIsSigning] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [contacting, setContacting] = useState(false);
 
-  // Fetch tenant's leases on mount
+  const propertyId: number | null = useMemo(() => {
+    const fromLease = (currentLease as (Lease & { property?: number | null }) | null)?.property;
+    const fromRoom = (leaseTenantInfo as (LeaseTenant & { room?: number | null }) | null)?.room;
+    const id = fromRoom ?? fromLease ?? null;
+    return typeof id === "number" ? id : id ? Number(id) : null;
+  }, [currentLease, leaseTenantInfo]);
+
   useEffect(() => {
     const loadInitialData = async () => {
       if (!token || !user?.id) {
-         setError("User or authentication token not available.");
-         setIsLoading(false);
-         return;
+        setError("User or authentication token not available.");
+        setIsLoading(false);
+        return;
       }
       setIsLoading(true);
       setError(null);
       try {
+        // GET /leases/ returns LeaseListSerializer — a SUMMARY that does not
+        // include lease_tenants. Use it only to pick WHICH lease is relevant,
+        // then fetch that lease's full detail.
         const fetchedLeases = await fetchLeases(token);
         setLeases(fetchedLeases);
 
-        // Find the most relevant lease (e.g., Active or Pending Signature)
-        const active = fetchedLeases.find(l => l.status === 'ACTIVE');
-        const pending = fetchedLeases.find(l => l.status === 'PENDING_SIGNATURES');
-        const relevantLease = active || pending || (fetchedLeases.length > 0 ? fetchedLeases[0] : null);
+        const active = fetchedLeases.find((l) => l.status === "ACTIVE");
+        const pending = fetchedLeases.find((l) => l.status === "PENDING");
+        const summary = active || pending || fetchedLeases[0] || null;
 
-        if (relevantLease) {
+        if (summary) {
+          const relevantLease = await fetchLeaseDetails(token, summary.id);
           setCurrentLease(relevantLease);
-          // Find the current user's lease tenant info within this lease
-          // Default to first tenant if user ID doesn't match (for demo purposes)
-          const currentUserLeaseTenant = relevantLease.lease_tenants.find(lt => lt.tenant_id === user.id) || 
-                                         (relevantLease.lease_tenants.length > 0 ? relevantLease.lease_tenants[0] : null);
-           
-          setLeaseTenantInfo(currentUserLeaseTenant || null);
 
-          // Fetch related data for the current lease
-          const [fetchedPayments, fetchedDocs] = await Promise.all([
-              fetchPaymentsForLease(token, relevantLease.id),
-              fetchDocumentsForLease(token, relevantLease.id)
+          // Matched by EMAIL, not by index — "the first tenant" would misattribute
+          // another roommate's rent and sign-status on a shared lease.
+          const mine = (relevantLease.lease_tenants || []).find(
+            (lt) =>
+              lt.tenant_email?.toLowerCase() === user.email?.toLowerCase() ||
+              lt.invited_email?.toLowerCase() === user.email?.toLowerCase(),
+          ) || null;
+          setLeaseTenantInfo(mine);
+
+          const [entries, docs] = await Promise.all([
+            fetchEntries(token, { lease: relevantLease.id, ordering: "due_date" }),
+            fetchDocumentsForLease(token, relevantLease.id),
           ]);
-          setPayments(fetchedPayments);
-          setDocuments(fetchedDocs);
-
-          // Basic notification logic (can be enhanced)
-          const overdue = fetchedPayments.some(p => p.status === 'OVERDUE');
-          const needsSigning = currentUserLeaseTenant && !currentUserLeaseTenant.has_signed && relevantLease.status === 'PENDING_SIGNATURES';
-          setNotifications((overdue ? 1 : 0) + (needsSigning ? 1 : 0));
-
-        } else {
-           console.log("No active or pending leases found for this tenant.");
+          setLedgerEntries(entries);
+          setDocuments(docs);
         }
-
       } catch (err) {
-        console.error("Error loading tenant data:", err);
         setError(err instanceof Error ? err.message : "Failed to load dashboard data.");
         toast.error("Failed to load your rental information.");
       } finally {
         setIsLoading(false);
       }
     };
-
     loadInitialData();
-  }, [token, user?.id]); // Depend on token and user ID
+  }, [token, user?.id, user?.email]);
 
-   const handleSignLease = async () => {
-        if (!token || !leaseTenantInfo?.id) {
-            toast.error("Cannot sign lease. Missing information.");
-            return;
-        }
-        setIsSigning(true);
-        try {
-            const updatedLeaseTenant = await signLease(token, leaseTenantInfo.id);
-            setLeaseTenantInfo(updatedLeaseTenant); // Update local state
-            // Optionally update the main lease state if status changes (e.g., to ACTIVE)
-             if (currentLease) {
-                 const updatedLease = await fetchLeaseDetails(token, currentLease.id); // Refetch details
-                 setCurrentLease(updatedLease);
-             }
-
-            toast.success("Lease signed successfully!");
-        } catch (err) {
-            console.error("Error signing lease:", err);
-            toast.error(err instanceof Error ? `Failed to sign lease: ${err.message}`: "Failed to sign lease.");
-        } finally {
-             setIsSigning(false);
-        }
+  useEffect(() => {
+    const loadAreas = async () => {
+      if (!token || !propertyId) return;
+      try {
+        setMyAreas(await fetchMaintenanceAreas(token, propertyId));
+      } catch {
+        setMyAreas([]);
+      }
     };
+    loadAreas();
+  }, [token, propertyId]);
 
+  // --- The button that did nothing. ---
+  //
+  // It was `<Button variant="outline">Contact Landlord</Button>` — no onClick, no
+  // href, nothing. It looked exactly like a working button and had never once done
+  // anything. Now it opens a real conversation on the messaging backend (which is
+  // fully built and, until recently, unreachable) and takes them to it.
+  const handleContactLandlord = async () => {
+    if (!token || !currentLease) return;
+    const landlordId = (currentLease as unknown as { landlord?: number | string }).landlord;
+    if (!landlordId) {
+      toast.error("We can't work out who your landlord is on this lease.");
+      return;
+    }
+    setContacting(true);
+    try {
+      const convo = await startConversation(token, {
+        landlord: landlordId,
+        lease: currentLease.id,
+        subject: `${currentLease.property_name || currentLease.group_name || currentLease.lease_number}`,
+      });
+      router.push(`/dashboard/messages?c=${convo.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't open a conversation.");
+      setContacting(false);
+    }
+  };
 
-  // --- Calculations based on fetched data ---
+  const handleSignLease = async (phone: string) => {
+    if (!token || !leaseTenantInfo?.id) {
+      toast.error("Cannot sign lease. Missing information.");
+      return;
+    }
+    try {
+      const updated = await signLease(token, leaseTenantInfo.id, phone);
+      setLeaseTenantInfo(updated);
+      if (currentLease) {
+        // Signing can ACTIVATE the lease, which generates the deposit, fee and
+        // rent charges — so the ledger must be refetched, not just the lease.
+        const refreshedLease = await fetchLeaseDetails(token, currentLease.id);
+        setCurrentLease(refreshedLease);
+        try {
+          setLedgerEntries(
+            await fetchEntries(token, { lease: currentLease.id, ordering: "due_date" }),
+          );
+        } catch { /* the lease is signed either way; the ledger will catch up */ }
+      }
+      toast.success("Lease signed.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sign lease.");
+      throw err; // let the gate surface field-level errors (e.g. the phone)
+    }
+  };
+
+  const handleDeclineLease = async (reason: string) => {
+    if (!token || !leaseTenantInfo?.id) {
+      toast.error("Cannot decline lease. Missing information.");
+      return;
+    }
+    try {
+      setLeaseTenantInfo(await declineLease(token, leaseTenantInfo.id, reason));
+      toast.success("You've declined this lease.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to decline lease.");
+      throw err;
+    }
+  };
+
+  const handleDownloadLeasePdf = async () => {
+    if (!token || !currentLease) return;
+    setIsDownloadingPdf(true);
+    try {
+      const res = await fetch(`${DJANGO_API_URL}/leases/${currentLease.id}/pdf/`, {
+        headers: { Authorization: `Token ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Failed to generate PDF (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lease_${currentLease.lease_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to download lease PDF.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
+  // ------------------------------------------------------------- derived
   const today = new Date();
-  const nextRentPayment = useMemo(() => {
-      return payments
-          .filter(p => p.payment_type === 'RENT' && ['SCHEDULED', 'PENDING', 'OVERDUE'].includes(p.status))
-          .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0]; // Get the soonest upcoming/overdue rent
-  }, [payments]);
 
-  const daysUntilPayment = nextRentPayment ? differenceInDays(parseISO(nextRentPayment.due_date), today) : null;
-  const nextPaymentAmount = nextRentPayment ? parseFloat(nextRentPayment.amount_due.toString()) : 0; // Assuming amount_due exists
+  const myCharges = useMemo(
+    () => ledgerEntries.filter(
+      (e) => (LEDGER_CHARGE_TYPES as string[]).includes(e.entry_type) && e.charge_status !== "VOIDED",
+    ),
+    [ledgerEntries],
+  );
+
+  const myPayments = useMemo(
+    () => ledgerEntries
+      .filter((e) => (e.entry_type === "PAYMENT" || e.entry_type === "CREDIT") && !e.voided)
+      .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()),
+    [ledgerEntries],
+  );
+
+  const openCharges = useMemo(
+    () => myCharges
+      .filter((e) => e.charge_status !== null && OPEN_CHARGE_STATUSES.includes(e.charge_status))
+      .sort((a, b) =>
+        new Date(a.due_date || a.effective_date).getTime() -
+        new Date(b.due_date || b.effective_date).getTime()),
+    [myCharges],
+  );
+
+  const nextDueCharge = openCharges[0] ?? null;
+  const daysUntilPayment = nextDueCharge?.due_date
+    ? differenceInDays(parseISO(nextDueCharge.due_date), today)
+    : null;
+
+  const totalOutstanding = useMemo(
+    () => openCharges.reduce((s, e) => s + (e.outstanding ? parseFloat(e.outstanding) : 0), 0),
+    [openCharges],
+  );
+  const totalPaid = useMemo(
+    () => myPayments.filter((e) => e.entry_type === "PAYMENT")
+      .reduce((s, e) => s + parseFloat(e.amount), 0),
+    [myPayments],
+  );
 
   const leaseProgress = useMemo(() => {
-      if (!currentLease?.start_date || !currentLease?.end_date) return 0;
-      try {
-          const startDate = parseISO(currentLease.start_date);
-          const endDate = parseISO(currentLease.end_date);
-          const totalDays = differenceInDays(endDate, startDate);
-          if (totalDays <= 0) return 100; // Handle same day or past end date
-          const elapsedDays = differenceInDays(today, startDate);
-          return Math.max(0, Math.min(100, Math.round((elapsedDays / totalDays) * 100)));
-      } catch (e) {
-          console.error("Error calculating lease progress:", e);
-          return 0;
-      }
+    if (!currentLease?.start_date || !currentLease?.end_date) return 0;
+    try {
+      const start = parseISO(currentLease.start_date);
+      const end = parseISO(currentLease.end_date);
+      const total = differenceInDays(end, start);
+      if (total <= 0) return 100;
+      return Math.max(0, Math.min(100, Math.round((differenceInDays(today, start) / total) * 100)));
+    } catch { return 0; }
   }, [currentLease, today]);
 
-  // Placeholder for utilities - needs API integration if available separately
-  const totalUtilities = 0; // Replace with actual data if applicable
+  const hasJointCharges = useMemo(() => myCharges.some(entryIsJoint), [myCharges]);
 
+  // "your room" vs "your household": a roommate lease shares ONE ROOM in a bigger
+  // place, so calling that "the household" over-claims — but a joint full-suite
+  // lease genuinely is the household.
+  const isRoomShare = useMemo(() => {
+    const t = `${(currentLease as unknown as { lease_type?: string })?.lease_type ?? ""} ${currentLease?.lease_type_display ?? ""}`.toUpperCase();
+    return t.includes("ROOMMATE");
+  }, [currentLease]);
+  const groupNoun = isRoomShare ? "room" : "household";
+  const groupLabel = isRoomShare ? "Room" : "Household";
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
-    if (!user || !user.name) return user?.email?.[0].toUpperCase() ?? "U";
-    const nameParts = user.name.split(" ");
-    if (nameParts.length >= 2) return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
-    return nameParts[0][0].toUpperCase();
+  // Prorated awareness: a mid-month move-in produces a rent charge smaller than
+  // the monthly rent, and the stat card would otherwise imply the full month is
+  // owed — which confuses every new tenant who sees it.
+  const proratedNote = useMemo(() => {
+    if (!currentLease) return null;
+    const monthly = Number(currentLease.total_rent || 0);
+    if (!monthly) return null;
+    const openRent = myCharges.find(
+      (c) => c.entry_type === "RENT_CHARGE" && !c.voided &&
+        c.charge_status !== "PAID" && Number(c.outstanding ?? c.amount) > 0,
+    );
+    if (!openRent) return null;
+    const amt = Number(openRent.amount);
+    if (amt > 0 && amt < monthly - 0.01) {
+      return `This period is prorated: ${formatCurrency(openRent.amount)} (partial month).`;
+    }
+    return null;
+  }, [currentLease, myCharges]);
+
+  const etransferEmail =
+    (currentLease as unknown as { effective_etransfer_email?: string })?.effective_etransfer_email || null;
+
+  const [receiptBusyId, setReceiptBusyId] = useState<string | null>(null);
+  const handleDownloadReceipt = async (paymentId: string) => {
+    if (!token) return;
+    setReceiptBusyId(paymentId);
+    try {
+      await downloadReceipt(token, paymentId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to download the receipt.");
+    } finally {
+      setReceiptBusyId(null);
+    }
   };
 
-  const handleLogout = () => {
-    logout();
-    // Router push is handled by AuthProvider/DashboardLayout now
-  };
+  const privateAreas = useMemo(() => myAreas.filter((a) => a.exclusive_to !== null), [myAreas]);
+  const sharedAreas = useMemo(() => myAreas.filter((a) => a.exclusive_to === null), [myAreas]);
 
-  // --- Render Logic ---
+  // ---------------------------------------------------------------- render
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 mr-3 animate-spin text-slate-600" />
-        <span className="text-slate-600">Loading your dashboard...</span>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="mr-3 h-8 w-8 animate-spin text-slate-500" />
+        <span className="text-slate-600">Loading your dashboard…</span>
       </div>
     );
   }
 
   if (error) {
-     return (
-      <div className="flex h-screen items-center justify-center bg-red-50 p-8">
-        <div className="text-center text-red-700">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
-            <p className="mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
-            <Button variant="link" onClick={handleLogout} className="ml-2 text-red-700">Logout</Button>
-        </div>
+    return (
+      <Card className="mx-auto max-w-lg border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-800">
+            <AlertCircle className="h-5 w-5" /> Couldn&apos;t load your dashboard
+          </CardTitle>
+          <CardDescription className="text-red-700">{error}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => window.location.reload()}>Try again</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!currentLease) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <Home className="mx-auto mb-4 h-14 w-14 text-slate-300" />
+        <h2 className="mb-2 text-2xl font-semibold text-slate-800">No active lease</h2>
+        <p className="mb-6 text-slate-500">
+          You aren&apos;t currently on an active lease. If you think that&apos;s wrong,
+          your landlord may not have finished setting it up — talk to them directly.
+        </p>
+        {leases.length > 0 && (
+          <div className="mt-6 text-left">
+            <h3 className="mb-2 text-sm font-medium text-slate-600">Past leases</h3>
+            <ul className="list-inside list-disc text-sm text-slate-500">
+              {leases.map((l) => (
+                <li key={l.id}>
+                  {l.property_name || l.group_name || l.lease_number} ({l.status_display})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }
 
- if (!currentLease) {
+  // The sign gate.
+  //
+  // Previously this only gated while the lease wasn't ACTIVE — which meant that on
+  // a roommate lease, the moment the FIRST tenant's signature activated the lease,
+  // every OTHER tenant's sign prompt silently disappeared and they were never asked
+  // to sign at all. Declined OR not-yet-signed now always shows the gate, whatever
+  // the lease's status.
+  if (leaseTenantInfo && (leaseTenantInfo.declined || !leaseTenantInfo.has_signed)) {
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
-             {/* Simplified Header for No Lease */}
-             <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                <div className="max-w-screen-2xl mx-auto px-4">
-                <div className="flex items-center justify-between h-16">
-                    <div className="flex items-center">
-                    <h1 className="text-xl font-semibold text-slate-900 mr-2">Rentium</h1>
-                    <span className="hidden md:inline-flex px-2 py-1 bg-slate-100 text-xs rounded-md text-slate-700">Tenant</span>
-                    </div>
-                    <DropdownMenu>
-                        {/* ... (User Menu Dropdown - same as below) ... */}
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="rounded-full p-0 h-8 w-8">
-                                <Avatar className="h-8 w-8 bg-slate-900 text-white"><AvatarFallback>{getUserInitials()}</AvatarFallback></Avatar>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <div className="px-4 py-2 text-sm">
-                                <p className="font-medium">{user?.name || user?.email || "User"}</p>
-                                <p className="text-xs text-slate-500">Tenant</p>
-                            </div>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-                </div>
-            </header>
-             <main className="flex-1 overflow-auto bg-slate-50 flex items-center justify-center">
-                 <div className="text-center p-8 max-w-md">
-                     <Home className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                    <h2 className="text-2xl font-semibold text-slate-800 mb-2">No Active Lease Found</h2>
-                    <p className="text-slate-500 mb-6">
-                        It looks like you aren't currently assigned to an active lease. If you believe this is an error, please contact your landlord.
-                    </p>
-                    {/* Optionally show past leases if available in `leases` state */}
-                    {leases.length > 0 && (
-                         <div className="mt-6 text-left">
-                             <h3 className="text-sm font-medium text-slate-600 mb-2">Past Leases:</h3>
-                             <ul className="text-sm text-slate-500 list-disc list-inside">
-                                 {leases.map(l => <li key={l.id}>{l.property_name || l.group_name || l.lease_number} ({l.status_display})</li>)}
-                             </ul>
-                         </div>
-                    )}
-                 </div>
-             </main>
-        </div>
+      <LeaseSignGate
+        leaseId={currentLease.id}
+        leaseNumber={currentLease.lease_number}
+        propertyLabel={currentLease.property_name || currentLease.group_name || currentLease.lease_number}
+        declined={leaseTenantInfo.declined}
+        currentPhone={(user as { phone?: string } | null)?.phone ?? null}
+        onSign={handleSignLease}
+        onDecline={handleDeclineLease}
+      />
     );
   }
 
-
-  // --- Main Dashboard Render (when lease exists) ---
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top Navigation (Consider abstracting to a TenantHeader component) */}
-       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-slate-900 mr-2">Rentium</h1>
-              <span className="hidden md:inline-flex px-2 py-1 bg-slate-100 text-xs rounded-md text-slate-700">Tenant</span>
-            </div>
-             {/* Navigation */}
-             <nav className="hidden md:flex items-center space-x-1">
-               {/* Tabs for navigation */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="bg-transparent p-0 h-auto">
-                        <TabsTrigger value="overview" className={cn("h-9 px-4 text-sm font-medium transition-colors", activeTab === "overview" ? "bg-slate-900 text-white" : "bg-transparent text-slate-600 hover:text-slate-900")}>Overview</TabsTrigger>
-                        <TabsTrigger value="payments" className={cn("h-9 px-4 text-sm font-medium transition-colors", activeTab === "payments" ? "bg-slate-900 text-white" : "bg-transparent text-slate-600 hover:text-slate-900")}>Payments</TabsTrigger>
-                        <TabsTrigger value="maintenance" className={cn("h-9 px-4 text-sm font-medium transition-colors", activeTab === "maintenance" ? "bg-slate-900 text-white" : "bg-transparent text-slate-600 hover:text-slate-900")}>Maintenance</TabsTrigger>
-                        <TabsTrigger value="documents" className={cn("h-9 px-4 text-sm font-medium transition-colors", activeTab === "documents" ? "bg-slate-900 text-white" : "bg-transparent text-slate-600 hover:text-slate-900")}>Documents</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-             </nav>
-             {/* User Menu & Actions */}
-             <div className="flex items-center space-x-4">
-                 <Button variant="outline" size="sm" className="hidden md:flex">
-                     <MessageSquare className="h-4 w-4 mr-1" /> Contact Landlord
-                 </Button>
-                 {/* Notifications Dropdown (can be enhanced) */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="relative">
-                        <Bell className="h-5 w-5 text-slate-600" />
-                        {notifications > 0 && (
-                          <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">{notifications}</Badge>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80">
-                      {/* ... Notification Content ... */}
-                       <div className="p-4 text-sm text-slate-500">Notifications not fully implemented.</div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                 {/* User Menu Dropdown */}
-                  <DropdownMenu>
-                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="rounded-full p-0 h-8 w-8">
-                        <Avatar className="h-8 w-8 bg-slate-900 text-white">
-                          <AvatarImage src={user?.profileImage || ""} alt={user?.name || "User"} />
-                          <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <div className="px-4 py-2 text-sm">
-                            <p className="font-medium">{user?.name || user?.email || "User"}</p>
-                            <p className="text-xs text-slate-500">Tenant</p>
-                        </div>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setActiveTab("profile")}>
-                            <User className="h-4 w-4 mr-2" /> My Account
-                        </DropdownMenuItem>
-                         {/* <DropdownMenuItem><Settings className="h-4 w-4 mr-2" /> Settings</DropdownMenuItem> */}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-             </div>
-          </div>
-           {/* Mobile Navigation */}
-           <div className="md:hidden py-2 overflow-x-auto">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="w-full justify-start">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="payments">Payments</TabsTrigger>
-                        <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-                        <TabsTrigger value="documents">Documents</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-            </div>
+    <div className="space-y-6">
+      {/* Page head. NOT an app header — the shell in dashboard/layout.tsx owns that. */}
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {currentLease.property_name || currentLease.group_name} · {currentLease.lease_number}
+          </p>
         </div>
-      </header>
+        <Button variant="outline" onClick={handleContactLandlord} disabled={contacting}>
+          {contacting
+            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            : <MessageSquare className="mr-2 h-4 w-4" />}
+          Contact landlord
+        </Button>
+      </div>
 
-      {/* Main Content */}
-       <main className="flex-1 overflow-auto bg-slate-50">
-        <div className="max-w-screen-2xl mx-auto px-4 py-6">
-          {activeTab === "profile" ? (
-            <ProfileSettings />
-          ) : (
-            <Tabs value={activeTab} className="mt-0">
-              {/* Headers for each Tab */}
-              {activeTab === "overview" && ( <div className="mb-6"> <h1 className="text-3xl font-semibold text-slate-900">Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</h1> <p className="text-slate-500 mt-1">Overview of your lease: {currentLease.lease_number}</p> </div> )}
-              {activeTab === "payments" && ( <div className="mb-6"> <h1 className="text-3xl font-semibold text-slate-900">Payments</h1> <p className="text-slate-500 mt-1">Manage your payments for lease: {currentLease.lease_number}</p> </div> )}
-              {activeTab === "maintenance" && ( <div className="mb-6"> <h1 className="text-3xl font-semibold text-slate-900">Maintenance</h1> <p className="text-slate-500 mt-1">Submit and track requests for {currentLease.property_name || currentLease.group_name}</p> </div> )}
-              {activeTab === "documents" && ( <div className="mb-6"> <h1 className="text-3xl font-semibold text-slate-900">Documents</h1> <p className="text-slate-500 mt-1">Important documents for lease: {currentLease.lease_number}</p> </div> )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
 
-
-              {/* Lease Signing Banner */}
-              {currentLease.status === 'PENDING_SIGNATURES' && leaseTenantInfo && !leaseTenantInfo.has_signed && (
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md mb-6 flex items-center justify-between gap-4">
-                      <div className="flex items-start">
-                          <Signature className="h-6 w-6 text-blue-600 mr-3 flex-shrink-0 mt-1" />
-                          <div>
-                              <h3 className="text-sm font-medium text-blue-800">Action Required: Sign Your Lease</h3>
-                              <p className="mt-1 text-sm text-blue-700">
-                                  Your lease agreement is ready for your signature. Please review and sign to activate your lease.
-                              </p>
-                          </div>
-                      </div>
-                      <Button
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
-                          onClick={handleSignLease}
-                          disabled={isSigning}
-                      >
-                          {isSigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Signature className="mr-2 h-4 w-4" />}
-                           Sign Lease
-                      </Button>
-                  </div>
-              )}
-
-               {/* OVERVIEW TAB */}
-                <TabsContent value="overview" className="mt-0 space-y-6">
-                    {/* Payment Alert */}
-                    {daysUntilPayment !== null && daysUntilPayment <= 5 && daysUntilPayment >= 0 && (
-                         <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-md mb-6">
-                            <div className="flex items-start">
-                                <Calendar className="h-5 w-5 text-amber-600 mr-3 flex-shrink-0 mt-1" />
-                                <div>
-                                    <h3 className="text-sm font-medium text-amber-800">Upcoming Payment Due</h3>
-                                    <p className="mt-1 text-sm text-amber-700">
-                                        Your rent payment of {formatCurrency(nextRentPayment?.amount_due)} is due in {daysUntilPayment} days.
-                                    </p>
-                                </div>
-                            </div>
-                         </div>
-                    )}
-                    {nextRentPayment?.status === 'OVERDUE' && (
-                         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md mb-6">
-                            <div className="flex items-start">
-                                <AlertCircle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-1" />
-                                <div>
-                                    <h3 className="text-sm font-medium text-red-800">Payment Overdue</h3>
-                                    <p className="mt-1 text-sm text-red-700">
-                                        Your rent payment of {formatCurrency(nextRentPayment?.amount_due)} is overdue by {Math.abs(daysUntilPayment || 0)} days.
-                                        Please make your payment as soon as possible.
-                                    </p>
-                                </div>
-                            </div>
-                         </div>
-                    )}
-
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Property Info Card */}
-                         <Card className="md:col-span-2 overflow-hidden border-transparent shadow-sm hover:shadow-md transition-all">
-                             <CardHeader className="bg-white border-b pb-3">
-                                 <CardTitle className="flex items-center text-lg"><Home className="mr-2 h-5 w-5 text-slate-600" /> Your Rental Property</CardTitle>
-                             </CardHeader>
-                             <CardContent className="p-0">
-                                 {/* Add placeholder image if property has one? API doesn't specify */}
-                                 {/* <div className="aspect-video relative bg-slate-100"><img src={"/placeholder.svg"} alt="Property" className="w-full h-full object-cover" /></div> */}
-                                 <div className="p-6 space-y-4">
-                                     <div>
-                                         <h3 className="font-semibold text-lg">{currentLease.property_name || currentLease.group_name || 'N/A'}</h3>
-                                         <p className="text-slate-500">{currentLease.property_address || `Lease Number: ${currentLease.lease_number}`}</p>
-                                          <Badge variant={getStatusBadgeVariant(currentLease.status)} className="mt-2">{currentLease.status_display}</Badge>
-                                     </div>
-                                     <div className="grid grid-cols-2 gap-4 text-sm">
-                                         <div><p className="text-slate-500">Landlord</p><p>{currentLease.landlord_name}</p></div>
-                                         <div><p className="text-slate-500">Landlord Contact</p><p>{"(Not Available)"}</p></div> {/* Add if API provides */}
-                                          <div><p className="text-slate-500">Lease Period</p><p>{format(parseISO(currentLease.start_date), 'MMM d, yyyy')} - {currentLease.end_date ? format(parseISO(currentLease.end_date), 'MMM d, yyyy') : 'Ongoing'}</p></div>
-                                          <div><p className="text-slate-500">Your Monthly Rent</p><p className="font-semibold">{formatCurrency(leaseTenantInfo?.rent_amount || 1500)}</p></div>
-                                          {leaseTenantInfo?.room_name && (<div><p className="text-slate-500">Your Assigned Room</p><p>{leaseTenantInfo.room_name}</p></div>)}
-                                          <div><p className="text-slate-500">Lease Type</p><p>{currentLease.lease_type_display}</p></div>
-                                     </div>
-                                      {currentLease.bills_summary && (
-                                         <div className="mt-4 pt-4 border-t">
-                                             <p className="text-sm font-medium mb-1">Bills Included in Lease Rent:</p>
-                                             <p className="text-sm text-slate-600">{currentLease.bills_summary}</p>
-                                         </div>
-                                     )}
-                                 </div>
-                             </CardContent>
-                         </Card>
-
-                        {/* Side Cards */}
-                        <div className="space-y-6">
-                           {/* Next Payment Card */}
-                           <Card className="overflow-hidden border-transparent shadow-sm hover:shadow-md transition-all">
-                             <CardHeader className="bg-white border-b pb-3"><CardTitle className="flex items-center text-lg"><CreditCard className="mr-2 h-5 w-5 text-slate-600" /> Next Payment</CardTitle></CardHeader>
-                             <CardContent className="p-6">
-                                {nextRentPayment ? (
-                                     <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <div><p className="text-slate-500">Due Date</p><p className="text-lg font-semibold">{format(parseISO(nextRentPayment.due_date), 'MMM d, yyyy')}</p></div>
-                                            <div><p className="text-slate-500">Amount</p><p className="text-lg font-semibold">{formatCurrency(nextRentPayment.amount_due)}</p></div>
-                                        </div>
-                                         {daysUntilPayment !== null && (
-                                             <div className={`text-center p-3 rounded-md text-sm ${nextRentPayment.status === 'OVERDUE' ? 'bg-red-50 text-red-700' : daysUntilPayment <= 5 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
-                                                {nextRentPayment.status === 'OVERDUE' ? `${Math.abs(daysUntilPayment)} days Overdue` : `${daysUntilPayment} days until due`}
-                                             </div>
-                                         )}
-                                        <Button className="w-full bg-slate-900 hover:bg-slate-800" onClick={() => setActiveTab("payments")}>Make Payment</Button>
-                                    </div>
-                                ) : (
-                                     <div className="text-center text-slate-500 py-4">No upcoming rent payments found.</div>
-                                )}
-                             </CardContent>
-                            </Card>
-
-                             {/* Lease Progress Card */}
-                             {currentLease.end_date && ( // Only show progress if there's an end date
-                                 <Card className="overflow-hidden border-transparent shadow-sm hover:shadow-md transition-all">
-                                    <CardHeader className="bg-white border-b pb-3"><CardTitle className="flex items-center text-lg"><FileText className="mr-2 h-5 w-5 text-slate-600" /> Lease Progress</CardTitle></CardHeader>
-                                    <CardContent className="p-6">
-                                        <div className="space-y-2">
-                                        <div className="flex justify-between text-sm"><span>Lease completion</span><span className="font-medium">{leaseProgress}%</span></div>
-                                        <Progress value={leaseProgress} className="h-2" />
-                                        <p className="text-xs text-slate-500">Your lease ends on {format(parseISO(currentLease.end_date), 'MMM d, yyyy')}</p>
-                                        </div>
-                                    </CardContent>
-                                 </Card>
-                             )}
-                        </div>
-                    </div>
-
-                    {/* Lower Row Cards (Recent Payments, Maintenance) */}
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         {/* Recent Payments */}
-                         <Card className="overflow-hidden border-transparent shadow-sm hover:shadow-md transition-all">
-                            <CardHeader className="bg-white border-b pb-3 flex flex-row items-center justify-between">
-                                <CardTitle className="flex items-center text-lg"><Receipt className="mr-2 h-5 w-5 text-slate-600" /> Recent Payments</CardTitle>
-                                <Button variant="ghost" size="sm" onClick={() => setActiveTab("payments")}>View All</Button>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                {payments.length > 0 ? (
-                                    <ul className="divide-y divide-slate-100">
-                                        {payments.slice(0, 3).map((payment) => (
-                                            <li key={payment.id} className="hover:bg-slate-50 transition-colors">
-                                            <div className="flex justify-between items-center p-4">
-                                                <div className="flex-1">
-                                                    <div className="text-sm font-medium">{format(parseISO(payment.payment_date || payment.due_date), 'MMM d, yyyy')} ({payment.payment_type_display})</div>
-                                                    <div className="text-xs text-slate-500">{payment.payment_method_display}</div>
-                                                </div>
-                                                <div className="text-sm font-medium">{formatCurrency(payment.amount_paid || payment.amount_due)}</div>
-                                                <Badge variant={payment.status === 'COMPLETED' ? 'active' : payment.status === 'PENDING' ? 'pending' : 'default'} className="ml-4">{payment.status_display}</Badge>
-                                            </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="p-6 text-center text-slate-500 text-sm">No payment history found.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                        {/* Maintenance Preview */}
-                         <Card className="overflow-hidden border-transparent shadow-sm hover:shadow-md transition-all">
-                            <CardHeader className="flex flex-row items-center justify-between bg-white border-b pb-3">
-                                <CardTitle className="flex items-center text-lg"><Wrench className="mr-2 h-5 w-5 text-slate-600" /> Maintenance</CardTitle>
-                                <Button size="sm" className="bg-slate-900 hover:bg-slate-800" onClick={() => setActiveTab("maintenance")}>New Request</Button>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                 <p className="text-center text-slate-500 text-sm">Maintenance requests section not yet implemented.</p>
-                                 {/* Add preview list here when implemented */}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-
-               {/* PAYMENTS TAB */}
-                <TabsContent value="payments" className="mt-0 space-y-6">
-                    {/* Payment summary cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                         <Card> <CardContent className="p-6"> <div className="flex items-center justify-between"> <div><p className="text-sm font-medium text-slate-500">Next Due</p><p className="text-2xl font-semibold">{nextRentPayment ? formatCurrency(nextRentPayment.amount_due) : '$0.00'}</p></div> <div className="p-2 rounded-full bg-amber-50 text-amber-600"><Calendar className="h-5 w-5" /></div> </div> <p className="text-xs text-slate-500 mt-2">Due {nextRentPayment ? format(parseISO(nextRentPayment.due_date), 'MMM d, yyyy') : '-'}</p> </CardContent> </Card>
-                         <Card> <CardContent className="p-6"> <div className="flex items-center justify-between"> <div><p className="text-sm font-medium text-slate-500">Your Rent</p><p className="text-2xl font-semibold">{formatCurrency(leaseTenantInfo?.rent_amount || 1500)}</p></div> <div className="p-2 rounded-full bg-slate-100 text-slate-600"><Home className="h-5 w-5" /></div> </div> <p className="text-xs text-slate-500 mt-2">Your monthly portion</p> </CardContent> </Card>
-                         {/* Add utilities card if applicable */}
-                         <Card> <CardContent className="p-6"> <div className="flex items-center justify-between"> <div><p className="text-sm font-medium text-slate-500">Days Until Due</p><p className="text-2xl font-semibold">{daysUntilPayment !== null ? (daysUntilPayment >= 0 ? daysUntilPayment : 'Overdue') : '-'}</p></div> <div className={`p-2 rounded-full ${daysUntilPayment !== null && daysUntilPayment < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><Clock className="h-5 w-5" /></div> </div> <p className="text-xs text-slate-500 mt-2">{daysUntilPayment !== null && daysUntilPayment < 0 ? 'Payment is late' : 'Time remaining'}</p> </CardContent> </Card>
-                          <Card> <CardContent className="p-6"> <div className="flex items-center justify-between"> <div><p className="text-sm font-medium text-slate-500">Total Paid (Lease)</p><p className="text-2xl font-semibold">{formatCurrency(payments.reduce((sum, p) => sum + (p.status === 'COMPLETED' && p.amount_paid ? parseFloat(p.amount_paid.toString()) : 0), 0))}</p></div> <div className="p-2 rounded-full bg-blue-50 text-blue-600"><CheckCircle className="h-5 w-5" /></div> </div> <p className="text-xs text-slate-500 mt-2">Sum of completed payments</p> </CardContent> </Card>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         {/* Payment History */}
-                          <Card className="md:col-span-2">
-                             <CardHeader className="pb-3"> <CardTitle>Payment History</CardTitle> <CardDescription>Your payment records for this lease</CardDescription> </CardHeader>
-                             <CardContent className="p-0">
-                                {payments.length > 0 ? (
-                                    <div className="rounded-md border">
-                                    <div className="grid grid-cols-5 bg-slate-50 p-3 text-sm font-medium text-slate-600"> <div>Due Date</div> <div>Amount</div> <div>Type</div> <div>Status</div> <div></div> </div>
-                                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                                        {payments.map((payment) => (
-                                        <div key={payment.id} className="grid grid-cols-5 p-3 text-sm">
-                                            <div>{format(parseISO(payment.due_date), 'MMM d, yyyy')}</div>
-                                            <div className="font-medium">{formatCurrency(payment.amount_due)} {payment.amount_paid && payment.amount_paid !== payment.amount_due ? `(Paid: ${formatCurrency(payment.amount_paid)})` : ''}</div>
-                                            <div>{payment.payment_type_display}</div>
-                                            <div><Badge variant={getStatusBadgeVariant(payment.status)}>{payment.status_display}</Badge></div>
-                                            <div className="text-right"> {payment.receipt_file && (<Button variant="ghost" size="icon" asChild><a href={payment.receipt_file} target="_blank" rel="noreferrer"><Download className="h-4 w-4" /></a></Button>)} </div>
-                                        </div>
-                                        ))}
-                                    </div>
-                                    </div>
-                                ) : (
-                                     <p className="p-6 text-center text-slate-500 text-sm">No payment history found.</p>
-                                )}
-                             </CardContent>
-                         </Card>
-
-                         {/* Make Payment / Utilities (Mockup) */}
-                          <div className="space-y-6">
-                             <Card>
-                                <CardHeader className="pb-3"> <CardTitle>Make a Payment</CardTitle> <CardDescription>Pay your upcoming dues</CardDescription> </CardHeader>
-                                <CardContent className="space-y-4">
-                                   {nextRentPayment ? (
-                                        <>
-                                        <div className="p-4 bg-slate-50 rounded-md">
-                                             <div className="flex justify-between mb-2"><span className="text-sm text-slate-600">{nextRentPayment.payment_type_display}</span><span className="text-sm font-medium">{formatCurrency(nextRentPayment.amount_due)}</span></div>
-                                            {/* Add utilities line if needed */}
-                                             <div className="flex justify-between pt-2 border-t border-slate-200"><span className="text-sm font-medium">Total Due</span><span className="text-sm font-bold">{formatCurrency(nextRentPayment.amount_due)}</span></div>
-                                        </div>
-                                         {/* Mock Payment Method Selection */}
-                                         <div className="space-y-2"> <Label>Payment Method</Label> <div className="space-y-2"> {/* ... Radio buttons ... */} </div> </div>
-                                        <Button className="w-full bg-slate-900 hover:bg-slate-800" disabled>Pay {formatCurrency(nextRentPayment.amount_due)} (Disabled)</Button>
-                                         <div className="text-center"><Button variant="link" size="sm" className="text-slate-500" disabled><Plus className="h-3 w-3 mr-1" /> Add Method (Disabled)</Button></div>
-                                        </>
-                                   ) : (
-                                        <p className="text-center text-slate-500 text-sm py-4">No payments currently due.</p>
-                                   )}
-
-                                </CardContent>
-                            </Card>
-                            {/* Utilities Breakdown (Mockup or from Lease Detail if available) */}
-                          </div>
-                    </div>
-                </TabsContent>
-
-                {/* MAINTENANCE TAB (Placeholder) */}
-                <TabsContent value="maintenance" className="mt-0 space-y-6">
-                     <div className="text-center p-10 border border-dashed rounded-lg">
-                         <Wrench className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                         <h2 className="text-xl font-semibold text-slate-700 mb-2">Maintenance Section</h2>
-                         <p className="text-slate-500">This feature (submitting and tracking maintenance requests) is not yet implemented.</p>
-                     </div>
-                 </TabsContent>
-
-                {/* DOCUMENTS TAB */}
-                <TabsContent value="documents" className="mt-0 space-y-6">
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         <Card className="md:col-span-2">
-                             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                                <div><CardTitle>Documents</CardTitle><CardDescription>Your lease-related documents</CardDescription></div>
-                                {/* <Button variant="outline" size="sm"><Upload className="h-4 w-4 mr-1" /> Upload (Optional)</Button> */}
-                             </CardHeader>
-                             <CardContent className="p-0">
-                                 {documents.length > 0 ? (
-                                      <div className="rounded-md border">
-                                        <div className="grid grid-cols-4 bg-slate-50 p-3 text-sm font-medium text-slate-600"> <div className="col-span-2">Name</div> <div>Type</div> <div>Actions</div> </div>
-                                        <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                                            {documents.map((doc) => (
-                                            <div key={doc.id} className="grid grid-cols-4 p-3 text-sm hover:bg-slate-50 items-center">
-                                                <div className="col-span-2 flex items-center"><FileText className="h-5 w-5 mr-2 text-slate-400 flex-shrink-0" /><span className="font-medium truncate">{doc.document_name}</span></div>
-                                                <div>{doc.document_type_display}</div>
-                                                <div className="flex space-x-1"> <Button variant="ghost" size="icon" asChild><a href={doc.file} target="_blank" rel="noreferrer" title={`Download ${doc.document_name}`}><Download className="h-4 w-4" /></a></Button> </div>
-                                            </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                 ) : (
-                                     <p className="p-6 text-center text-slate-500 text-sm">No documents found for this lease.</p>
-                                 )}
-                             </CardContent>
-                         </Card>
-                          {/* Add Recently Viewed or Categories if needed */}
-                     </div>
-                 </TabsContent>
-
-
-            </Tabs>
+        {/* ================================================== OVERVIEW */}
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          {nextDueCharge && nextDueCharge.charge_status !== "OVERDUE" &&
+           daysUntilPayment !== null && daysUntilPayment <= 5 && daysUntilPayment >= 0 && (
+            <div className="rounded-r-md border-l-4 border-amber-500 bg-amber-50 p-4">
+              <div className="flex items-start">
+                <Calendar className="mr-3 mt-1 h-5 w-5 flex-shrink-0 text-amber-600" />
+                <div>
+                  <h3 className="text-sm font-medium text-amber-800">Payment due soon</h3>
+                  <p className="mt-1 text-sm text-amber-700">
+                    {nextDueCharge.description} — {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)} is
+                    due in {daysUntilPayment} day{daysUntilPayment === 1 ? "" : "s"}.
+                    {entryIsJoint(nextDueCharge) && ` This is the ${groupNoun} total — either of you can pay it.`}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-      </main>
+
+          {nextDueCharge?.charge_status === "OVERDUE" && (
+            <div className="rounded-r-md border-l-4 border-red-500 bg-red-50 p-4">
+              <div className="flex items-start">
+                <AlertCircle className="mr-3 mt-1 h-5 w-5 flex-shrink-0 text-red-600" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">Payment overdue</h3>
+                  <p className="mt-1 text-sm text-red-700">
+                    {nextDueCharge.description} — {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)} is
+                    overdue by {Math.abs(daysUntilPayment || 0)} days.
+                    {entryIsJoint(nextDueCharge) && ` This is the ${groupNoun} total — a payment from any of you settles it for everyone.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentLease.status !== "ACTIVE" && leaseTenantInfo?.has_signed && (
+            <div className="rounded-r-md border-l-4 border-blue-500 bg-blue-50 p-4">
+              <div className="flex items-start">
+                <Clock className="mr-3 mt-1 h-5 w-5 flex-shrink-0 text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800">Waiting on other signatures</h3>
+                  <p className="mt-1 text-sm text-blue-700">
+                    You&apos;ve signed. The lease activates once your landlord and any
+                    other tenants sign too.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <InspectionSignCard leaseId={currentLease.id} />
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {/* Your Place */}
+            <Card className="overflow-hidden md:col-span-2">
+              <CardHeader className="border-b bg-white pb-3">
+                <CardTitle className="flex items-center text-lg">
+                  <Home className="mr-2 h-5 w-5 text-slate-600" /> Your place
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {currentLease.property_name || currentLease.group_name || "N/A"}
+                  </h3>
+                  <p className="text-slate-500">
+                    {currentLease.property_address || `Lease ${currentLease.lease_number}`}
+                  </p>
+                  <Badge variant={getStatusBadgeVariant(currentLease.status)} className="mt-2">
+                    {currentLease.status_display}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><p className="text-slate-500">Landlord</p><p>{currentLease.landlord_name}</p></div>
+                  <div>
+                    <p className="text-slate-500">Landlord contact</p>
+                    <p>{currentLease.effective_landlord_contact?.daytime_phone
+                      || currentLease.effective_landlord_contact?.email
+                      || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Lease period</p>
+                    <p>
+                      {format(parseISO(currentLease.start_date), "MMM d, yyyy")} —{" "}
+                      {currentLease.end_date
+                        ? format(parseISO(currentLease.end_date), "MMM d, yyyy")
+                        : "Ongoing"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">
+                      {hasJointCharges ? `${groupLabel} monthly rent` : "Your monthly rent"}
+                    </p>
+                    <p className="font-semibold">{formatCurrency(currentLease.total_rent)}</p>
+                    {hasJointCharges && (
+                      <p className="text-xs text-slate-400">One shared bill — any of you can pay it</p>
+                    )}
+                  </div>
+                  {leaseTenantInfo?.room_name && (
+                    <div><p className="text-slate-500">Your room</p><p>{leaseTenantInfo.room_name}</p></div>
+                  )}
+                  <div><p className="text-slate-500">Lease type</p><p>{currentLease.lease_type_display}</p></div>
+                </div>
+
+                {currentLease.bills_summary && (
+                  <div className="mt-4 border-t pt-4">
+                    <p className="mb-1 text-sm font-medium">Bills included in rent</p>
+                    <p className="text-sm text-slate-600">{currentLease.bills_summary}</p>
+                  </div>
+                )}
+
+                {myAreas.length > 0 && (
+                  <div className="mt-4 border-t pt-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+                      <DoorOpen className="h-4 w-4 text-slate-500" /> What&apos;s included
+                    </p>
+                    <div className="space-y-2">
+                      {privateAreas.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="mr-1 text-xs text-slate-500">Just yours:</span>
+                          {privateAreas.map((a) => (
+                            <Badge key={a.id} variant="outline" className="text-xs font-normal">
+                              <Lock className="mr-1 h-3 w-3 text-slate-400" /> {a.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {sharedAreas.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="mr-1 text-xs text-slate-500">
+                            {privateAreas.length > 0 ? "Shared:" : "Included:"}
+                          </span>
+                          {sharedAreas.map((a) => (
+                            <Badge key={a.id} variant="secondary" className="text-xs font-normal">
+                              <Users className="mr-1 h-3 w-3 text-slate-500" /> {a.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {currentLease.lease_tenants && currentLease.lease_tenants.length > 1 && (
+                  <div className="mt-4 border-t pt-4">
+                    <p className="mb-2 text-sm font-medium">
+                      {currentLease.lease_tenants.length === 2 ? "Sharing with" : "Roommates"}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {currentLease.lease_tenants
+                        .filter((lt) => lt.id !== leaseTenantInfo?.id)
+                        .map((lt) => (
+                          <li key={lt.id} className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                                {(lt.tenant_name || lt.invited_email || "?").charAt(0).toUpperCase()}
+                              </span>
+                              {lt.tenant_name || lt.invited_email}
+                              {lt.room_name && <span className="text-slate-400">· {lt.room_name}</span>}
+                            </span>
+                            {lt.has_signed ? (
+                              <span className="text-xs text-green-700">Signed</span>
+                            ) : lt.declined ? (
+                              <span className="text-xs text-red-600">Declined</span>
+                            ) : (
+                              <span className="text-xs text-slate-400">Pending</span>
+                            )}
+                          </li>
+                        ))}
+                    </ul>
+                    {/* Deliberately absent: other tenants' rent shares and emails.
+                        Everyone on the lease is jointly responsible for the full rent
+                        shown above; another roommate's financial split isn't this
+                        tenant's business. Just enough to know who they live with. */}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Side column */}
+            <div className="space-y-6">
+              <Card className="overflow-hidden">
+                <CardHeader className="border-b bg-white pb-3">
+                  <CardTitle className="flex items-center text-lg">
+                    <CreditCard className="mr-2 h-5 w-5 text-slate-600" /> Next payment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {nextDueCharge ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-slate-500">Due</p>
+                          <p className="text-lg font-semibold">
+                            {nextDueCharge.due_date
+                              ? format(parseISO(nextDueCharge.due_date), "MMM d, yyyy")
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500">Amount</p>
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {nextDueCharge.description}
+                        {entryIsJoint(nextDueCharge) && (
+                          <span className="block text-slate-400">
+                            {groupLabel} total — any roommate&apos;s payment counts.
+                          </span>
+                        )}
+                      </p>
+                      {daysUntilPayment !== null && (
+                        <div className={cn(
+                          "rounded-md p-3 text-center text-sm",
+                          nextDueCharge.charge_status === "OVERDUE"
+                            ? "bg-red-50 text-red-700"
+                            : daysUntilPayment <= 5
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-green-50 text-green-700",
+                        )}>
+                          {nextDueCharge.charge_status === "OVERDUE"
+                            ? `${Math.abs(daysUntilPayment)} days overdue`
+                            : `${daysUntilPayment} days until due`}
+                        </div>
+                      )}
+                      <Button className="w-full bg-teal-600 hover:bg-teal-700"
+                              onClick={() => setActiveTab("payments")}>
+                        How to pay
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="py-4 text-center text-slate-500">
+                      Nothing due — you&apos;re all paid up.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* The two things that were buried. Now they're a click away, on the
+                  page a tenant actually looks at. */}
+              <Card className="overflow-hidden">
+                <CardHeader className="border-b bg-white pb-3">
+                  <CardTitle className="text-lg">My tenancy</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <TenancyLink
+                    href="/dashboard/tenancy/calendar"
+                    icon={CalendarDays}
+                    title="Calendar"
+                    body="Rent dates, inspections and visits"
+                  />
+                  <TenancyLink
+                    href="/dashboard/tenancy/moving-out"
+                    icon={DoorOpen}
+                    title="Moving out"
+                    body="Give notice, or ask to end early"
+                  />
+                </CardContent>
+              </Card>
+
+              {currentLease.end_date && (
+                <Card className="overflow-hidden">
+                  <CardHeader className="border-b bg-white pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <FileText className="mr-2 h-5 w-5 text-slate-600" /> Lease progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Completed</span>
+                        <span className="font-medium">{leaseProgress}%</span>
+                      </div>
+                      <Progress value={leaseProgress} className="h-2" />
+                      <p className="text-xs text-slate-500">
+                        Ends {format(parseISO(currentLease.end_date), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card className="overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between border-b bg-white pb-3">
+                <CardTitle className="flex items-center text-lg">
+                  <Receipt className="mr-2 h-5 w-5 text-slate-600" /> Recent payments
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setActiveTab("payments")}>
+                  View all
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {myPayments.length > 0 ? (
+                  <ul className="divide-y divide-slate-100">
+                    {myPayments.slice(0, 3).map((entry) => (
+                      <li key={entry.id} className="transition-colors hover:bg-slate-50">
+                        <div className="flex items-center justify-between p-4">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">
+                              {format(parseISO(entry.effective_date), "MMM d, yyyy")}
+                              {entry.entry_type === "CREDIT" && " (Credit)"}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {entry.payment_method || entry.description}
+                              {entryPayerName(entry) && ` · from ${entryPayerName(entry)}`}
+                            </div>
+                          </div>
+                          <div className="text-sm font-medium">{formatCurrency(entry.amount)}</div>
+                          {entry.entry_type === "PAYMENT" ? (
+                            <Button variant="ghost" size="icon" className="ml-2 h-7 w-7"
+                                    title="Download receipt (PDF)"
+                                    disabled={receiptBusyId === entry.id}
+                                    onClick={() => handleDownloadReceipt(entry.id)}>
+                              {receiptBusyId === entry.id
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Download className="h-3.5 w-3.5 text-slate-400" />}
+                            </Button>
+                          ) : (
+                            <Badge variant="active" className="ml-2">Credited</Badge>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="p-6 text-center text-sm text-slate-500">No payments recorded yet.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between border-b bg-white pb-3">
+                <CardTitle className="flex items-center text-lg">
+                  <Wrench className="mr-2 h-5 w-5 text-slate-600" /> Maintenance
+                </CardTitle>
+                <Button size="sm" className="bg-teal-600 hover:bg-teal-700"
+                        onClick={() => setActiveTab("maintenance")}>
+                  New request
+                </Button>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-center text-sm text-slate-500">
+                  Something broken or not working? Report it and follow what happens next.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ================================================== PAYMENTS */}
+        <TabsContent value="payments" className="mt-6 space-y-6">
+          {hasJointCharges && (
+            <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-100 p-4">
+              <Users className="mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500" />
+              <p className="text-sm text-slate-600">
+                Your lease bills your {groupNoun} together: rent and the deposit are one
+                shared amount, and a payment from <span className="font-medium">any</span>{" "}
+                roommate settles it for everyone. Each payment below shows who it came from.
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <SummaryCard
+              label="Next due"
+              value={nextDueCharge
+                ? formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)
+                : "$0.00"}
+              hint={nextDueCharge?.due_date
+                ? `Due ${format(parseISO(nextDueCharge.due_date), "MMM d, yyyy")}`
+                : "Nothing scheduled"}
+              icon={<Calendar className="h-5 w-5" />} tone="amber"
+            />
+            <SummaryCard
+              label={hasJointCharges ? `${groupLabel} rent` : "Monthly rent"}
+              value={formatCurrency(currentLease.total_rent)}
+              hint={hasJointCharges
+                ? `One shared bill for everyone on ${isRoomShare ? "this room" : "the lease"}`
+                : "Full rent for this lease"}
+              extra={proratedNote}
+              icon={<Home className="h-5 w-5" />} tone="slate"
+            />
+            <SummaryCard
+              label="Total outstanding"
+              value={formatCurrency(totalOutstanding)}
+              hint={openCharges.length > 0
+                ? `Across ${openCharges.length} open charge${openCharges.length === 1 ? "" : "s"}`
+                : "Nothing owing"}
+              icon={<Clock className="h-5 w-5" />}
+              tone={totalOutstanding > 0 ? "amber" : "green"}
+            />
+            <SummaryCard
+              label="Total paid (lease)"
+              value={formatCurrency(totalPaid)}
+              hint={hasJointCharges ? "All roommates combined" : "Sum of recorded payments"}
+              icon={<CheckCircle className="h-5 w-5" />} tone="blue"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <Card className="md:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle>Your charges</CardTitle>
+                <CardDescription>Rent, utility shares, deposits and fees</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {myCharges.length > 0 ? (
+                  <div className="rounded-md border">
+                    <div className="grid grid-cols-5 bg-slate-50 p-3 text-sm font-medium text-slate-600">
+                      <div>Due</div>
+                      <div className="col-span-2">Description</div>
+                      <div>Amount</div>
+                      <div>Status</div>
+                    </div>
+                    <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+                      {myCharges.map((entry) => {
+                        const settled = entry.settled_amount ? parseFloat(entry.settled_amount) : 0;
+                        return (
+                          <div key={entry.id} className="grid grid-cols-5 p-3 text-sm">
+                            <div>
+                              {entry.due_date
+                                ? format(parseISO(entry.due_date), "MMM d, yyyy")
+                                : "—"}
+                            </div>
+                            <div className="col-span-2">
+                              <span className="font-medium">{entry.description}</span>
+                              <span className="block text-xs text-slate-500">
+                                {entry.entry_type_display}
+                                {entryIsJoint(entry) && (
+                                  <span className="ml-1 text-slate-400">
+                                    · {isRoomShare ? "Shared (room)" : "Household"}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="font-medium">
+                              {formatCurrency(entry.amount)}
+                              {settled > 0 && settled < parseFloat(entry.amount) && (
+                                <span className="block text-xs text-slate-500">
+                                  Paid: {formatCurrency(settled)}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <Badge variant={getChargeStatusBadgeVariant(entry.charge_status)}>
+                                {chargeStatusLabel(entry.charge_status)}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="p-6 text-center text-sm text-slate-500">
+                    No charges yet — they&apos;ll appear once your lease is active.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>How to pay</CardTitle>
+                  <CardDescription>Money doesn&apos;t move through Rentium</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {nextDueCharge ? (
+                    <>
+                      <div className="rounded-md bg-slate-50 p-4">
+                        <div className="mb-2 flex justify-between">
+                          <span className="text-sm text-slate-600">{nextDueCharge.description}</span>
+                          <span className="text-sm font-medium">
+                            {formatCurrency(nextDueCharge.outstanding ?? nextDueCharge.amount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-slate-200 pt-2">
+                          <span className="text-sm font-medium">Total outstanding</span>
+                          <span className="text-sm font-bold">{formatCurrency(totalOutstanding)}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {etransferEmail ? (
+                          <>
+                            Send your e-transfer to{" "}
+                            <span className="select-all font-medium text-slate-700">
+                              {etransferEmail}
+                            </span>
+                            . Once your landlord records it, it appears here automatically
+                            {hasJointCharges ? ` for the whole ${groupNoun}` : ""}.
+                          </>
+                        ) : (
+                          <>
+                            Send your payment as usual. Once your landlord records it, it appears
+                            here automatically{hasJointCharges ? ` for the whole ${groupNoun}` : ""}.
+                          </>
+                        )}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="py-4 text-center text-sm text-slate-500">
+                      No payments currently due.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Payment history</CardTitle>
+                  <CardDescription>Everything your landlord has recorded</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {myPayments.length > 0 ? (
+                    <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+                      {myPayments.map((entry) => (
+                        <li key={entry.id} className="flex items-center justify-between gap-2 p-3 text-sm">
+                          <div className="min-w-0">
+                            <div className="font-medium">
+                              {format(parseISO(entry.effective_date), "MMM d, yyyy")}
+                            </div>
+                            <div className="truncate text-xs text-slate-500">
+                              {entry.entry_type === "CREDIT" ? "Credit" : (entry.payment_method || "Payment")}
+                              {entryPayerName(entry) ? ` · from ${entryPayerName(entry)}` : ""}
+                              {entry.reference_number ? ` · Ref ${entry.reference_number}` : ""}
+                            </div>
+                          </div>
+                          <div className="flex flex-shrink-0 items-center gap-1">
+                            <span className="font-medium">{formatCurrency(entry.amount)}</span>
+                            {entry.entry_type === "PAYMENT" && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7"
+                                      title="Download receipt (PDF)"
+                                      disabled={receiptBusyId === entry.id}
+                                      onClick={() => handleDownloadReceipt(entry.id)}>
+                                {receiptBusyId === entry.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Download className="h-3.5 w-3.5 text-slate-400" />}
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="p-6 text-center text-sm text-slate-500">No payments recorded yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ================================================== MAINTENANCE */}
+        <TabsContent value="maintenance" className="mt-6">
+          <TenantMaintenance
+            propertyId={propertyId}
+            leaseId={currentLease.id}
+            propertyLabel={currentLease.property_name || currentLease.group_name || undefined}
+          />
+        </TabsContent>
+
+        {/* ================================================== DOCUMENTS */}
+        <TabsContent value="documents" className="mt-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>Your lease and anything attached to it</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="border-b">
+                <div className="flex items-center justify-between p-4 hover:bg-slate-50">
+                  <div className="flex items-center">
+                    <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-slate-400" />
+                    <div>
+                      <span className="text-sm font-medium">Your lease agreement (PDF)</span>
+                      <p className="text-xs text-slate-500">
+                        The exact document you signed, generated on demand
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm"
+                          onClick={handleDownloadLeasePdf} disabled={isDownloadingPdf}>
+                    {isDownloadingPdf
+                      ? <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      : <Download className="mr-1 h-4 w-4" />}
+                    Download
+                  </Button>
+                </div>
+              </div>
+
+              {documents.length > 0 ? (
+                <ul className="divide-y divide-slate-100">
+                  {documents.map((doc) => (
+                    <li key={doc.id} className="flex items-center justify-between p-4 hover:bg-slate-50">
+                      <div className="flex min-w-0 items-center">
+                        <FileText className="mr-3 h-5 w-5 flex-shrink-0 text-slate-400" />
+                        <div className="min-w-0">
+                          <span className="truncate text-sm font-medium">{doc.title}</span>
+                          <p className="text-xs text-slate-500">
+                            {doc.uploaded_at
+                              ? format(parseISO(doc.uploaded_at), "MMM d, yyyy")
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" asChild>
+                        <a href={doc.document} target="_blank" rel="noreferrer" title={`Download ${doc.title}`}>
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="p-6 text-center text-sm text-slate-500">
+                  No other documents on this lease.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ bits
+function TenancyLink({ href, icon: Icon, title, body }: {
+  href: string; icon: React.ElementType; title: string; body: string;
+}) {
+  return (
+    <Link href={href}
+          className="flex items-center gap-3 border-b p-4 transition-colors last:border-0 hover:bg-slate-50">
+      <Icon className="h-5 w-5 flex-shrink-0 text-teal-600" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-slate-900">{title}</p>
+        <p className="text-xs text-slate-500">{body}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-400" />
+    </Link>
+  );
+}
+
+function SummaryCard({ label, value, hint, extra, icon, tone }: {
+  label: string; value: string; hint?: string; extra?: string | null;
+  icon: React.ReactNode; tone: "amber" | "green" | "blue" | "slate";
+}) {
+  const tones: Record<string, string> = {
+    amber: "bg-amber-50 text-amber-600",
+    green: "bg-green-50 text-green-600",
+    blue: "bg-blue-50 text-blue-600",
+    slate: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className="truncate text-2xl font-semibold">{value}</p>
+          </div>
+          <div className={cn("flex-shrink-0 rounded-full p-2", tones[tone])}>{icon}</div>
+        </div>
+        {hint && <p className="mt-2 text-xs text-slate-500">{hint}</p>}
+        {extra && <p className="mt-0.5 text-xs text-amber-600">{extra}</p>}
+      </CardContent>
+    </Card>
   );
 }

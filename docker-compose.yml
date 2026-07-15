@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   web:
     build:
@@ -16,4 +14,11 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
+      # Browser-side (client components): resolved by Chrome on your Mac
+      - NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8000/api
+      # Server-side (server components, publicApi.ts): resolved inside the container
+      - DJANGO_API_URL=http://host.docker.internal:8000/api
+    extra_hosts:
+      # Required on Linux; harmless on Docker Desktop for Mac
+      - "host.docker.internal:host-gateway"
     command: npm run dev
