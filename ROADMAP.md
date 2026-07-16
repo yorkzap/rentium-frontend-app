@@ -33,6 +33,11 @@ There are no pending patch files or unmerged work branches.
   link, no account).
 - Notifications: opening the bell or the notifications page **marks all
   read**; no "mark read" buttons anywhere.
+- **RAMA v1 chat panel** (`RamaPanel.tsx`, mounted in the landlord dashboard
+  shell): floating "Ask RAMA" launcher, gated on the backend's
+  `/api/rama/config/` (no env-var flag — one source of truth). Visible
+  "powered by <model>" tag on the composer; staff-only provider/model
+  picker; hidden from customers until a provider key is configured.
 - **Type/lint debt: ZERO.** `next.config.ts` no longer ignores anything —
   builds enforce tsc + eslint. Keep it that way.
 
@@ -48,7 +53,18 @@ There are no pending patch files or unmerged work branches.
   viewing requests, scheduled visits (tenant entry notice), work orders, SLA
   breaches, payments, rent-due-soon; emails to viewing requesters on
   request/confirm/decline (console backend locally, Anymail/SendGrid prod).
-- Suite: **47 tests, all green.**
+- **RAMA v1** (`rentium/rama/`): tool registry over 9 read functions
+  (schemas from type hints, landlord injected from the session), provider
+  adapters behind one `complete()` contract (`anthropic` default via the
+  official SDK; `openai`/`xai` over chat-completions), audited chat loop
+  (`POST /api/rama/chat/`), `RamaAudit` rows stamping provider/model on
+  every event, staff-only per-request override. `RAMA_PROVIDER`/`RAMA_MODEL`
+  env config, default `anthropic` + `claude-haiku-4-5`. No writes anywhere.
+- **State of the Union**: `GET /api/rama/state-of-the-union/` — portfolio
+  aggregate (money this month, outstanding, deposits, open work, attention)
+  from `rentium/rama/union.py`, no model involved.
+- Suite: **64 tests, all green** (17 of them RAMA: registry scoping, tool
+  correctness, chat loop with a scripted stub provider, wire formats).
 
 **Known gaps / debt (do not lose these):**
 
@@ -66,12 +82,14 @@ There are no pending patch files or unmerged work branches.
    append-only ledger; ship `GET /api/export/` (CSV) alongside.
 6. Policy pages: have a lawyer read /privacy and /terms before launch.
 
-## 1. Next session — RAMA v1 (read `docs/rama-architecture.md` first)
+## 1. Next session — RAMA v2 (read `docs/rama-architecture.md` first)
 
-v0 is done: the tool surface exists as typed, side-effect-free functions
-(`compute_attention` + six sources, `deposits_collected_between`,
-`next_upcoming_charge`, `deposits_held`, summary aggregation). The event
-pipeline (DomainEvent → handlers) is the audit spine RAMA will read.
+**v1 is SHIPPED** (see §0): registry over 9 read tools, provider-agnostic
+adapters (anthropic default + Haiku; openai/xai slot in), audited chat
+loop, State of the Union endpoint, feature-flagged dashboard panel with the
+"powered by <model>" tag and staff-only model picker. **The Anthropic API
+key is the only missing piece** — set `ANTHROPIC_API_KEY` in the backend
+env and the panel goes live for real (until then only staff see it).
 
 **Operating principle (owner's direction, July 2026):** the AI is the
 _reasoning_ layer, never the _heavy-lifting_ layer. Every number, deadline,
@@ -80,35 +98,14 @@ choose which tools to call, interpret results against our policies, and
 explain. If a task can be a deterministic service function, it becomes one —
 the model orchestrates, the app computes.
 
-**v1 — read-only Q&A agent (~1–2 weeks):**
-
-- New `rentium/rama/` Django app:
-  - `registry.py` — tool name → function + JSON schema derived from type
-    hints; `landlord` injected from the session, never from model output.
-  - `providers/` — **provider-agnostic by contract, not by promise.** One
-    internal interface: `complete(messages, tools) → assistant turn plus
-tool calls`, with pluggable adapters — `anthropic.py` first, then
-    `openai.py`, `xai.py`, etc.; anything with function calling slots in.
-    Provider and model are **configuration, not code**: `RAMA_PROVIDER` and
-    `RAMA_MODEL` env defaults (default `anthropic` + Haiku — cheap, fast,
-    plenty for tool routing), overridable per request so a Sonnet-class or
-    GPT/Grok-class model can be A/B'd on the same conversation. The active
-    provider/model is stamped on every `RamaAudit` row so answer quality is
-    attributable.
-  - `views.py` — chat endpoint; `models.py` — `RamaAudit` (conversation id,
-    provider, model, every tool call with args/results).
-  - Two new read tools: `resolve_person(name)` (scoped icontains over
-    tenants with lease context; ambiguity → ask, never guess) and
-    `lease_state(lease_id)`.
-  - No writes anywhere. Dashboard chat panel behind a feature flag, with a
-    visible "powered by <model>" tag and (owner-only) a model picker.
-- Also ship "State of the Union": a service-layer aggregate (equity, surplus,
-  portfolio health, open compliance items) — useful on the dashboard before
-  any AI touches it, and exactly the kind of heavy lifting that stays out of
-  the model.
+**v1 gate before starting v2:** run real conversations on the live key and
+read the `RamaAudit` rows (Django admin → RAMA) — correct tool selection,
+scoping holds, ambiguity rule holds ("two Sarahs" must produce a question,
+not a guess). The audit table is the eval set.
 
 **v2 — propose-only:** proposal rows + confirm cards; writes execute through
-the existing append-only services on human approval only.
+the existing append-only services on human approval only. Natural first
+proposals: record a payment, post a late-fee charge, send a rent reminder.
 
 **v3 — scoped autonomy:** allowlisted low-risk actions (send rent reminder)
 auto-execute under Constitution rules (versioned config in DB rows,
