@@ -85,13 +85,16 @@ the model orchestrates, the app computes.
 - New `rentium/rama/` Django app:
   - `registry.py` — tool name → function + JSON schema derived from type
     hints; `landlord` injected from the session, never from model output.
-  - `providers/` — **provider-agnostic by contract, not by promise.** A
-    single internal interface (`complete(messages, tools) -> assistant turn
-    - tool calls`) with pluggable adapters: `anthropic.py`first, then`openai.py`, `xai.py`, etc. — anything with function calling slots in.
-Provider + model are **configuration, not code**:
-`RAMA_PROVIDER`/`RAMA_MODEL`env defaults (default:`anthropic`/ Haiku — cheap, fast, plenty for tool routing), overridable
-per request so we can A/B a Sonnet-class or GPT/Grok-class model on the
-same conversation. The active provider/model is stamped on every`RamaAudit` row so answer quality is attributable.
+  - `providers/` — **provider-agnostic by contract, not by promise.** One
+    internal interface: `complete(messages, tools) → assistant turn plus
+tool calls`, with pluggable adapters — `anthropic.py` first, then
+    `openai.py`, `xai.py`, etc.; anything with function calling slots in.
+    Provider and model are **configuration, not code**: `RAMA_PROVIDER` and
+    `RAMA_MODEL` env defaults (default `anthropic` + Haiku — cheap, fast,
+    plenty for tool routing), overridable per request so a Sonnet-class or
+    GPT/Grok-class model can be A/B'd on the same conversation. The active
+    provider/model is stamped on every `RamaAudit` row so answer quality is
+    attributable.
   - `views.py` — chat endpoint; `models.py` — `RamaAudit` (conversation id,
     provider, model, every tool call with args/results).
   - Two new read tools: `resolve_person(name)` (scoped icontains over
