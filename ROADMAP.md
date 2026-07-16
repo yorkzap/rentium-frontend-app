@@ -73,23 +73,36 @@ v0 is done: the tool surface exists as typed, side-effect-free functions
 `next_upcoming_charge`, `deposits_held`, summary aggregation). The event
 pipeline (DomainEvent → handlers) is the audit spine RAMA will read.
 
+**Operating principle (owner's direction, July 2026):** the AI is the
+_reasoning_ layer, never the _heavy-lifting_ layer. Every number, deadline,
+and record comes from our typed service functions; the model's job is to
+choose which tools to call, interpret results against our policies, and
+explain. If a task can be a deterministic service function, it becomes one —
+the model orchestrates, the app computes.
+
 **v1 — read-only Q&A agent (~1–2 weeks):**
 
 - New `rentium/rama/` Django app:
   - `registry.py` — tool name → function + JSON schema derived from type
     hints; `landlord` injected from the session, never from model output.
-  - `adapter.py` — provider-agnostic: messages + tool schemas in, tool calls
-    out. Start on a hosted frontier model (Claude API recommended;
-    function-calling reliability is the whole game).
+  - `providers/` — **provider-agnostic by contract, not by promise.** A
+    single internal interface (`complete(messages, tools) -> assistant turn
+    - tool calls`) with pluggable adapters: `anthropic.py`first, then`openai.py`, `xai.py`, etc. — anything with function calling slots in.
+Provider + model are **configuration, not code**:
+`RAMA_PROVIDER`/`RAMA_MODEL`env defaults (default:`anthropic`/ Haiku — cheap, fast, plenty for tool routing), overridable
+per request so we can A/B a Sonnet-class or GPT/Grok-class model on the
+same conversation. The active provider/model is stamped on every`RamaAudit` row so answer quality is attributable.
   - `views.py` — chat endpoint; `models.py` — `RamaAudit` (conversation id,
-    every tool call with args/results).
+    provider, model, every tool call with args/results).
   - Two new read tools: `resolve_person(name)` (scoped icontains over
     tenants with lease context; ambiguity → ask, never guess) and
     `lease_state(lease_id)`.
-  - No writes anywhere. Dashboard chat panel behind a feature flag.
+  - No writes anywhere. Dashboard chat panel behind a feature flag, with a
+    visible "powered by <model>" tag and (owner-only) a model picker.
 - Also ship "State of the Union": a service-layer aggregate (equity, surplus,
   portfolio health, open compliance items) — useful on the dashboard before
-  any AI touches it.
+  any AI touches it, and exactly the kind of heavy lifting that stays out of
+  the model.
 
 **v2 — propose-only:** proposal rows + confirm cards; writes execute through
 the existing append-only services on human approval only.
@@ -111,18 +124,16 @@ conversational resolutions.
 - Demo-account seed script (`manage.py seed_demo`) → real screenshots →
   swap the hero composition (gap #2).
 
-## 3. Deploy (needs owner credentials — see session notes)
+## 3. Deploy — see `docs/deploy.md` (the runbook)
 
-- Frontend → Vercel: set `NEXT_PUBLIC_DJANGO_API_URL`, `DJANGO_API_URL`,
-  `NEXT_PUBLIC_ROOT_DOMAIN=rentium.ca`.
-- Backend → any Docker host (production compose files exist): set
-  `DJANGO_SETTINGS_MODULE=config.settings.production`, `DATABASE_URL`,
-  `REDIS_URL`, `DJANGO_SECRET_KEY`, `SENDGRID_API_KEY` (Anymail),
-  `FRONTEND_URL=https://rentium.ca`, Sentry DSN optional. **Run a Celery
-  worker** — notifications/emails dispatch through it (`celery -A config
-worker -B`; beat runs `replay_unprocessed_events` as the safety net).
-- Cloudflare: apex + wildcard `*.rentium.ca` DNS; Universal SSL covers the
-  wildcard. README "Landlord showcase subdomains" has the exact steps.
+`scripts/deploy-frontend.sh` is the whole frontend deploy: Vercel project +
+env vars + prod deploy + domains + Cloudflare DNS in one idempotent command,
+run with `VERCEL_TOKEN` and `CF_API_TOKEN` in the environment. The backend
+runs on the owner's machine for now, published as `api.rentium.ca` through a
+Cloudflare Tunnel (full recipe in the runbook), moving to a VPS later with
+zero frontend changes. **Run a Celery worker** — notifications/emails
+dispatch through it. Wildcard `*.rentium.ca` certs need Vercel nameservers;
+`/l/<slug>` paths work without them.
 
 ## 4. Bootstrap prompt for a new Claude session
 
