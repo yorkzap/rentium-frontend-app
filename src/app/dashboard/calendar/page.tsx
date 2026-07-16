@@ -235,17 +235,15 @@ export default function LandlordCalendarPage() {
   const strip = useMemo(() => {
     let expected = 0,
       collected = 0,
-      overdue = 0,
-      visits = 0;
+      overdue = 0;
     for (const e of events) {
       if (monthKey(e.date) !== mk) continue;
       if (e.kind === 'RENT_DUE' || e.kind === 'CHARGE_DUE') {
         expected += e.amount ?? 0;
         if (e.status === 'OVERDUE') overdue += 1;
       } else if (e.kind === 'PAYMENT') collected += e.amount ?? 0;
-      else if (e.kind === 'APPOINTMENT') visits += 1;
     }
-    return { expected, collected, overdue, visits };
+    return { expected, collected, overdue };
   }, [events, mk]);
 
   // ---- viewing requests rail ---------------------------------------------
@@ -273,6 +271,27 @@ export default function LandlordCalendarPage() {
   const dayEvents = selected ? events.filter((e) => e.date === selected) : [];
   const apptIdFromEvent = (id: string) =>
     id.startsWith('apt-') ? id.slice(4) : null;
+  // Full appointment lookup: the landlord's day panel shows WHO is coming
+  // (name, email, phone, notes) — not just "a viewing exists".
+  const apptById = useMemo(
+    () => new Map(appointments.map((a) => [a.id, a])),
+    [appointments]
+  );
+
+  // ---- this month's visits (the clickable "Visits scheduled" tile) --------
+  const [showVisits, setShowVisits] = useState(false);
+  const monthVisits = useMemo(
+    () =>
+      appointments
+        .filter(
+          (a) =>
+            a.status === 'SCHEDULED' &&
+            monthKey(a.starts_at.slice(0, 10)) === mk &&
+            (propId == null || a.property === propId)
+        )
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+    [appointments, mk, propId]
+  );
 
   // ---- day / range interaction --------------------------------------------
   const handleDayClick = (day: string, shift: boolean) => {
@@ -461,39 +480,131 @@ export default function LandlordCalendarPage() {
             value: money(strip.expected),
             icon: DollarSign,
             cls: 'text-slate-700',
+            onClick: undefined as (() => void) | undefined,
+            active: false,
           },
           {
             label: 'Collected',
             value: money(strip.collected),
             icon: Check,
             cls: 'text-teal-600',
+            onClick: undefined,
+            active: false,
           },
           {
             label: 'Overdue charges',
             value: String(strip.overdue),
             icon: Receipt,
             cls: strip.overdue ? 'text-red-600' : 'text-slate-700',
+            onClick: undefined,
+            active: false,
           },
           {
             label: 'Visits scheduled',
-            value: String(strip.visits),
+            value: String(monthVisits.length),
             icon: UserRound,
             cls: 'text-indigo-600',
+            // The number answers "how many"; clicking answers "who, when,
+            // where" — the list expands right below.
+            onClick:
+              monthVisits.length > 0
+                ? () => setShowVisits((v) => !v)
+                : undefined,
+            active: showVisits,
           },
         ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+          <Card
+            key={s.label}
+            className={
+              s.active ? 'ring-2 ring-indigo-300' : s.onClick ? '' : undefined
+            }
+          >
+            <CardContent
+              role={s.onClick ? 'button' : undefined}
+              tabIndex={s.onClick ? 0 : undefined}
+              onClick={s.onClick}
+              onKeyDown={(e) => {
+                if (s.onClick && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  s.onClick();
+                }
+              }}
+              className={`p-3 sm:p-4 flex items-center gap-3 ${
+                s.onClick
+                  ? 'cursor-pointer select-none hover:bg-slate-50 transition-colors rounded-xl'
+                  : ''
+              }`}
+            >
               <s.icon className={`h-4 w-4 flex-shrink-0 ${s.cls}`} />
               <div className="min-w-0">
                 <p className={`text-lg font-semibold leading-tight ${s.cls}`}>
                   {s.value}
                 </p>
-                <p className="text-[11px] text-slate-500 truncate">{s.label}</p>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {s.label}
+                  {s.onClick ? ' — tap to see who' : ''}
+                </p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* who's visiting this month (opens from the tile above) */}
+      {showVisits && monthVisits.length > 0 && (
+        <Card className="border-indigo-200 bg-indigo-50/40">
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-indigo-800">
+                {monthVisits.length} visit
+                {monthVisits.length === 1 ? '' : 's'} this month
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowVisits(false)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <ul className="divide-y divide-indigo-100">
+              {monthVisits.map((a) => (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    className="w-full py-2 text-left flex flex-wrap items-center justify-between gap-2 text-sm hover:bg-white/60 rounded-md px-1.5 transition-colors"
+                    onClick={() => {
+                      setSelected(a.starts_at.slice(0, 10));
+                      setRangeEnd(null);
+                      setAction(null);
+                    }}
+                  >
+                    <span className="min-w-0">
+                      <span className="font-medium text-slate-800">
+                        {a.contact_name || a.kind_display}
+                      </span>
+                      <span className="text-slate-500">
+                        {' '}
+                        · {a.kind_display} at {a.property_name}
+                      </span>
+                    </span>
+                    <span className="text-xs text-slate-500 flex-shrink-0">
+                      {new Date(a.starts_at).toLocaleString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* viewing requests rail */}
       {requests.length > 0 && (
@@ -697,9 +808,10 @@ export default function LandlordCalendarPage() {
                     Nothing scheduled or due.
                   </p>
                 ) : (
-                  <ul className="space-y-2 text-sm max-h-64 overflow-y-auto pr-1">
+                  <ul className="space-y-2 text-sm max-h-72 overflow-y-auto pr-1">
                     {dayEvents.map((e) => {
                       const apptId = apptIdFromEvent(e.id);
+                      const appt = apptId ? apptById.get(apptId) : undefined;
                       return (
                         <li key={e.id} className="rounded-md border p-2.5">
                           <div className="flex items-start justify-between gap-2">
@@ -709,9 +821,60 @@ export default function LandlordCalendarPage() {
                               >
                                 {e.label}
                               </span>
-                              <p className="text-slate-700 text-xs sm:text-sm">
-                                {e.detail || e.label}
-                              </p>
+                              {appt ? (
+                                // The landlord's view of a visit: WHO is
+                                // coming, how to reach them, and the note
+                                // they left — not just "a viewing exists".
+                                <div className="space-y-0.5">
+                                  <p className="text-xs sm:text-sm font-medium text-slate-800">
+                                    {appt.contact_name || appt.kind_display}
+                                    <span className="font-normal text-slate-500">
+                                      {' '}
+                                      ·{' '}
+                                      {new Date(
+                                        appt.starts_at
+                                      ).toLocaleTimeString('en-US', {
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                      })}{' '}
+                                      at {appt.property_name}
+                                    </span>
+                                  </p>
+                                  {(appt.contact_email ||
+                                    appt.contact_phone) && (
+                                    <p className="text-xs text-slate-500 break-all">
+                                      {appt.contact_email && (
+                                        <a
+                                          href={`mailto:${appt.contact_email}`}
+                                          className="hover:underline"
+                                        >
+                                          {appt.contact_email}
+                                        </a>
+                                      )}
+                                      {appt.contact_email &&
+                                        appt.contact_phone &&
+                                        ' · '}
+                                      {appt.contact_phone && (
+                                        <a
+                                          href={`tel:${appt.contact_phone}`}
+                                          className="hover:underline"
+                                        >
+                                          {appt.contact_phone}
+                                        </a>
+                                      )}
+                                    </p>
+                                  )}
+                                  {appt.notes && (
+                                    <p className="text-xs text-slate-400">
+                                      &quot;{appt.notes}&quot;
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-slate-700 text-xs sm:text-sm">
+                                  {e.detail || e.label}
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               {e.status && (
@@ -735,6 +898,7 @@ export default function LandlordCalendarPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-6 w-6"
+                                  title="Cancel this visit"
                                   disabled={busy}
                                   onClick={() =>
                                     run(
@@ -748,6 +912,39 @@ export default function LandlordCalendarPage() {
                               )}
                             </div>
                           </div>
+                          {/* A REQUESTED viewing is actionable right here,
+                              not just in the rail at the top of the page. */}
+                          {appt && appt.status === 'REQUESTED' && (
+                            <div className="mt-2 flex gap-1.5">
+                              <Button
+                                size="sm"
+                                className="h-7 bg-teal-600 hover:bg-teal-700"
+                                disabled={busy}
+                                onClick={() =>
+                                  run(
+                                    () => confirmAppointment(token!, appt.id),
+                                    'Confirmed — the requester will be notified.'
+                                  )
+                                }
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7"
+                                disabled={busy}
+                                onClick={() =>
+                                  run(
+                                    () => declineAppointment(token!, appt.id),
+                                    'Declined.'
+                                  )
+                                }
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" /> Decline
+                              </Button>
+                            </div>
+                          )}
                         </li>
                       );
                     })}

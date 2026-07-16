@@ -38,7 +38,13 @@ interface Settings {
 export default function SettingsPage() {
   const { token } = useAuth();
   const [s, setS] = useState<Settings | null>(null);
+  // Editable copy of the page fields. Nothing here saves as you type — the
+  // Save button below the form is the only thing that writes (the visibility
+  // switch and photo upload act immediately, as switches and pickers should).
   const [slug, setSlug] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [slugState, setSlugState] = useState<
     'idle' | 'checking' | 'ok' | 'taken'
   >('idle');
@@ -53,6 +59,9 @@ export default function SettingsPage() {
       const data: Settings = await res.json();
       setS(data);
       setSlug(data.slug ?? '');
+      setDisplayName(data.display_name ?? '');
+      setBio(data.bio ?? '');
+      setContactEmail(data.contact_email ?? '');
     }
   }, [token]);
 
@@ -100,12 +109,45 @@ export default function SettingsPage() {
         throw new Error(data.slug?.[0] || data.detail || "Couldn't save.");
       setS(data);
       setSlug(data.slug ?? '');
+      setDisplayName(data.display_name ?? '');
+      setBio(data.bio ?? '');
+      setContactEmail(data.contact_email ?? '');
       return data as Settings;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
       setSaving(false);
     }
+  };
+
+  // Anything typed but not saved yet?
+  const dirty =
+    s !== null &&
+    (slug !== (s.slug ?? '') ||
+      displayName !== (s.display_name ?? '') ||
+      bio !== (s.bio ?? '') ||
+      contactEmail !== (s.contact_email ?? ''));
+
+  const savePage = async () => {
+    if (slugState === 'taken') {
+      toast.error('That address is taken — pick another before saving.');
+      return;
+    }
+    const saved = await patch({
+      slug: slug || null,
+      display_name: displayName,
+      bio,
+      contact_email: contactEmail,
+    });
+    if (saved) toast.success('Page saved.');
+  };
+
+  const discard = () => {
+    if (!s) return;
+    setSlug(s.slug ?? '');
+    setDisplayName(s.display_name ?? '');
+    setBio(s.bio ?? '');
+    setContactEmail(s.contact_email ?? '');
   };
 
   if (!s) {
@@ -311,10 +353,6 @@ export default function SettingsPage() {
                       .replace(/-+/g, '-')
                   )
                 }
-                onBlur={() => {
-                  if (slug && slug !== s.slug && slugState === 'ok')
-                    patch({ slug });
-                }}
                 placeholder="raj-rentals"
                 className="field flex-1 rounded-l-none"
               />
@@ -337,12 +375,9 @@ export default function SettingsPage() {
           <div>
             <label className="text-sm font-medium">Display name</label>
             <input
-              defaultValue={s.display_name}
-              onBlur={(e) =>
-                e.target.value !== s.display_name &&
-                patch({ display_name: e.target.value })
-              }
-              placeholder={s.display_name || 'e.g. McKenzie Rentals'}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="e.g. McKenzie Rentals"
               className="field mt-1.5"
             />
             <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
@@ -354,11 +389,9 @@ export default function SettingsPage() {
             <label className="text-sm font-medium">About</label>
             <textarea
               rows={4}
-              defaultValue={s.bio}
+              value={bio}
               maxLength={1200}
-              onBlur={(e) =>
-                e.target.value !== s.bio && patch({ bio: e.target.value })
-              }
+              onChange={(e) => setBio(e.target.value)}
               placeholder="A few sentences for people considering renting from you."
               className="field mt-1.5 resize-none"
             />
@@ -404,11 +437,8 @@ export default function SettingsPage() {
             <label className="text-sm font-medium">Where inquiries go</label>
             <input
               type="email"
-              defaultValue={s.contact_email}
-              onBlur={(e) =>
-                e.target.value !== s.contact_email &&
-                patch({ contact_email: e.target.value })
-              }
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
               placeholder={s.effective_contact_email}
               className="field mt-1.5"
             />
@@ -419,11 +449,39 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {saving && (
-          <p className="mt-4 flex items-center gap-1.5 text-xs text-[hsl(var(--ink-4))]">
-            <Loader2 className="h-3 w-3 animate-spin" /> Saving...
-          </p>
-        )}
+        {/* Save bar. Nothing above writes until this is clicked; the bar
+            only appears once something actually changed. */}
+        <div
+          className={cn(
+            'mt-6 flex items-center justify-between gap-3 border-t pt-4 transition-opacity',
+            dirty ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          )}
+          style={{ borderColor: 'hsl(var(--line))' }}
+          aria-hidden={!dirty}
+        >
+          <p className="text-xs text-[hsl(var(--warn-ink))]">Unsaved changes</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={discard}
+              disabled={saving}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[hsl(var(--ink-3))] hover:bg-[hsl(var(--surface-sunken))]"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={savePage}
+              disabled={
+                saving || slugState === 'taken' || slugState === 'checking'
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--brand))] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Save changes
+            </button>
+          </div>
+        </div>
       </section>
 
       <p className="mt-6 text-center text-sm text-[hsl(var(--ink-4))]">
