@@ -1,42 +1,65 @@
 // ProfileSettings.tsx
 
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Globe, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { DJANGO_API_URL } from "@/lib/config";
-import PhoneInput from "@/components/form/PhoneInput";
-import { Field, TextInput } from "@/components/form/Fields";
-import { PageHeader } from "@/components/ui/page";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Globe, Loader2, Save, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { DJANGO_API_URL } from '@/lib/config';
+import PhoneInput from '@/components/form/PhoneInput';
+import { Field, TextInput } from '@/components/form/Fields';
+import { PageHeader } from '@/components/ui/page';
+import {
+  fetchRamaSettings,
+  updateRamaSettings,
+  type RamaSettings,
+} from '@/lib/ramaApi';
 
 /**
- * Account settings. Deliberately small.
- *
- * What's gone from the old version: three tabs of toggles that did nothing.
- * "Notification preferences" had six switches with no backend, no model, and no
- * endpoint; "Security" had a password form that posted nowhere. They looked
- * finished and were entirely decorative, which is worse than absent — a user
- * flips a switch, believes they've turned off SMS reminders, and then keeps
- * getting them.
- *
- * When notification preferences are real, they come back. Until then this page
- * only contains things that work.
+ * Account settings — profile fields that write to the API, plus (for
+ * landlords) per-account RAMA preferences: enable, provider, model.
+ * Memory stays on the server, scoped to this landlord only.
  */
+
+const PROVIDER_LABELS: Record<string, string> = {
+  xai: 'xAI (Grok)',
+  anthropic: 'Anthropic (Claude)',
+  openai: 'OpenAI',
+};
 
 export default function ProfileSettings() {
   const { user, token } = useAuth();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
 
+  const [rama, setRama] = useState<RamaSettings | null>(null);
+  const [ramaEnabled, setRamaEnabled] = useState(false);
+  const [ramaProvider, setRamaProvider] = useState('xai');
+  const [ramaModel, setRamaModel] = useState('');
+  const [ramaSaving, setRamaSaving] = useState(false);
+  const isLandlord =
+    (user as { user_type?: string } | null)?.user_type === 'LANDLORD';
+
   useEffect(() => {
-    setName(user?.name ?? "");
-    setPhone((user as { phone?: string })?.phone ?? "");
+    setName(user?.name ?? '');
+    setPhone((user as { phone?: string })?.phone ?? '');
   }, [user]);
+
+  useEffect(() => {
+    if (!token || !isLandlord) return;
+    fetchRamaSettings(token)
+      .then((s) => {
+        setRama(s);
+        setRamaEnabled(s.enabled);
+        setRamaProvider(s.provider);
+        setRamaModel(s.model);
+      })
+      .catch(() => setRama(null));
+  }, [token, isLandlord]);
 
   const save = async () => {
     if (!token) return;
@@ -44,33 +67,68 @@ export default function ProfileSettings() {
     setError(undefined);
     try {
       const res = await fetch(`${DJANGO_API_URL}/users/me/`, {
-        method: "PATCH",
-        headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ name, phone }),
       });
       const body = await res.json();
       if (!res.ok) {
-        // The backend validates phones with libphonenumber, so a bad number comes
-        // back as a real, specific message ("check the area code") rather than a
-        // generic 400. Show it against the field.
         setError(body.phone?.[0]);
         throw new Error(body.detail ?? body.name?.[0] ?? "Couldn't save.");
       }
-      toast.success("Saved.");
+      toast.success('Saved.');
     } catch (e) {
-      if (!error) toast.error(e instanceof Error ? e.message : "Couldn't save.");
+      if (!error)
+        toast.error(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
       setSaving(false);
     }
   };
 
-  const initials = (user?.name || user?.email || "?")
-    .split(/[\s@.]+/).filter(Boolean).slice(0, 2)
-    .map((s) => s[0]?.toUpperCase()).join("");
+  const saveRama = async () => {
+    if (!token) return;
+    setRamaSaving(true);
+    try {
+      const next = await updateRamaSettings(token, {
+        enabled: ramaEnabled,
+        provider: ramaProvider,
+        model: ramaModel,
+      });
+      setRama(next);
+      setRamaModel(next.model);
+      toast.success(
+        next.enabled
+          ? 'RAMA is on for your account.'
+          : 'RAMA is off for your account.'
+      );
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Couldn't save RAMA settings."
+      );
+    } finally {
+      setRamaSaving(false);
+    }
+  };
+
+  const modelsForProvider = rama?.models?.[ramaProvider] ?? [];
+  const providerReady = rama?.platform_ready?.[ramaProvider] ?? false;
+
+  const initials = (user?.name || user?.email || '?')
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join('');
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Your account" description="Your name and how we reach you." />
+      <PageHeader
+        title="Your account"
+        description="Your name, contact details, and RAMA preferences."
+      />
 
       <section className="card p-6">
         <div className="mb-6 flex items-center gap-4">
@@ -84,18 +142,33 @@ export default function ProfileSettings() {
         </div>
 
         <div className="space-y-4">
-          <Field label="Full name" hint="This appears on the leases you send out.">
-            <TextInput value={name} onChange={setName} placeholder="Raj Singh" />
+          <Field
+            label="Full name"
+            hint="This appears on the leases you send out."
+          >
+            <TextInput
+              value={name}
+              onChange={setName}
+              placeholder="Raj Singh"
+            />
           </Field>
 
-          <PhoneInput value={phone} onChange={setPhone} label="Phone" error={error} />
+          <PhoneInput
+            value={phone}
+            onChange={setPhone}
+            label="Phone"
+            error={error}
+          />
 
           <Field
             label="Email"
             hint="Changing your email needs re-verification — talk to us if you need to."
           >
-            <input value={user?.email ?? ""} disabled
-                   className="field cursor-not-allowed bg-[hsl(var(--surface-sunken))] text-[hsl(var(--ink-4))]" />
+            <input
+              value={user?.email ?? ''}
+              disabled
+              className="field cursor-not-allowed bg-[hsl(var(--surface-sunken))] text-[hsl(var(--ink-4))]"
+            />
           </Field>
         </div>
 
@@ -105,10 +178,110 @@ export default function ProfileSettings() {
           disabled={saving}
           className="mt-6 flex items-center gap-2 rounded-lg bg-[hsl(var(--brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[hsl(var(--brand-hover))] disabled:opacity-60"
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Save
         </button>
       </section>
+
+      {isLandlord && rama && (
+        <section className="card mt-6 p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[hsl(var(--brand)/0.12)] text-[hsl(var(--brand))]">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">RAMA</h2>
+              <p className="mt-0.5 text-sm text-[hsl(var(--ink-4))]">
+                Your private portfolio assistant. Chat history stays on your
+                account only — never mixed with other landlords.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Enable RAMA</p>
+                <p className="text-xs text-[hsl(var(--ink-4))]">
+                  Shows the Ask RAMA button on your dashboard when on.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={ramaEnabled}
+                onChange={(e) => setRamaEnabled(e.target.checked)}
+                className="h-5 w-5 accent-[hsl(var(--brand))]"
+              />
+            </label>
+
+            <Field
+              label="Provider"
+              hint="Switch anytime — tools stay the same."
+            >
+              <select
+                value={ramaProvider}
+                onChange={(e) => {
+                  const p = e.target.value;
+                  setRamaProvider(p);
+                  const first = rama.models?.[p]?.[0]?.id;
+                  if (first) setRamaModel(first);
+                }}
+                className="field"
+              >
+                {(rama.providers ?? []).map((p) => (
+                  <option
+                    key={p}
+                    value={p}
+                    disabled={!rama.platform_ready?.[p]}
+                  >
+                    {PROVIDER_LABELS[p] ?? p}
+                    {!rama.platform_ready?.[p] ? ' (not available)' : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Model">
+              <select
+                value={ramaModel}
+                onChange={(e) => setRamaModel(e.target.value)}
+                className="field"
+              >
+                {modelsForProvider.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {!providerReady && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                This provider isn&apos;t wired on the server yet. Pick another,
+                or ask support to enable it.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={saveRama}
+            disabled={ramaSaving}
+            className="mt-6 flex items-center gap-2 rounded-lg bg-[hsl(var(--brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[hsl(var(--brand-hover))] disabled:opacity-60"
+          >
+            {ramaSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save RAMA settings
+          </button>
+        </section>
+      )}
 
       <Link
         href="/dashboard/settings"

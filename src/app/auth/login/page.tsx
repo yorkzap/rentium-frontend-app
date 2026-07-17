@@ -224,9 +224,15 @@ function LoginForm() {
           />
         </div>
         <div className="space-y-2">
-          {/* TODO(local): add a "Forgot password?" link here once the reset
-              flow exists — the old link pointed at a route that 404s. */}
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/auth/forgot-password"
+              className="text-xs font-medium text-[hsl(var(--brand))] underline-offset-4 transition-colors hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <Input
               id="password"
@@ -261,6 +267,14 @@ function LoginForm() {
             'Log in'
           )}
         </Button>
+        <p className="text-center text-sm text-ink-3">
+          <Link
+            href="/auth/forgot-password"
+            className="font-medium text-[hsl(var(--brand))] underline-offset-4 hover:underline"
+          >
+            Forgot your password?
+          </Link>
+        </p>
         <p className="text-center text-xs text-ink-4">
           New here? Your first 30 days are free — no credit card.
         </p>

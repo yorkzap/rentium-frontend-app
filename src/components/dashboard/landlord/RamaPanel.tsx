@@ -1,15 +1,10 @@
-// RamaPanel — the RAMA v1 chat surface: a floating, read-only Q&A assistant
-// over the landlord's own portfolio.
-//
-// Feature-flagged by the BACKEND (GET /api/rama/config/), not an env var, so
-// the flag has one source of truth. The launcher renders only when the server
-// says RAMA is enabled AND either a provider key is configured or the viewer
-// is staff (staff get to see the panel pre-launch; customers never see a
-// broken toy). Every reply carries a visible "powered by <model>" tag, and
-// staff get a provider/model picker for A/B-ing the same conversation.
+// RamaPanel — per-landlord RAMA chat. Shown only when this landlord has
+// enabled RAMA in Settings and the platform has a key for their provider.
+// Conversation memory is server-side (their audit trail only).
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -39,16 +34,13 @@ export default function RamaPanel() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
-  // Staff-only overrides; empty string = use the server default.
-  const [provider, setProvider] = useState('');
-  const [model, setModel] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) return;
     fetchRamaConfig(token)
       .then(setConfig)
-      .catch(() => setConfig(null)); // tenants / disabled → no panel
+      .catch(() => setConfig(null));
   }, [token]);
 
   useEffect(() => {
@@ -58,10 +50,8 @@ export default function RamaPanel() {
     });
   }, [bubbles, busy]);
 
-  if (!config?.enabled) return null;
-  if (!config.configured && !config.can_override) return null;
-
-  const activeModel = model || config.model;
+  // Hidden until this landlord opts in and the platform can serve their provider.
+  if (!config?.enabled || !config.configured) return null;
 
   const ask = async (text: string) => {
     const message = text.trim();
@@ -73,8 +63,6 @@ export default function RamaPanel() {
       const reply = await sendRamaMessage(token, {
         message,
         conversation_id: conversationId,
-        ...(config.can_override && provider ? { provider } : {}),
-        ...(config.can_override && model ? { model } : {}),
       });
       setConversationId(reply.conversation_id);
       setBubbles((b) => [
@@ -101,7 +89,6 @@ export default function RamaPanel() {
 
   return (
     <>
-      {/* launcher */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -118,14 +105,13 @@ export default function RamaPanel() {
           className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(400px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl"
           style={{ borderColor: 'hsl(var(--line))' }}
         >
-          {/* header */}
           <div className="flex items-center justify-between border-b bg-[hsl(var(--brand))] px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               <div>
                 <p className="text-sm font-semibold leading-tight">RAMA</p>
                 <p className="text-[11px] leading-tight text-white/75">
-                  Read-only · answers come from your records
+                  Your portfolio · read-only · private to you
                 </p>
               </div>
             </div>
@@ -150,44 +136,13 @@ export default function RamaPanel() {
             </div>
           </div>
 
-          {/* staff-only model picker */}
-          {config.can_override && (
-            <div
-              className="flex items-center gap-2 border-b bg-[hsl(var(--surface-sunken))] px-3 py-2"
-              style={{ borderColor: 'hsl(var(--line))' }}
-            >
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-                aria-label="Provider"
-                className="rounded-md border bg-white px-2 py-1 text-xs"
-                style={{ borderColor: 'hsl(var(--line))' }}
-              >
-                <option value="">{config.provider} (default)</option>
-                {config.providers.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={`${config.model} (default)`}
-                aria-label="Model"
-                className="min-w-0 flex-1 rounded-md border bg-white px-2 py-1 text-xs"
-                style={{ borderColor: 'hsl(var(--line))' }}
-              />
-            </div>
-          )}
-
-          {/* messages */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
             {bubbles.length === 0 && (
               <div className="space-y-3">
                 <p className="text-sm text-[hsl(var(--ink-3))]">
-                  Ask about your own portfolio — rent, leases, deposits,
-                  maintenance. I can look things up but never change anything.
+                  Ask about your rent, leases, deposits, or maintenance. Answers
+                  come from your records only — nothing is shared with other
+                  accounts.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTIONS.map((s) => (
@@ -201,12 +156,19 @@ export default function RamaPanel() {
                     </button>
                   ))}
                 </div>
-                {!config.configured && (
-                  <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-                    No provider API key is configured yet — messages will fail
-                    until one is set. (Only staff can see this panel right now.)
-                  </p>
-                )}
+                <p className="text-xs text-[hsl(var(--ink-4))]">
+                  Model:{' '}
+                  <span className="font-medium text-[hsl(var(--ink-2))]">
+                    {config.provider} / {config.model}
+                  </span>
+                  .{' '}
+                  <Link
+                    href="/dashboard/profile"
+                    className="text-[hsl(var(--brand))] underline-offset-2 hover:underline"
+                  >
+                    Change in settings
+                  </Link>
+                </p>
               </div>
             )}
             {bubbles.map((bubble, i) => (
@@ -233,7 +195,6 @@ export default function RamaPanel() {
             )}
           </div>
 
-          {/* composer */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -262,7 +223,7 @@ export default function RamaPanel() {
               </button>
             </div>
             <p className="mt-1.5 text-center text-[10px] text-[hsl(var(--ink-3))]">
-              Powered by {activeModel} · beta — double-check anything important
+              Powered by {config.model} · beta — double-check anything important
             </p>
           </form>
         </div>

@@ -1,5 +1,11 @@
 // ramaApi.ts — the read-only Q&A agent (RAMA v1).
+// Preferences are per-landlord; platform API keys stay on the server.
 import { DJANGO_API_URL } from '@/lib/config';
+
+export interface RamaModelOption {
+  id: string;
+  label: string;
+}
 
 export interface RamaConfig {
   enabled: boolean;
@@ -8,6 +14,18 @@ export interface RamaConfig {
   model: string;
   can_override: boolean;
   providers: string[];
+  models: Record<string, RamaModelOption[]>;
+  platform_ready?: Record<string, boolean>;
+}
+
+export interface RamaSettings {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  providers: string[];
+  models: Record<string, RamaModelOption[]>;
+  platform_ready: Record<string, boolean>;
+  configured?: boolean;
 }
 
 export interface RamaReply {
@@ -44,13 +62,30 @@ export async function fetchRamaConfig(token: string): Promise<RamaConfig> {
   return handle(res);
 }
 
+export async function fetchRamaSettings(token: string): Promise<RamaSettings> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function updateRamaSettings(
+  token: string,
+  payload: Partial<Pick<RamaSettings, 'enabled' | 'provider' | 'model'>>
+): Promise<RamaSettings> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
 export async function sendRamaMessage(
   token: string,
   payload: {
     message: string;
     conversation_id?: string;
-    provider?: string;
-    model?: string;
   }
 ): Promise<RamaReply> {
   const res = await fetch(`${DJANGO_API_URL}/rama/chat/`, {
