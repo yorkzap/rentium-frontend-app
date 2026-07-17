@@ -25,6 +25,7 @@ import {
 
 const PROVIDER_LABELS: Record<string, string> = {
   xai: 'xAI (Grok)',
+  gemini: 'Google Gemini',
   anthropic: 'Anthropic (Claude)',
   openai: 'OpenAI',
 };
@@ -275,7 +276,7 @@ export default function ProfileSettings() {
               hint={
                 rama?.has_api_key
                   ? 'A key is already saved. Leave blank to keep it, or paste a new one to rotate.'
-                  : 'Paste your key from console.x.ai (or Anthropic/OpenAI). It never leaves your account.'
+                  : 'Paste your key (Gemini AI Studio, console.x.ai, etc.). Stored on your account only.'
               }
             >
               <input
@@ -288,7 +289,9 @@ export default function ProfileSettings() {
                     ? '••••••••  (saved — leave blank to keep)'
                     : ramaProvider === 'xai'
                       ? 'xai-...'
-                      : 'sk-...'
+                      : ramaProvider === 'gemini'
+                        ? 'Gemini API key from AI Studio'
+                        : 'sk-...'
                 }
                 className="field font-mono text-sm"
               />
@@ -296,16 +299,36 @@ export default function ProfileSettings() {
 
             {ramaEnabled && !hasKey && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Add an API key to use chat. For Grok: create a key at{' '}
-                <a
-                  href="https://console.x.ai/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  console.x.ai
-                </a>
-                .
+                Add an API key to use chat.{' '}
+                {ramaProvider === 'gemini' ? (
+                  <>
+                    Gemini:{' '}
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      Google AI Studio
+                    </a>
+                    . Project name/number not needed — only the key.
+                  </>
+                ) : ramaProvider === 'xai' ? (
+                  <>
+                    Grok:{' '}
+                    <a
+                      href="https://console.x.ai/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      console.x.ai
+                    </a>{' '}
+                    (needs credits on the team).
+                  </>
+                ) : (
+                  <>Paste a key from your provider console.</>
+                )}
               </p>
             )}
           </div>
