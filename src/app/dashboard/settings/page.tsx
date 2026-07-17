@@ -7,12 +7,14 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   Check,
+  ChevronRight,
   ExternalLink,
   Eye,
   EyeOff,
   Globe,
   Image as ImageIcon,
   Loader2,
+  User,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -165,8 +167,25 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Settings"
-        description="Your public page, and who can see your properties."
+        description="Your public page, account, and who can see your properties."
       />
+
+      <Link
+        href="/dashboard/profile"
+        className="card mb-6 flex items-center gap-3 p-5 transition-colors hover:border-[hsl(var(--brand))]"
+      >
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[hsl(var(--surface-sunken))] text-[hsl(var(--ink-3))]">
+          <User className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">Account &amp; RAMA</p>
+          <p className="text-sm text-[hsl(var(--ink-4))]">
+            Name, phone, password recovery, and your private portfolio
+            assistant.
+          </p>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-[hsl(var(--ink-4))]" />
+      </Link>
 
       {/* ------------------------------------------------------------------
           THE SWITCH.
@@ -485,12 +504,12 @@ export default function SettingsPage() {
       </section>
 
       <p className="mt-6 text-center text-sm text-[hsl(var(--ink-4))]">
-        Looking for your name, email or password?{' '}
+        Looking for your name, email, RAMA, or password help?{' '}
         <Link
           href="/dashboard/profile"
-          className="text-[hsl(var(--brand))] hover:underline"
+          className="font-medium text-[hsl(var(--brand))] hover:underline"
         >
-          Account settings
+          Open account settings
         </Link>
       </p>
     </div>

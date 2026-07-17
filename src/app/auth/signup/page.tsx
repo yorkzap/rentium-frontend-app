@@ -29,6 +29,12 @@ const ROLES = [
   },
 ] as const;
 
+type FieldErrors = {
+  email?: string;
+  password?: string;
+  phone?: string;
+};
+
 export default function Page() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -38,21 +44,27 @@ export default function Page() {
     password: '',
     name: '',
     phone: '',
-    user_type: 'LANDLORD', // Default to landlord
+    user_type: 'LANDLORD',
   });
   const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<{
-    email?: string;
-    password?: string;
-  }>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showPassword, setShowPassword] = useState(false);
+  // When signup fails because email/phone is taken, keep the user on step 2
+  // with those fields editable in place (no need to hit Back).
+  const [showEmailOnStep2, setShowEmailOnStep2] = useState(false);
+
+  const clearFieldError = (id: keyof FieldErrors) => {
+    if (fieldErrors[id]) {
+      setFieldErrors((prev) => ({ ...prev, [id]: undefined }));
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData({ ...formData, [id]: value });
-    // Clear the field's error as soon as the user starts fixing it
-    if (fieldErrors[id as 'email' | 'password']) {
-      setFieldErrors({ ...fieldErrors, [id]: undefined });
+    setError('');
+    if (id === 'email' || id === 'password' || id === 'phone') {
+      clearFieldError(id);
     }
   };
 
@@ -63,18 +75,25 @@ export default function Page() {
       return;
     }
     setFieldErrors({});
+    setError('');
+    setShowEmailOnStep2(false);
     setStep(2);
   };
 
   const validateStep2 = (): boolean => {
-    if (formData.password.length < MIN_PASSWORD) {
-      setFieldErrors({
-        password: `Use at least ${MIN_PASSWORD} characters — it's protecting your financial records.`,
-      });
-      return false;
+    const next: FieldErrors = {};
+    if (!EMAIL_RE.test(formData.email.trim())) {
+      next.email = "That doesn't look like an email address.";
+      setShowEmailOnStep2(true);
     }
-    setFieldErrors({});
-    return true;
+    if (formData.password.length < MIN_PASSWORD) {
+      next.password = `Use at least ${MIN_PASSWORD} characters — it's protecting your financial records.`;
+    }
+    if (!formData.phone.trim()) {
+      next.phone = 'Phone number is required.';
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const onSubmit = async (event: React.FormEvent) => {
@@ -86,34 +105,44 @@ export default function Page() {
     try {
       const response = await fetch(`${DJANGO_API_URL}/users/register/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          email: formData.email.trim().toLowerCase(),
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 409 || data.code === 'EMAIL_EXISTS') {
-          throw new Error(
+        const isEmailTaken =
+          response.status === 409 ||
+          data.code === 'EMAIL_EXISTS' ||
+          data.field === 'email' ||
+          data.code === 'EMAIL_INVALID';
+        const isPhoneTaken =
+          data.code === 'PHONE_EXISTS' ||
+          data.field === 'phone' ||
+          data.code === 'PHONE_INVALID';
+
+        if (isEmailTaken) {
+          const msg =
             data.error ||
-              'An account with this email already exists. Try logging in or Forgot password.'
-          );
+            data.errors?.email?.[0] ||
+            'An account with this email already exists.';
+          setFieldErrors({ email: msg });
+          setShowEmailOnStep2(true);
+          setError('');
+          return;
         }
-        if (data.code === 'PHONE_EXISTS' || data.field === 'phone') {
-          throw new Error(
+        if (isPhoneTaken) {
+          const msg =
             data.error ||
-              'This phone number is already used on another account.'
-          );
-        }
-        if (data.field === 'email' || data.errors?.email) {
-          const msg = data.error || data.errors?.email?.[0];
-          throw new Error(msg || 'That email cannot be used.');
-        }
-        if (data.field === 'phone' || data.errors?.phone) {
-          const msg = data.error || data.errors?.phone?.[0];
-          throw new Error(msg || 'That phone number is not valid.');
+            data.errors?.phone?.[0] ||
+            'This phone number is already used on another account.';
+          setFieldErrors({ phone: msg });
+          setError('');
+          return;
         }
         throw new Error(data.error || data.detail || 'Registration failed');
       }
@@ -123,8 +152,8 @@ export default function Page() {
         return;
       }
       router.push('/auth/login?registered=true');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Registration failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +174,6 @@ export default function Page() {
         </Link>
       </p>
 
-      {/* Step indicator: two steps, no mystery about where you are */}
       <div className="mt-6 flex items-center gap-2" aria-hidden>
         {[1, 2].map((s) => (
           <span
@@ -201,6 +229,68 @@ export default function Page() {
 
         {step === 2 && (
           <>
+            {/* Email always visible on step 2 so conflicts can be fixed in place */}
+            {(showEmailOnStep2 || fieldErrors.email) && (
+              <div className="space-y-2 rounded-lg border border-danger/30 bg-danger-soft/40 p-3">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  autoFocus={!!fieldErrors.email}
+                  required
+                  aria-invalid={!!fieldErrors.email}
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+                {fieldErrors.email ? (
+                  <div
+                    className="space-y-1.5 text-xs text-danger-ink"
+                    role="alert"
+                  >
+                    <p>{fieldErrors.email}</p>
+                    <p className="text-ink-3">
+                      Change it above and try again, or{' '}
+                      <Link
+                        href="/auth/login"
+                        className="font-medium text-brand hover:underline"
+                      >
+                        log in
+                      </Link>
+                      {' · '}
+                      <Link
+                        href="/auth/forgot-password"
+                        className="font-medium text-brand hover:underline"
+                      >
+                        forgot password
+                      </Link>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-ink-4">
+                    Verification will go here.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!showEmailOnStep2 && !fieldErrors.email && (
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-sunken px-3 py-2 text-sm">
+                <span className="truncate text-ink-3">
+                  <span className="text-ink-4">Email · </span>
+                  {formData.email}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 text-xs font-medium text-brand hover:underline"
+                  onClick={() => setShowEmailOnStep2(true)}
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="name">Your name</Label>
               <Input
@@ -260,9 +350,18 @@ export default function Page() {
                 placeholder="+1 (555) 123-4567"
                 autoComplete="tel"
                 required
+                aria-invalid={!!fieldErrors.phone}
                 value={formData.phone}
                 onChange={handleChange}
               />
+              {fieldErrors.phone ? (
+                <div className="space-y-1 text-xs text-danger-ink" role="alert">
+                  <p>{fieldErrors.phone}</p>
+                  <p className="text-ink-3">
+                    Enter a different number above, then create account again.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <fieldset className="space-y-2">
@@ -320,13 +419,16 @@ export default function Page() {
             variant="ghost"
             className="w-full text-ink-3"
             type="button"
-            onClick={() => setStep(1)}
+            onClick={() => {
+              setStep(1);
+              setFieldErrors({});
+              setShowEmailOnStep2(false);
+            }}
           >
             Back
           </Button>
         )}
 
-        {/* TODO(local): link Terms of use / Privacy Policy once those pages exist */}
         <p className="text-center text-xs leading-5 text-ink-4">
           By registering, you accept our Terms of use and Privacy Policy.
         </p>
