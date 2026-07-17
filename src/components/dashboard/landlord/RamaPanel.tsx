@@ -70,13 +70,11 @@ export default function RamaPanel() {
         { role: 'assistant', text: reply.reply, model: reply.model },
       ]);
     } catch (err) {
-      setBubbles((b) => [
-        ...b,
-        {
-          role: 'error',
-          text: err instanceof Error ? err.message : 'Something went wrong.',
-        },
-      ]);
+      const text =
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong talking to RAMA.';
+      setBubbles((b) => [...b, { role: 'error', text }]);
     } finally {
       setBusy(false);
     }

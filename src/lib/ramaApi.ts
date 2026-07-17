@@ -49,11 +49,15 @@ function headers(token: string): Record<string, string> {
 
 async function handle(res: Response) {
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const msg =
-      typeof body.detail === 'string'
-        ? body.detail
-        : `Request failed (${res.status})`;
+    const body = await res.json().catch(() => ({}) as { detail?: unknown });
+    const detail = body?.detail;
+    let msg =
+      typeof detail === 'string' ? detail : `Request failed (${res.status})`;
+    if (res.status === 429) {
+      msg =
+        (typeof detail === 'string' && detail) ||
+        'Rate limit / free-tier quota hit. Wait a bit or enable billing on the AI provider.';
+    }
     throw new Error(msg);
   }
   return res.json();
@@ -98,10 +102,24 @@ export async function sendRamaMessage(
     conversation_id?: string;
   }
 ): Promise<RamaReply> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/chat/`, {
-    method: 'POST',
-    headers: headers(token),
-    body: JSON.stringify(payload),
-  });
-  return handle(res);
+  try {
+    // Tool loops can take a while (several provider round-trips).
+    const res = await fetch(`${DJANGO_API_URL}/rama/chat/`, {
+      method: 'POST',
+      headers: headers(token),
+      body: JSON.stringify(payload),
+    });
+    return await handle(res);
+  } catch (err) {
+    // Browser surfaces hard network failures as TypeError "Failed to fetch"
+    // (tunnel down, CORS, offline, or connection reset mid-request).
+    if (err instanceof TypeError) {
+      throw new Error(
+        'Could not reach the API (network or tunnel). Check that Docker and ' +
+          'cloudflared are running, then try again. If this only happens on ' +
+          'long questions, the free AI tier may have cut the connection — wait and retry.'
+      );
+    }
+    throw err;
+  }
 }
