@@ -40,6 +40,7 @@ export default function ProfileSettings() {
   const [ramaEnabled, setRamaEnabled] = useState(false);
   const [ramaProvider, setRamaProvider] = useState('xai');
   const [ramaModel, setRamaModel] = useState('');
+  const [ramaApiKey, setRamaApiKey] = useState('');
   const [ramaSaving, setRamaSaving] = useState(false);
   const isLandlord =
     (user as { user_type?: string } | null)?.user_type === 'LANDLORD';
@@ -57,6 +58,7 @@ export default function ProfileSettings() {
         setRamaEnabled(s.enabled);
         setRamaProvider(s.provider);
         setRamaModel(s.model);
+        setRamaApiKey('');
       })
       .catch(() => setRama(null));
   }, [token, isLandlord]);
@@ -92,18 +94,32 @@ export default function ProfileSettings() {
     if (!token) return;
     setRamaSaving(true);
     try {
-      const next = await updateRamaSettings(token, {
+      const payload: {
+        enabled: boolean;
+        provider: string;
+        model: string;
+        api_key?: string;
+      } = {
         enabled: ramaEnabled,
         provider: ramaProvider,
         model: ramaModel,
-      });
+      };
+      if (ramaApiKey.trim()) {
+        payload.api_key = ramaApiKey.trim();
+      }
+      const next = await updateRamaSettings(token, payload);
       setRama(next);
       setRamaModel(next.model);
-      toast.success(
-        next.enabled
-          ? 'RAMA is on for your account.'
-          : 'RAMA is off for your account.'
-      );
+      setRamaApiKey('');
+      if (next.enabled && !next.configured) {
+        toast.warning('Saved — paste an API key to finish enabling chat.');
+      } else {
+        toast.success(
+          next.enabled
+            ? 'RAMA is on for your account.'
+            : 'RAMA is off for your account.'
+        );
+      }
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Couldn't save RAMA settings."
@@ -114,7 +130,7 @@ export default function ProfileSettings() {
   };
 
   const modelsForProvider = rama?.models?.[ramaProvider] ?? [];
-  const providerReady = rama?.platform_ready?.[ramaProvider] ?? false;
+  const hasKey = Boolean(rama?.has_api_key) || Boolean(ramaApiKey.trim());
 
   const initials = (user?.name || user?.email || '?')
     .split(/[\s@.]+/)
@@ -220,7 +236,7 @@ export default function ProfileSettings() {
 
             <Field
               label="Provider"
-              hint="Switch anytime — tools stay the same."
+              hint="Use xAI (Grok) with your own key, or switch later."
             >
               <select
                 value={ramaProvider}
@@ -233,13 +249,8 @@ export default function ProfileSettings() {
                 className="field"
               >
                 {(rama.providers ?? []).map((p) => (
-                  <option
-                    key={p}
-                    value={p}
-                    disabled={!rama.platform_ready?.[p]}
-                  >
+                  <option key={p} value={p}>
                     {PROVIDER_LABELS[p] ?? p}
-                    {!rama.platform_ready?.[p] ? ' (not available)' : ''}
                   </option>
                 ))}
               </select>
@@ -259,10 +270,42 @@ export default function ProfileSettings() {
               </select>
             </Field>
 
-            {!providerReady && (
+            <Field
+              label="API key"
+              hint={
+                rama?.has_api_key
+                  ? 'A key is already saved. Leave blank to keep it, or paste a new one to rotate.'
+                  : 'Paste your key from console.x.ai (or Anthropic/OpenAI). It never leaves your account.'
+              }
+            >
+              <input
+                type="password"
+                autoComplete="off"
+                value={ramaApiKey}
+                onChange={(e) => setRamaApiKey(e.target.value)}
+                placeholder={
+                  rama?.has_api_key
+                    ? '••••••••  (saved — leave blank to keep)'
+                    : ramaProvider === 'xai'
+                      ? 'xai-...'
+                      : 'sk-...'
+                }
+                className="field font-mono text-sm"
+              />
+            </Field>
+
+            {ramaEnabled && !hasKey && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                This provider isn&apos;t wired on the server yet. Pick another,
-                or ask support to enable it.
+                Add an API key to use chat. For Grok: create a key at{' '}
+                <a
+                  href="https://console.x.ai/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  console.x.ai
+                </a>
+                .
               </p>
             )}
           </div>

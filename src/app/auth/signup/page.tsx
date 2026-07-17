@@ -95,13 +95,33 @@ export default function Page() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 409) {
-          throw new Error('A user with this email already exists');
-        } else {
-          throw new Error(data.error || 'Registration failed');
+        if (response.status === 409 || data.code === 'EMAIL_EXISTS') {
+          throw new Error(
+            data.error ||
+              'An account with this email already exists. Try logging in or Forgot password.'
+          );
         }
+        if (data.code === 'PHONE_EXISTS' || data.field === 'phone') {
+          throw new Error(
+            data.error ||
+              'This phone number is already used on another account.'
+          );
+        }
+        if (data.field === 'email' || data.errors?.email) {
+          const msg = data.error || data.errors?.email?.[0];
+          throw new Error(msg || 'That email cannot be used.');
+        }
+        if (data.field === 'phone' || data.errors?.phone) {
+          const msg = data.error || data.errors?.phone?.[0];
+          throw new Error(msg || 'That phone number is not valid.');
+        }
+        throw new Error(data.error || data.detail || 'Registration failed');
       }
 
+      if (data.email_sent === false) {
+        router.push('/auth/login?registered=true&emailPending=true');
+        return;
+      }
       router.push('/auth/login?registered=true');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Registration failed');

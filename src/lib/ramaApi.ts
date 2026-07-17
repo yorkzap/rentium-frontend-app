@@ -1,5 +1,5 @@
 // ramaApi.ts — the read-only Q&A agent (RAMA v1).
-// Preferences are per-landlord; platform API keys stay on the server.
+// Preferences + optional BYOK API key are per-landlord.
 import { DJANGO_API_URL } from '@/lib/config';
 
 export interface RamaModelOption {
@@ -12,20 +12,24 @@ export interface RamaConfig {
   configured: boolean;
   provider: string;
   model: string;
+  has_api_key?: boolean;
   can_override: boolean;
   providers: string[];
   models: Record<string, RamaModelOption[]>;
   platform_ready?: Record<string, boolean>;
+  byok?: boolean;
 }
 
 export interface RamaSettings {
   enabled: boolean;
   provider: string;
   model: string;
+  has_api_key: boolean;
+  configured?: boolean;
   providers: string[];
   models: Record<string, RamaModelOption[]>;
   platform_ready: Record<string, boolean>;
-  configured?: boolean;
+  byok?: boolean;
 }
 
 export interface RamaReply {
@@ -71,7 +75,13 @@ export async function fetchRamaSettings(token: string): Promise<RamaSettings> {
 
 export async function updateRamaSettings(
   token: string,
-  payload: Partial<Pick<RamaSettings, 'enabled' | 'provider' | 'model'>>
+  payload: {
+    enabled?: boolean;
+    provider?: string;
+    model?: string;
+    api_key?: string;
+    clear_api_key?: boolean;
+  }
 ): Promise<RamaSettings> {
   const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {
     method: 'PATCH',

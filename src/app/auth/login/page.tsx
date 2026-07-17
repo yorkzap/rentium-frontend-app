@@ -29,6 +29,7 @@ function LoginForm() {
   const requiresVerification = searchParams.get('requiresVerification');
   const verificationSuccess = searchParams.get('verificationSuccess');
   const registered = searchParams.get('registered');
+  const emailPending = searchParams.get('emailPending');
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
@@ -48,7 +49,8 @@ function LoginForm() {
     if (
       requiresVerification === 'true' ||
       verificationSuccess === 'true' ||
-      registered === 'true'
+      registered === 'true' ||
+      emailPending === 'true'
     ) {
       if (requiresVerification === 'true') {
         toast.warning('Please verify your email address before logging in');
@@ -56,14 +58,18 @@ function LoginForm() {
       if (verificationSuccess === 'true') {
         toast.success('Email verified successfully! You can now log in');
       }
-      if (registered === 'true') {
+      if (registered === 'true' && emailPending === 'true') {
+        toast.warning(
+          'Account created, but verification email could not be sent yet. Use “Resend verification” below after email is configured.'
+        );
+      } else if (registered === 'true') {
         toast.success(
-          'Registration successful! Please check your email to verify your account'
+          'Registration successful! Check your email (and spam) for a verification link.'
         );
       }
       toastsShownRef.current = true;
     }
-  }, [requiresVerification, verificationSuccess, registered]);
+  }, [requiresVerification, verificationSuccess, registered, emailPending]);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -90,13 +96,17 @@ function LoginForm() {
         }, 500);
         return;
       } else {
-        // Special handling for 403 Forbidden - Email not verified
+        // Unverified email — show resend panel (code or detail match)
         if (
           response.status === 403 &&
-          data.detail &&
-          data.detail.includes('Email not verified')
+          (data.code === 'EMAIL_NOT_VERIFIED' ||
+            (typeof data.detail === 'string' &&
+              data.detail.toLowerCase().includes('email not verified')))
         ) {
           setVerificationNeeded(true);
+          toast.warning(
+            'Verify your email before logging in. You can resend the link below.'
+          );
           setIsLoading(false);
           return;
         }
