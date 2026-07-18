@@ -26,6 +26,7 @@ import {
 const PROVIDER_LABELS: Record<string, string> = {
   xai: 'xAI (Grok)',
   gemini: 'Google Gemini',
+  mistral: 'Mistral AI',
   anthropic: 'Anthropic (Claude)',
   openai: 'OpenAI',
 };
@@ -291,7 +292,9 @@ export default function ProfileSettings() {
                       ? 'xai-...'
                       : ramaProvider === 'gemini'
                         ? 'Gemini API key from AI Studio'
-                        : 'sk-...'
+                        : ramaProvider === 'mistral'
+                          ? 'Mistral API key from console.mistral.ai'
+                          : 'sk-...'
                 }
                 className="field font-mono text-sm"
               />
@@ -325,6 +328,19 @@ export default function ProfileSettings() {
                       console.x.ai
                     </a>{' '}
                     (needs credits on the team).
+                  </>
+                ) : ramaProvider === 'mistral' ? (
+                  <>
+                    Mistral:{' '}
+                    <a
+                      href="https://console.mistral.ai/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      console.mistral.ai
+                    </a>
+                    .
                   </>
                 ) : (
                   <>Paste a key from your provider console.</>
