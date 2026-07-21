@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import {
   fetchPublicProperty,
+  fetchViewingSlots,
   submitViewingRequest,
   type PublicProperty,
 } from '@/lib/appointmentsApi';
@@ -52,13 +53,24 @@ export default function PublicViewingPage() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('17:00');
   const [message, setMessage] = useState('');
+  // Landlord's preferred slots, to steer (never restrict) the picker.
+  const [slots, setSlots] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPublicProperty(propertyId)
       .then(setProperty)
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
+    fetchViewingSlots(propertyId)
+      .then((r) => setSlots(r.slots))
+      .catch(() => setSlots([]));
   }, [propertyId]);
+
+  const pickSlot = (iso: string) => {
+    const d = new Date(iso);
+    setDate(d.toISOString().slice(0, 10));
+    setTime(d.toTimeString().slice(0, 5));
+  };
 
   const submit = async () => {
     if (!property || !name || !email || !date) return;
@@ -238,6 +250,45 @@ export default function PublicViewingPage() {
                   />
                 </div>
               </div>
+              {slots.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    The landlord&apos;s usual viewing times
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {slots.slice(0, 6).map((iso) => {
+                      const d = new Date(iso);
+                      const label = d.toLocaleString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      });
+                      const selected =
+                        date === d.toISOString().slice(0, 10) &&
+                        time === d.toTimeString().slice(0, 5);
+                      return (
+                        <button
+                          key={iso}
+                          type="button"
+                          onClick={() => pickSlot(iso)}
+                          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                            selected
+                              ? 'border-teal-500 bg-teal-50 text-teal-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Tap one, or pick any time below — the landlord will confirm.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Preferred date *</Label>

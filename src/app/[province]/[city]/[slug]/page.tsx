@@ -48,12 +48,17 @@ export default async function ListingPage({
   const p = await getListing(slug);
   if (!p) notFound();
 
+  // Defensive: the serializer always sends these, but a shape drift here throws
+  // during SSR and renders as a blank page rather than a clean not-found. Cheap
+  // insurance for a public, un-authenticated surface.
   const contents = [
-    ...p.furnishings.sleeping,
-    ...p.furnishings.furniture,
-    ...p.furnishings.appliances,
+    ...(p.furnishings?.sleeping ?? []),
+    ...(p.furnishings?.furniture ?? []),
+    ...(p.furnishings?.appliances ?? []),
   ];
-  const landlordShares = p.shared_spaces.filter((s) => s.shared_with_landlord);
+  const landlordShares = (p.shared_spaces ?? []).filter(
+    (s) => s.shared_with_landlord
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:py-12">
