@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  Bell,
   Boxes,
   Building2,
   CalendarDays,
@@ -34,6 +35,7 @@ import {
   Mail,
   Menu,
   Settings,
+  Sparkles,
   Wrench,
   X,
 } from 'lucide-react';
@@ -53,10 +55,16 @@ const LANDLORD_NAV = [
   { href: '/dashboard/properties', label: 'Properties', icon: Building2 },
   { href: '/dashboard/leases', label: 'Leases', icon: FileText },
   { href: '/dashboard/financial', label: 'Financial', icon: DollarSign },
+  { href: '/dashboard/insights', label: 'Insights', icon: Sparkles },
   { href: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench },
   { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes },
   { href: '/dashboard/inquiries', label: 'Inquiries', icon: Inbox },
   { href: '/dashboard/messages', label: 'Messages', icon: Mail },
+  {
+    href: '/dashboard/settings?tab=channels',
+    label: 'Notifications',
+    icon: Bell,
+  },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -158,7 +166,7 @@ export default function DashboardLayout({
               {user?.name || user?.email}
             </span>
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/settings"
               title="Your account"
               className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--brand))] text-xs font-semibold text-white"
             >
@@ -246,7 +254,7 @@ export default function DashboardLayout({
       style={{ borderColor: 'hsl(var(--line))' }}
     >
       <Link
-        href="/dashboard/profile"
+        href="/dashboard/settings"
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[hsl(var(--brand))] text-xs font-semibold text-white"
       >
         {initials}

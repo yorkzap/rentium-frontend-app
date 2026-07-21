@@ -19,6 +19,9 @@ import {
   Loader2,
   AlertCircle,
   ImageIcon,
+  Inbox,
+  MessageSquare,
+  CalendarCheck,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -33,6 +36,47 @@ import {
   InspectionWalk,
 } from '@/components/public/illustrations/spots';
 import { fetchWorkOrders, type WorkOrder } from '@/lib/maintenanceApi';
+import { fetchConversations } from '@/lib/engagementApi';
+
+// A cheap "what needs me today" roll-up: new inquiries, unread messages, and
+// upcoming viewings. All best-effort — a failure just shows zero, never blanks.
+interface TodayCounts {
+  inquiries: number;
+  unread: number;
+  viewings: number;
+}
+
+async function loadTodayCounts(token: string): Promise<TodayCounts> {
+  const headers = { Authorization: `Token ${token}` };
+  const asArray = (d: unknown): unknown[] =>
+    Array.isArray(d)
+      ? d
+      : d &&
+          typeof d === 'object' &&
+          Array.isArray((d as { results?: unknown[] }).results)
+        ? (d as { results: unknown[] }).results
+        : [];
+  const [inq, appts, convos] = await Promise.all([
+    fetch(`${DJANGO_API_URL}/showcase/inquiries/?status=NEW`, { headers })
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []),
+    fetch(`${DJANGO_API_URL}/appointments/?status=SCHEDULED`, { headers })
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []),
+    fetchConversations(token).catch(() => []),
+  ]);
+  const now = Date.now();
+  const viewings = (
+    asArray(appts) as { kind?: string; starts_at?: string }[]
+  ).filter(
+    (a) =>
+      a.kind === 'VIEWING' &&
+      a.starts_at &&
+      new Date(a.starts_at).getTime() >= now
+  ).length;
+  const unread = convos.reduce((n, c) => n + (c.unread_count || 0), 0);
+  return { inquiries: asArray(inq).length, unread, viewings };
+}
 
 // --- Helper: Derive Base URL ---
 let djangoBaseUrl = '';
@@ -99,6 +143,11 @@ export default function LandlordOverview({
   // (backend Phase B not deployed yet) → fall back to the client-side
   // assembly below. See docs/phase-b-spec.md.
   const [attention, setAttention] = useState<ActionItem[] | null>(null);
+  const [today, setToday] = useState<TodayCounts>({
+    inquiries: 0,
+    unread: 0,
+    viewings: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,14 +172,20 @@ export default function LandlordOverview({
         }
         setProperties(await propsRes.json());
         // These are best-effort — a failure here shouldn't blank the page.
-        const [sum, wos, att] = await Promise.all([
+        const [sum, wos, att, todayCounts] = await Promise.all([
           fetchSummary(token, { months: 1 }).catch(() => null),
           fetchWorkOrders(token).catch(() => [] as WorkOrder[]),
           fetchAttention(token).catch(() => null),
+          loadTodayCounts(token).catch(() => ({
+            inquiries: 0,
+            unread: 0,
+            viewings: 0,
+          })),
         ]);
         setSummary(sum);
         setWorkOrders(wos);
         setAttention(att);
+        setToday(todayCounts);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'An unknown error occurred';
@@ -338,6 +393,55 @@ export default function LandlordOverview({
               </div>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      {/* Today — quick access to the things that move fastest */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          {
+            label: 'New inquiries',
+            count: today.inquiries,
+            icon: Inbox,
+            section: 'inquiries',
+            tone: 'text-blue-600 bg-blue-50',
+          },
+          {
+            label: 'Unread messages',
+            count: today.unread,
+            icon: MessageSquare,
+            section: 'messages',
+            tone: 'text-teal-600 bg-teal-50',
+          },
+          {
+            label: 'Upcoming viewings',
+            count: today.viewings,
+            icon: CalendarCheck,
+            section: 'calendar',
+            tone: 'text-amber-600 bg-amber-50',
+          },
+        ].map((tile) => (
+          <button
+            key={tile.section}
+            type="button"
+            onClick={() => onNavigate(tile.section)}
+            className="group flex items-center gap-3 rounded-xl border bg-white p-4 text-left transition-all hover:shadow-md"
+          >
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-lg ${tile.tone}`}
+            >
+              <tile.icon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-semibold leading-none">
+                {tile.count}
+              </p>
+              <p className="mt-1 truncate text-sm text-ink-3">{tile.label}</p>
+            </div>
+            {tile.count > 0 && (
+              <ChevronRight className="h-4 w-4 text-ink-4 transition-transform group-hover:translate-x-0.5" />
+            )}
+          </button>
         ))}
       </div>
 
