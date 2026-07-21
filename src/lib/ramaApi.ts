@@ -316,11 +316,29 @@ export async function amendConstitution(
   return handle(res);
 }
 
+/** Upload a photo the landlord attached in the RAMA chat; returns its staged
+ * upload_id to pass back on the next message so RAMA can attach it to a listing. */
+export async function uploadRamaPhoto(
+  token: string,
+  file: File
+): Promise<string> {
+  const form = new FormData();
+  form.append('image', file);
+  const res = await fetch(`${DJANGO_API_URL}/rama/upload/`, {
+    method: 'POST',
+    headers: { Authorization: `Token ${token}` }, // no Content-Type: browser sets multipart boundary
+    body: form,
+  });
+  const data = await handle(res);
+  return data.upload_id as string;
+}
+
 export async function sendRamaMessage(
   token: string,
   payload: {
     message: string;
     conversation_id?: string;
+    upload_ids?: string[];
   },
   role: RamaRole = 'corporal'
 ): Promise<RamaReply> {

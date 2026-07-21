@@ -5,12 +5,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react';
+import { Loader2, Paperclip, RotateCcw, Send, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   fetchRamaConfig,
   sendRamaMessage,
+  uploadRamaPhoto,
   type RamaConfig,
   type RamaPendingPlan,
   type RamaRole,
@@ -40,7 +41,33 @@ export default function RamaPanel() {
   // Corporal = fast ops agent; General = your chief of staff (Constitution,
   // delegation, stronger model). Each mode keeps its own conversation.
   const [role, setRole] = useState<RamaRole>('corporal');
+  // Photos the landlord attached this message (staged server-side; the ids ride
+  // along with the next send so RAMA can attach_photo_to_listing them).
+  const [attachments, setAttachments] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const onPickPhotos = async (files: FileList | null) => {
+    if (!files || !token) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const id = await uploadRamaPhoto(token, file);
+        setAttachments((a) => [...a, { id, name: file.name }]);
+      }
+    } catch {
+      setBubbles((b) => [
+        ...b,
+        { role: 'error', text: "Couldn't upload that photo — try again." },
+      ]);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -61,16 +88,27 @@ export default function RamaPanel() {
 
   const ask = async (text: string) => {
     const message = text.trim();
-    if (!message || !token || busy) return;
+    const uploadIds = attachments.map((a) => a.id);
+    if ((!message && uploadIds.length === 0) || !token || busy) return;
     setInput('');
-    setBubbles((b) => [...b, { role: 'user', text: message }]);
+    setBubbles((b) => [
+      ...b,
+      {
+        role: 'user',
+        text:
+          message +
+          (uploadIds.length ? ` 📎 ${uploadIds.length} photo(s)` : ''),
+      },
+    ]);
+    setAttachments([]);
     setBusy(true);
     try {
       const reply = await sendRamaMessage(
         token,
         {
-          message,
+          message: message || 'Here is a photo to attach.',
           conversation_id: conversationId,
+          upload_ids: uploadIds.length ? uploadIds : undefined,
         },
         role
       );
@@ -301,7 +339,55 @@ export default function RamaPanel() {
             className="border-t p-3"
             style={{ borderColor: 'hsl(var(--line))' }}
           >
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {attachments.map((a) => (
+                  <span
+                    key={a.id}
+                    className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--surface-sunken))] px-2 py-1 text-[11px] text-[hsl(var(--ink-3))]"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    <span className="max-w-[120px] truncate">{a.name}</span>
+                    <button
+                      type="button"
+                      aria-label="Remove photo"
+                      onClick={() =>
+                        setAttachments((list) =>
+                          list.filter((x) => x.id !== a.id)
+                        )
+                      }
+                      className="text-[hsl(var(--ink-4))] hover:text-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => void onPickPhotos(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={busy || uploading}
+                aria-label="Attach photo"
+                title="Attach a photo"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[hsl(var(--ink-3))] transition hover:text-[hsl(var(--brand))] disabled:opacity-40"
+                style={{ borderColor: 'hsl(var(--line))' }}
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </button>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -313,7 +399,7 @@ export default function RamaPanel() {
               />
               <button
                 type="submit"
-                disabled={busy || !input.trim()}
+                disabled={busy || (!input.trim() && attachments.length === 0)}
                 aria-label="Send"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--brand))] text-white transition disabled:opacity-40"
               >
