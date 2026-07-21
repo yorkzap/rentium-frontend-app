@@ -77,6 +77,18 @@ to loopback, so `http://raj-rentals.localhost:3000` works out of the box.
    `rel=canonical` → `https://rentium.ca/l/<slug>` so the subdomain and path
    don't compete in search results.
 
-Reserved subdomains (`www`, `app`, `api`, `admin`, `mail`) are never treated
-as landlord slugs, and `/dashboard` + `/auth` redirect back to the apex
-domain if opened on a tenant subdomain.
+**Showcase-only scope.** A vanity host serves _only_ the landlord's showcase.
+`raj.rentium.ca/` → their page; **every other path 301s to the apex**
+(`/pricing`, `/dashboard`, `/auth`, and their individual listings all live on
+`rentium.ca`). A landlord's listings stay on `rentium.ca/<province>/<city>/…`
+— the showcase is the one thing exclusive to the subdomain.
+
+Reserved subdomains are kept in sync with the backend's
+`showcase.models.RESERVED_SLUGS` (province codes, `www`, `app`, `api`, `admin`,
+`dashboard`, `auth`, `pricing`, …) and are never treated as landlord slugs.
+
+**Backend (Django).** The API is served from `api.rentium.ca`, so Django's
+`ALLOWED_HOSTS` needs no wildcard. But a browser call from a showcase page
+carries a `*.rentium.ca` Origin, so `config/settings/base.py` adds
+`CORS_ALLOWED_ORIGIN_REGEXES` for `^https://[a-z0-9-]+\.rentium\.ca$` and
+production `CSRF_TRUSTED_ORIGINS` trusts `https://*.rentium.ca`.

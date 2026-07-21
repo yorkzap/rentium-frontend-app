@@ -3,14 +3,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Globe, Loader2, Save, Sparkles } from 'lucide-react';
+import { Loader2, Save, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { DJANGO_API_URL } from '@/lib/config';
 import PhoneInput from '@/components/form/PhoneInput';
 import { Field, TextInput } from '@/components/form/Fields';
-import { PageHeader } from '@/components/ui/page';
 import {
   fetchRamaSettings,
   updateRamaSettings,
@@ -21,6 +19,7 @@ import {
  * Account settings — profile fields that write to the API, plus (for
  * landlords) per-account RAMA preferences: enable, provider, model.
  * Memory stays on the server, scoped to this landlord only.
+ * Rendered as the "Account & RAMA" tab of /dashboard/settings.
  */
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -142,12 +141,7 @@ export default function ProfileSettings() {
     .join('');
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader
-        title="Your account"
-        description="Your name, contact details, and RAMA preferences."
-      />
-
+    <div>
       <section className="card p-6">
         <div className="mb-6 flex items-center gap-4">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--brand))] text-lg font-semibold text-white">
@@ -238,7 +232,7 @@ export default function ProfileSettings() {
 
             <Field
               label="Provider"
-              hint="Use xAI (Grok) with your own key, or switch later."
+              hint="Any provider works with your own key — small models are fine; RAMA is built for them."
             >
               <select
                 value={ramaProvider}
@@ -364,19 +358,6 @@ export default function ProfileSettings() {
           </button>
         </section>
       )}
-
-      <Link
-        href="/dashboard/settings"
-        className="card mt-6 flex items-center gap-3 p-5 transition-colors hover:border-[hsl(var(--brand))]"
-      >
-        <Globe className="h-5 w-5 text-[hsl(var(--ink-4))]" />
-        <div className="flex-1">
-          <p className="font-medium">Public page</p>
-          <p className="text-sm text-[hsl(var(--ink-4))]">
-            Your listings, your page address, and who can see your properties.
-          </p>
-        </div>
-      </Link>
     </div>
   );
 }

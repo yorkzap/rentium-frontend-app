@@ -549,7 +549,7 @@ export default function PropertyDetailPage() {
             )}
 
             <Link
-              href="/dashboard/settings"
+              href="/dashboard/settings?tab=public"
               className="mt-3 block text-xs text-[hsl(var(--ink-4))] hover:underline"
             >
               Public page settings →

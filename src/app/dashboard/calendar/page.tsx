@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowLeft,
+  CalendarClock,
   CalendarDays,
   Check,
   Copy,
@@ -69,6 +70,7 @@ import {
 import {
   cancelAppointment,
   confirmAppointment,
+  counterAppointment,
   createAppointment,
   declineAppointment,
   listAppointments,
@@ -125,6 +127,9 @@ export default function LandlordCalendarPage() {
   const [action, setAction] = useState<PanelAction>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // countering a viewing request with a different time
+  const [counterId, setCounterId] = useState<string | null>(null);
+  const [counterWhen, setCounterWhen] = useState('');
   // schedule form
   const [schedKind, setSchedKind] = useState<AppointmentKind>('VIEWING');
   const [schedTime, setSchedTime] = useState('10:00');
@@ -251,7 +256,8 @@ export default function LandlordCalendarPage() {
     () =>
       appointments.filter(
         (a) =>
-          a.status === 'REQUESTED' && (propId == null || a.property === propId)
+          (a.status === 'REQUESTED' || a.status === 'AWAITING_REQUESTER') &&
+          (propId == null || a.property === propId)
       ),
     [appointments, propId]
   );
@@ -618,56 +624,146 @@ export default function LandlordCalendarPage() {
               {requests.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-md border border-purple-200 bg-white p-2.5 flex flex-wrap items-center justify-between gap-2 text-sm"
+                  className="rounded-md border border-purple-200 bg-white p-2.5 space-y-2 text-sm"
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-800 truncate">
-                      {r.contact_name || 'Someone'} wants to view{' '}
-                      {r.property_name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {new Date(r.starts_at).toLocaleString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                      {r.contact_email && ` · ${r.contact_email}`}
-                      {r.contact_phone && ` · ${r.contact_phone}`}
-                    </p>
-                    {r.notes && (
-                      <p className="text-xs text-slate-400 truncate">
-                        &quot;{r.notes}&quot;
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-800 truncate">
+                        {r.contact_name || 'Someone'} wants to view{' '}
+                        {r.property_name}
                       </p>
-                    )}
+                      <p className="text-xs text-slate-500">
+                        {new Date(r.starts_at).toLocaleString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                        {r.contact_email && ` · ${r.contact_email}`}
+                        {r.contact_phone && ` · ${r.contact_phone}`}
+                      </p>
+                      {/* Flags that want the landlord's attention */}
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {r.status === 'AWAITING_REQUESTER' && (
+                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-700 border border-sky-200">
+                            You proposed a new time — awaiting reply
+                          </span>
+                        )}
+                        {r.time_class === 'OUT_OF_HOURS' && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 border border-amber-200">
+                            Outside your usual hours
+                          </span>
+                        )}
+                        {r.tenant_consent === 'PENDING' && (
+                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600 border border-slate-200">
+                            Current tenant asked
+                          </span>
+                        )}
+                        {r.tenant_consent === 'OK' && (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700 border border-emerald-200">
+                            Tenant OK
+                          </span>
+                        )}
+                        {r.tenant_consent === 'OBJECTED' && (
+                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 border border-rose-200">
+                            Tenant objected
+                          </span>
+                        )}
+                      </div>
+                      {r.notes && (
+                        <p className="mt-1 text-xs text-slate-400 truncate">
+                          &quot;{r.notes}&quot;
+                        </p>
+                      )}
+                      {r.tenant_consent === 'OBJECTED' &&
+                        r.tenant_consent_notes && (
+                          <p className="mt-1 text-xs text-rose-500">
+                            Tenant: &quot;{r.tenant_consent_notes}&quot;
+                          </p>
+                        )}
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        className="h-7 bg-teal-600 hover:bg-teal-700"
+                        disabled={busy}
+                        onClick={() =>
+                          run(
+                            () => confirmAppointment(token!, r.id),
+                            'Confirmed — the requester will be notified.'
+                          )
+                        }
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        disabled={busy}
+                        onClick={() => {
+                          setCounterId(counterId === r.id ? null : r.id);
+                          setCounterWhen('');
+                        }}
+                      >
+                        <CalendarClock className="h-3.5 w-3.5 mr-1" /> Propose
+                        time
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        disabled={busy}
+                        onClick={() =>
+                          run(
+                            () => declineAppointment(token!, r.id),
+                            'Declined.'
+                          )
+                        }
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" /> Decline
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <Button
-                      size="sm"
-                      className="h-7 bg-teal-600 hover:bg-teal-700"
-                      disabled={busy}
-                      onClick={() =>
-                        run(
-                          () => confirmAppointment(token!, r.id),
-                          'Confirmed — the requester will be notified.'
-                        )
-                      }
-                    >
-                      <Check className="h-3.5 w-3.5 mr-1" /> Confirm
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7"
-                      disabled={busy}
-                      onClick={() =>
-                        run(() => declineAppointment(token!, r.id), 'Declined.')
-                      }
-                    >
-                      <X className="h-3.5 w-3.5 mr-1" /> Decline
-                    </Button>
-                  </div>
+                  {counterId === r.id && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-purple-100 pt-2">
+                      <input
+                        type="datetime-local"
+                        value={counterWhen}
+                        onChange={(e) => setCounterWhen(e.target.value)}
+                        className="field w-auto py-1"
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 bg-sky-600 hover:bg-sky-700"
+                        disabled={busy || !counterWhen}
+                        onClick={() =>
+                          run(
+                            () =>
+                              counterAppointment(
+                                token!,
+                                r.id,
+                                new Date(counterWhen).toISOString()
+                              ),
+                            'Proposed — the requester will be asked to confirm.'
+                          ).then(() => {
+                            setCounterId(null);
+                            setCounterWhen('');
+                          })
+                        }
+                      >
+                        Send proposal
+                      </Button>
+                      <button
+                        type="button"
+                        className="text-xs text-slate-400"
+                        onClick={() => setCounterId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

@@ -64,6 +64,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Landmark,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -287,6 +288,12 @@ export default function FinancialManagement() {
             onClick={() => router.push('/dashboard/calendar')}
           >
             <CalendarDays className="mr-1 h-4 w-4" /> Calendar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard/financial/import')}
+          >
+            <Upload className="mr-1 h-4 w-4" /> Import history
           </Button>
           <Button variant="outline" onClick={() => setUtilityOpen(true)}>
             <Zap className="mr-1 h-4 w-4" /> Add utility bill

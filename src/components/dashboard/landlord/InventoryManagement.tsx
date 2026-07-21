@@ -214,7 +214,7 @@ export default function InventoryManagement() {
       // Fetch Shared Inventory (if grouped)
       if (groupId) {
         const sharedInvRes = await fetch(
-          `${DJANGO_API_URL}/property-groups/${groupId}/shared-inventory/`,
+          `${DJANGO_API_URL}/properties/groups/${groupId}/shared-inventory/`,
           { headers: { Authorization: `Token ${token}` } }
         );
         if (!sharedInvRes.ok)
@@ -330,7 +330,8 @@ export default function InventoryManagement() {
     }
     const isEdit = !!itemId && itemId > 0;
     const endpoint = itemType === 'private' ? 'inventory' : 'shared-inventory';
-    const base = itemType === 'private' ? 'properties' : 'property-groups';
+    // Shared inventory lives on PropertyGroupViewSet: /properties/groups/<id>/shared-inventory/
+    const base = itemType === 'private' ? 'properties' : 'properties/groups';
     const url = isEdit
       ? `${DJANGO_API_URL}/${base}/${targetId}/${endpoint}/${itemId}/`
       : `${DJANGO_API_URL}/${base}/${targetId}/${endpoint}/`;
@@ -399,7 +400,7 @@ export default function InventoryManagement() {
       (item) => item.id === itemId && item.itemType === itemType
     );
     const endpoint = itemType === 'private' ? 'inventory' : 'shared-inventory';
-    const base = itemType === 'private' ? 'properties' : 'property-groups';
+    const base = itemType === 'private' ? 'properties' : 'properties/groups';
     const url = `${DJANGO_API_URL}/${base}/${targetId}/${endpoint}/${itemId}/`;
     try {
       console.log(

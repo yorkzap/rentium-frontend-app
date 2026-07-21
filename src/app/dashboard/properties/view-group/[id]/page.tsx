@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { DJANGO_API_URL } from '@/lib/config';
 import {
   Card,
   CardContent,
@@ -25,7 +26,7 @@ import {
 } from 'lucide-react';
 
 interface PropertyStub {
-  id: number;
+  id: number | string;
   name: string;
   address?: string;
 }
@@ -33,11 +34,13 @@ interface PropertyGroupDetail {
   id: string;
   name: string;
   description: string;
-  grouped_properties: PropertyStub[];
+  // DRF may return nested rooms as grouped_properties or properties
+  grouped_properties?: PropertyStub[];
+  properties?: PropertyStub[];
   created_at: string;
   updated_at: string;
 }
-// Shape returned by GET /property-groups/<id>/common-areas/
+// Shape returned by GET /api/properties/property-groups/<id>/common-areas/
 interface CommonArea {
   id: number;
   area_type: string;
@@ -62,19 +65,30 @@ export default function ViewGroupPage() {
     if (!groupId || !token) return;
     setError(null);
     try {
+      // Django routes: /api/properties/groups/<uuid>/
+      // and /api/properties/property-groups/<uuid>/common-areas/
       const [groupRes, areasRes] = await Promise.all([
-        fetch(`{DJANGO_API_URL}/property-groups/${groupId}/`, {
+        fetch(`${DJANGO_API_URL}/properties/groups/${groupId}/`, {
           headers: { Authorization: `Token ${token}` },
         }),
-        fetch(`{DJANGO_API_URL}/property-groups/${groupId}/common-areas/`, {
-          headers: { Authorization: `Token ${token}` },
-        }),
+        fetch(
+          `${DJANGO_API_URL}/properties/property-groups/${groupId}/common-areas/`,
+          {
+            headers: { Authorization: `Token ${token}` },
+          }
+        ),
       ]);
       if (!groupRes.ok)
         throw new Error(`Failed to fetch group (${groupRes.status})`);
-      setGroup(await groupRes.json());
-      // Areas endpoint may not be wired yet — degrade gracefully.
-      setAreas(areasRes.ok ? await areasRes.json() : []);
+      const body = await groupRes.json();
+      setGroup(body);
+      // Areas endpoint may be empty for new groups — degrade gracefully.
+      if (areasRes.ok) {
+        const areaBody = await areasRes.json();
+        setAreas(Array.isArray(areaBody) ? areaBody : areaBody.results || []);
+      } else {
+        setAreas([]);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load group';
       setError(msg);
@@ -112,6 +126,8 @@ export default function ViewGroupPage() {
   }
 
   const landlordShared = areas.some((a) => a.shared_with_landlord);
+  const rooms: PropertyStub[] =
+    group.grouped_properties || group.properties || [];
 
   return (
     <div className="container max-w-4xl py-6 px-4 sm:px-6">
@@ -171,13 +187,13 @@ export default function ViewGroupPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {group.grouped_properties.length === 0 ? (
+            {rooms.length === 0 ? (
               <p className="text-sm text-ink-3 text-center py-4">
                 No rooms assigned yet.
               </p>
             ) : (
               <ul className="space-y-2">
-                {group.grouped_properties.map((prop) => (
+                {rooms.map((prop) => (
                   <li
                     key={prop.id}
                     className="border p-3 rounded-md hover:bg-canvas transition-colors"

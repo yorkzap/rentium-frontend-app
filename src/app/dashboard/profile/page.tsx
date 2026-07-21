@@ -1,7 +1,10 @@
 // page.tsx
+//
+// Account settings merged into /dashboard/settings (Account & RAMA tab).
+// This route survives as a redirect so old links and bookmarks keep working.
 
-"use client";
-import ProfileSettings from "@/components/dashboard/profile/ProfileSettings";
+import { redirect } from 'next/navigation';
+
 export default function ProfilePage() {
-  return <ProfileSettings />;
+  redirect('/dashboard/settings');
 }

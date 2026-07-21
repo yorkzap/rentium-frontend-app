@@ -30,6 +30,8 @@ import type { LedgerEntry } from '@/lib/financeApi';
 import type { MaintenanceArea } from '@/lib/maintenanceApi';
 import InspectionSignCard from './InspectionSignCard';
 import UpcomingStrip from './UpcomingStrip';
+import ViewingConsentCard from './ViewingConsentCard';
+import InspectionScheduleCard from './InspectionScheduleCard';
 
 function TenancyLink({
   href,
@@ -141,6 +143,10 @@ export default function TenantOverviewTab({
         nextDueTone={nextDueTone}
         signatureState={signatureState}
       />
+
+      <ViewingConsentCard leaseId={currentLease.id} />
+
+      <InspectionScheduleCard leaseId={currentLease.id} />
 
       <InspectionSignCard leaseId={currentLease.id} />
 

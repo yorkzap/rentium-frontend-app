@@ -32,12 +32,191 @@ export interface RamaSettings {
   byok?: boolean;
 }
 
+export interface RamaPlanStep {
+  n: number;
+  tool: string;
+  target: string;
+  status: string;
+  requires_own_confirm: boolean;
+}
+
+export interface RamaBlockedItem {
+  target: string;
+  reason: string;
+  detail: string;
+  options?: string[];
+}
+
+// A multi-step plan awaiting the landlord's confirmation. Confirm/Cancel are
+// just "yes"/"cancel" chat messages — the backend's deterministic confirm
+// machine is the single authority, the buttons only make it language-proof.
+export interface RamaPendingPlan {
+  operation: string;
+  summary: string;
+  status: string;
+  awaiting_own_confirm: boolean;
+  steps: RamaPlanStep[];
+  blocked: RamaBlockedItem[];
+}
+
 export interface RamaReply {
   conversation_id: string;
   reply: string;
   provider: string;
   model: string;
   tools_used: string[];
+  pending_plan?: RamaPendingPlan | null;
+}
+
+// ----------------------------------------------------------- insights
+export interface RamaInsightRow {
+  id: number;
+  kind: string;
+  severity: 'INFO' | 'WARN' | 'URGENT';
+  facts: Record<string, unknown>;
+  analysis: string;
+  status: 'OPEN' | 'ACKED' | 'ACTIONED' | 'DISMISSED';
+  created_at: string;
+}
+
+export async function fetchInsights(
+  token: string,
+  status?: string
+): Promise<{ insights: RamaInsightRow[] }> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(`${DJANGO_API_URL}/rama/insights/${qs}`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function updateInsightStatus(
+  token: string,
+  id: number,
+  status: string
+) {
+  const res = await fetch(`${DJANGO_API_URL}/rama/insights/${id}/`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify({ status }),
+  });
+  return handle(res);
+}
+
+// ----------------------------------------------------------- holdings
+export interface Holding {
+  id: string;
+  name: string;
+  kind: string;
+  address: string;
+  city: string;
+  listings: string[];
+}
+
+export async function fetchHoldings(
+  token: string
+): Promise<{ holdings: Holding[] }> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/holdings/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+// -------------------------------------------------------- bank balances
+export interface BankBalanceRow {
+  id: number;
+  holding: string | null;
+  holding_id: string | null;
+  label: string;
+  balance: string;
+  as_of: string;
+  updated_via: string;
+  stale: boolean;
+  estimated_drift_since_reported: string;
+}
+
+export async function fetchBankBalances(
+  token: string
+): Promise<{ balances: BankBalanceRow[]; count: number }> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/bank-balances/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function setBankBalance(
+  token: string,
+  payload: {
+    holding_id?: string;
+    label?: string;
+    balance: string;
+    as_of?: string;
+  }
+): Promise<BankBalanceRow> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/bank-balances/`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+// -------------------------------------------------------------- comms
+export interface ChannelAccount {
+  id: number;
+  channel_type: 'TELEGRAM' | 'EMAIL' | 'WHATSAPP';
+  display_name: string;
+  verified: boolean;
+  is_active: boolean;
+  prefs: Record<string, unknown>;
+  link_code: string;
+}
+
+export interface TelegramLinkCode {
+  link_code: string;
+  expires_at: string;
+  bot_username: string;
+  instructions: string;
+}
+
+export async function fetchChannels(
+  token: string
+): Promise<{ channels: ChannelAccount[] }> {
+  const res = await fetch(`${DJANGO_API_URL}/comms/channels/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function createTelegramLinkCode(
+  token: string
+): Promise<TelegramLinkCode> {
+  const res = await fetch(
+    `${DJANGO_API_URL}/comms/channels/telegram/link-code/`,
+    { method: 'POST', headers: headers(token) }
+  );
+  return handle(res);
+}
+
+export async function updateChannel(
+  token: string,
+  id: number,
+  payload: { is_active?: boolean; prefs?: Record<string, unknown> }
+) {
+  const res = await fetch(`${DJANGO_API_URL}/comms/channels/${id}/`, {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function deleteChannel(token: string, id: number) {
+  const res = await fetch(`${DJANGO_API_URL}/comms/channels/${id}/`, {
+    method: 'DELETE',
+    headers: headers(token),
+  });
+  if (!res.ok && res.status !== 204) return handle(res);
 }
 
 function headers(token: string): Record<string, string> {
@@ -95,16 +274,60 @@ export async function updateRamaSettings(
   return handle(res);
 }
 
+export type RamaRole = 'corporal' | 'general';
+
+export interface ConstitutionSection {
+  key: string;
+  title: string;
+  version: number;
+  body_md: string;
+  origin: string;
+  updated: string;
+}
+
+export interface ConstitutionRule {
+  id: number;
+  rule_type: string;
+  params: Record<string, unknown>;
+  section: string | null;
+}
+
+export interface Constitution {
+  sections: ConstitutionSection[];
+  rules: ConstitutionRule[];
+}
+
+export async function fetchConstitution(token: string): Promise<Constitution> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/constitution/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function amendConstitution(
+  token: string,
+  payload: { key: string; title?: string; body_md?: string }
+): Promise<Constitution> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/constitution/`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
 export async function sendRamaMessage(
   token: string,
   payload: {
     message: string;
     conversation_id?: string;
-  }
+  },
+  role: RamaRole = 'corporal'
 ): Promise<RamaReply> {
+  const path = role === 'general' ? '/rama/general/chat/' : '/rama/chat/';
   try {
     // Tool loops can take a while (several provider round-trips).
-    const res = await fetch(`${DJANGO_API_URL}/rama/chat/`, {
+    const res = await fetch(`${DJANGO_API_URL}${path}`, {
       method: 'POST',
       headers: headers(token),
       body: JSON.stringify(payload),

@@ -303,7 +303,7 @@ export default function AssetManagement() {
     setIsDeleting(true);
     try {
       const res = await fetch(
-        `{DJANGO_API_URL}/property-groups/${groupToDeleteId}/`,
+        `${DJANGO_API_URL}/properties/groups/${groupToDeleteId}/`,
         { method: 'DELETE', headers: { Authorization: `Token ${token}` } }
       );
       if (!res.ok && res.status !== 204)
