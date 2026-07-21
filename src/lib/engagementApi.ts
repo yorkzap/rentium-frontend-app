@@ -36,11 +36,7 @@ function unwrap<T>(data: T[] | { results?: T[] } | null): T[] {
 
 // ---------------------------------------------------------------- notifications
 export type NotificationCategory =
-  | 'MAINTENANCE'
-  | 'PAYMENT'
-  | 'LEASE'
-  | 'MESSAGE'
-  | 'SYSTEM';
+  'MAINTENANCE' | 'PAYMENT' | 'LEASE' | 'MESSAGE' | 'SYSTEM';
 
 export interface AppNotification {
   id: string;
@@ -98,6 +94,10 @@ export interface ConversationSummary {
   subject: string;
   lease: string | null;
   other_party: string;
+  /** True when the other party is an accountless prospect (a lead), not a tenant. */
+  is_lead: boolean;
+  /** The listing a lead thread is about (empty for tenant threads). */
+  listing: string;
   last_message: { body: string; created_at: string } | null;
   unread_count: number;
   updated_at: string;

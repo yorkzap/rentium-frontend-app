@@ -1,6 +1,7 @@
 // src/components/dashboard/landlord/CommunicationHub.tsx
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +28,12 @@ function timeShort(iso: string): string {
 
 export default function CommunicationHub() {
   const { token } = useAuth();
+  const searchParams = useSearchParams();
+  // Deep-link: /dashboard/messages?c=<conversationId> opens that thread (used by
+  // the Inquiries "Reply" button so a lead continues in one place).
+  const deepLink = searchParams.get('c');
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(deepLink);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
@@ -119,7 +124,8 @@ export default function CommunicationHub() {
       <div>
         <h1 className="text-2xl font-semibold text-ink">Messages</h1>
         <p className="text-ink-3 text-sm mt-1">
-          Direct conversations with your tenants.
+          Conversations with your tenants and with leads who enquired about a
+          listing.
         </p>
       </div>
 
@@ -161,8 +167,13 @@ export default function CommunicationHub() {
                     </Avatar>
                     <div className="ml-3 flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-1">
-                        <h3 className="font-medium text-sm truncate">
+                        <h3 className="font-medium text-sm truncate flex items-center gap-1.5">
                           {c.other_party}
+                          {c.is_lead && (
+                            <span className="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                              Lead
+                            </span>
+                          )}
                         </h3>
                         <span className="text-xs text-ink-4 whitespace-nowrap">
                           {c.last_message
@@ -170,9 +181,9 @@ export default function CommunicationHub() {
                             : ''}
                         </span>
                       </div>
-                      {c.subject && (
+                      {(c.listing || c.subject) && (
                         <p className="text-xs text-ink-4 truncate">
-                          {c.subject}
+                          {c.is_lead && c.listing ? c.listing : c.subject}
                         </p>
                       )}
                       <p className="text-xs text-ink-3 truncate">
