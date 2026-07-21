@@ -20,6 +20,14 @@ export interface RamaConfig {
   byok?: boolean;
 }
 
+/** A per-role (decision-layer / analysis) model override. Blank provider = use
+ * the main model. Key is write-only; the server returns only has_key. */
+export interface RamaRoleModel {
+  provider: string;
+  model: string;
+  has_key: boolean;
+}
+
 export interface RamaSettings {
   enabled: boolean;
   provider: string;
@@ -30,6 +38,17 @@ export interface RamaSettings {
   models: Record<string, RamaModelOption[]>;
   platform_ready: Record<string, boolean>;
   byok?: boolean;
+  general?: RamaRoleModel;
+  fsa?: RamaRoleModel;
+}
+
+/** Write shape for a per-role override. Omit a field to leave it; api_key '' keeps
+ * the existing key, clear_api_key wipes it, provider '' clears the override. */
+export interface RamaRoleModelPatch {
+  provider?: string;
+  model?: string;
+  api_key?: string;
+  clear_api_key?: boolean;
 }
 
 export interface RamaPlanStep {
@@ -264,6 +283,8 @@ export async function updateRamaSettings(
     model?: string;
     api_key?: string;
     clear_api_key?: boolean;
+    general?: RamaRoleModelPatch;
+    fsa?: RamaRoleModelPatch;
   }
 ): Promise<RamaSettings> {
   const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {

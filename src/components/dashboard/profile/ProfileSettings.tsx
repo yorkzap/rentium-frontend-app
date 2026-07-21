@@ -43,6 +43,11 @@ export default function ProfileSettings() {
   const [ramaModel, setRamaModel] = useState('');
   const [ramaApiKey, setRamaApiKey] = useState('');
   const [ramaSaving, setRamaSaving] = useState(false);
+  // Optional decision-layer (General) model — blank provider = use main model.
+  const [genProvider, setGenProvider] = useState('');
+  const [genModel, setGenModel] = useState('');
+  const [genApiKey, setGenApiKey] = useState('');
+  const [genHasKey, setGenHasKey] = useState(false);
   const isLandlord =
     (user as { user_type?: string } | null)?.user_type === 'LANDLORD';
 
@@ -60,6 +65,10 @@ export default function ProfileSettings() {
         setRamaProvider(s.provider);
         setRamaModel(s.model);
         setRamaApiKey('');
+        setGenProvider(s.general?.provider ?? '');
+        setGenModel(s.general?.model ?? '');
+        setGenHasKey(Boolean(s.general?.has_key));
+        setGenApiKey('');
       })
       .catch(() => setRama(null));
   }, [token, isLandlord]);
@@ -100,6 +109,11 @@ export default function ProfileSettings() {
         provider: string;
         model: string;
         api_key?: string;
+        general?: {
+          provider: string;
+          model?: string;
+          api_key?: string;
+        };
       } = {
         enabled: ramaEnabled,
         provider: ramaProvider,
@@ -107,6 +121,14 @@ export default function ProfileSettings() {
       };
       if (ramaApiKey.trim()) {
         payload.api_key = ramaApiKey.trim();
+      }
+      // Decision layer: blank provider clears the override (General uses main).
+      payload.general = {
+        provider: genProvider,
+        model: genProvider ? genModel : '',
+      };
+      if (genProvider && genApiKey.trim()) {
+        payload.general.api_key = genApiKey.trim();
       }
       const next = await updateRamaSettings(token, payload);
       setRama(next);
@@ -131,7 +153,14 @@ export default function ProfileSettings() {
   };
 
   const modelsForProvider = rama?.models?.[ramaProvider] ?? [];
+  const modelsForGen = rama?.models?.[genProvider] ?? [];
   const hasKey = Boolean(rama?.has_api_key) || Boolean(ramaApiKey.trim());
+  const genReady =
+    !genProvider ||
+    genHasKey ||
+    Boolean(genApiKey.trim()) ||
+    genProvider === ramaProvider ||
+    Boolean(rama?.platform_ready?.[genProvider]);
 
   const initials = (user?.name || user?.email || '?')
     .split(/[\s@.]+/)
@@ -340,6 +369,102 @@ export default function ProfileSettings() {
                   <>Paste a key from your provider console.</>
                 )}
               </p>
+            )}
+          </div>
+
+          {/* Decision layer — an optional smarter model for the General. */}
+          <div className="mt-6 rounded-xl border border-[hsl(var(--line))] p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={Boolean(genProvider)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    const p =
+                      ramaProvider || rama.providers?.[0] || 'anthropic';
+                    setGenProvider(p);
+                    setGenModel(rama.models?.[p]?.[0]?.id ?? '');
+                  } else {
+                    setGenProvider('');
+                    setGenModel('');
+                  }
+                }}
+                className="mt-0.5 h-4 w-4 accent-[hsl(var(--brand))]"
+              />
+              <span>
+                <span className="text-sm font-medium">
+                  Use a smarter model for the General (decision layer)
+                </span>
+                <span className="mt-0.5 block text-xs text-[hsl(var(--ink-4))]">
+                  The General routes and plans; the Corporal (your main model
+                  above) does the work. Any provider — Claude, Grok, OpenAI,
+                  Gemini, Mistral. Off = the General uses your main model.
+                </span>
+              </span>
+            </label>
+
+            {genProvider && (
+              <div className="mt-4 space-y-4">
+                <Field label="Decision-layer provider">
+                  <select
+                    value={genProvider}
+                    onChange={(e) => {
+                      const p = e.target.value;
+                      setGenProvider(p);
+                      setGenModel(rama.models?.[p]?.[0]?.id ?? '');
+                    }}
+                    className="field"
+                  >
+                    {(rama.providers ?? []).map((p) => (
+                      <option key={p} value={p}>
+                        {PROVIDER_LABELS[p] ?? p}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Decision-layer model">
+                  <select
+                    value={genModel}
+                    onChange={(e) => setGenModel(e.target.value)}
+                    className="field"
+                  >
+                    {modelsForGen.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {genProvider !== ramaProvider && (
+                  <Field
+                    label="Decision-layer API key"
+                    hint={
+                      genHasKey
+                        ? 'A key is saved for this provider. Leave blank to keep it.'
+                        : "This layer uses a different provider than your main model, so it needs its own key (or the platform's, if available)."
+                    }
+                  >
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={genApiKey}
+                      onChange={(e) => setGenApiKey(e.target.value)}
+                      placeholder={
+                        genHasKey
+                          ? '••••••••  (saved — leave blank to keep)'
+                          : 'Paste this provider’s key'
+                      }
+                      className="field font-mono text-sm"
+                    />
+                  </Field>
+                )}
+                {ramaEnabled && !genReady && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Add a key for this provider, or the General will fall back
+                    to your main model.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

@@ -83,8 +83,61 @@ export default function RamaPanel() {
     });
   }, [bubbles, busy]);
 
-  // Hidden until this landlord opts in and the platform can serve their provider.
-  if (!config?.enabled || !config.configured) return null;
+  if (!config) return null;
+  // Not enabled, or enabled without a usable key → don't silently hide RAMA;
+  // show the button and, on open, tell them how to finish setup.
+  const needsSetup = !config.enabled || !config.configured;
+
+  if (needsSetup) {
+    return (
+      <>
+        {!open && (
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Ask RAMA"
+            className="fixed bottom-5 right-5 z-50 flex h-12 items-center gap-2 rounded-full bg-[hsl(var(--brand))] px-4 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
+          >
+            <Sparkles className="h-4 w-4" />
+            Ask RAMA
+          </button>
+        )}
+        {open && (
+          <div
+            className="fixed bottom-5 right-5 z-50 flex w-[min(360px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl"
+            style={{ borderColor: 'hsl(var(--line))' }}
+          >
+            <div className="flex items-center justify-between bg-[hsl(var(--brand))] px-4 py-3 text-white">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <Sparkles className="h-4 w-4" /> RAMA
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="rounded-lg p-1.5 hover:bg-white/15"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
+              <p className="text-sm font-medium">RAMA isn&apos;t set up yet</p>
+              <p className="text-sm text-[hsl(var(--ink-3))]">
+                {config.enabled
+                  ? 'Add an API key for your model to start chatting.'
+                  : 'Turn RAMA on and add an API key for your model to start chatting.'}
+              </p>
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setOpen(false)}
+                className="rounded-lg bg-[hsl(var(--brand))] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Open Settings → Account &amp; RAMA
+              </Link>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   const ask = async (text: string) => {
     const message = text.trim();

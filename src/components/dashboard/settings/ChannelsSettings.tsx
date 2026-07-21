@@ -49,18 +49,9 @@ export default function ChannelsSettings({
     try {
       const { channels } = await fetchChannels(token);
       setChannels(channels);
-      // A pending (unverified) link code already exists — surface it.
-      const pending = channels.find((c) => !c.verified && c.link_code);
-      if (pending)
-        setLinkCode(
-          (prev) =>
-            prev ?? {
-              link_code: pending.link_code,
-              expires_at: '',
-              bot_username: '',
-              instructions: `Send /link ${pending.link_code} to the bot.`,
-            }
-        );
+      // Note: we don't reconstruct a pending code here (we wouldn't know the
+      // bot username / whether Telegram is configured). Clicking "Link Telegram"
+      // mints a fresh code whose bot_username reflects the real server config.
     } catch {
       setChannels([]);
     }
@@ -195,14 +186,27 @@ export default function ChannelsSettings({
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
+        ) : linkCode && !linkCode.bot_username ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-medium">
+              Telegram isn&apos;t set up on this server yet
+            </p>
+            <p className="mt-1">
+              There&apos;s no Rentium bot to message until one is created. The
+              admin needs to make a bot with{' '}
+              <span className="font-mono">@BotFather</span> and set{' '}
+              <span className="font-mono">TELEGRAM_BOT_TOKEN</span>,{' '}
+              <span className="font-mono">TELEGRAM_BOT_USERNAME</span> and{' '}
+              <span className="font-mono">TELEGRAM_WEBHOOK_SECRET</span>, then
+              run <span className="font-mono">set_telegram_webhook</span>. See
+              docs/GO_LIVE.md.
+            </p>
+          </div>
         ) : linkCode ? (
           <div className="mt-3 rounded-lg bg-[hsl(var(--surface-sunken))] p-4 text-center">
             <p className="text-sm">
               Message{' '}
-              <span className="font-medium">
-                @{linkCode.bot_username || 'the Rentium bot'}
-              </span>
-              :
+              <span className="font-medium">@{linkCode.bot_username}</span>:
             </p>
             <p className="mt-2 font-mono text-lg font-semibold tracking-wide">
               /link {linkCode.link_code}
