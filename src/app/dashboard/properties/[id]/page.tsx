@@ -22,6 +22,7 @@ import {
   Sofa,
   Square,
   Trash2,
+  UserPlus,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -576,6 +577,8 @@ export default function PropertyDetailPage() {
               />
             </div>
           </section>
+
+          <CoLandlordsCard token={token} propertyId={id} />
         </aside>
       </div>
 
@@ -602,6 +605,112 @@ export default function PropertyDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function CoLandlordsCard({
+  token,
+  propertyId,
+}: {
+  token: string | null;
+  propertyId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const invite = async () => {
+    if (!token) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      toast.error("That doesn't look like an email address.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `${DJANGO_API_URL}/properties/${propertyId}/invite_co_landlord/`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || body.email?.[0] || 'Failed to invite.');
+      }
+      toast.success(`Invited ${email.trim()} as a co-landlord.`);
+      setName('');
+      setEmail('');
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to invite.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      className="rounded-xl border p-4"
+      style={{ borderColor: 'hsl(var(--line))' }}
+    >
+      <h2 className="mb-1 font-semibold">Co-landlords</h2>
+      <p className="mb-3 text-xs text-[hsl(var(--ink-4))]">
+        Give another landlord access to this property and its group. Every
+        future lease here names them as a co-signing landlord.
+      </p>
+      {open ? (
+        <div className="space-y-2">
+          <input
+            className="w-full rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: 'hsl(var(--line))' }}
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="w-full rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: 'hsl(var(--line))' }}
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={invite}
+              disabled={busy}
+              className="flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              Send invite
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm text-[hsl(var(--ink-3))]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-[hsl(var(--surface-sunken))]"
+          style={{ borderColor: 'hsl(var(--line))' }}
+        >
+          <UserPlus className="h-4 w-4" /> Invite co-landlord
+        </button>
+      )}
+    </section>
   );
 }
 

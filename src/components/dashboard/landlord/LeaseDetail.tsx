@@ -110,6 +110,16 @@ interface LeaseDetailData {
   special_terms: string;
   common_space_clause_text: string;
   co_hosts?: { name: string; email?: string; phone?: string }[];
+  landlord_signatories?: {
+    id: string;
+    display_name: string;
+    name: string;
+    email: string;
+    phone: string;
+    has_signed: boolean;
+    signed_date: string | null;
+    is_linked: boolean;
+  }[];
   total_rent: string;
   total_monthly_rent: string;
   unallocated_rent: string;
@@ -132,11 +142,15 @@ const INVITE_STATUS_STYLES: Record<string, string> = {
 };
 export default function LeaseDetail({ leaseId }: { leaseId: string }) {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [lease, setLease] = useState<LeaseDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSigning, setIsSigning] = useState(false);
+  const [isInviteCoOpen, setIsInviteCoOpen] = useState(false);
+  const [coName, setCoName] = useState('');
+  const [coEmail, setCoEmail] = useState('');
+  const [isInvitingCo, setIsInvitingCo] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [isAddTenantOpen, setIsAddTenantOpen] = useState(false);
   interface RosterRow {
@@ -211,6 +225,65 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
       toast.error(err instanceof Error ? err.message : 'Failed to sign lease.');
     } finally {
       setIsSigning(false);
+    }
+  };
+  const handleCoLandlordSign = async () => {
+    if (!token) return;
+    setIsSigning(true);
+    try {
+      const res = await fetch(
+        `${DJANGO_API_URL}/leases/${leaseId}/co_landlord_sign/`,
+        { method: 'POST', headers: { Authorization: `Token ${token}` } }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Failed to sign (${res.status})`);
+      }
+      toast.success('Signed as co-landlord.');
+      fetchLease();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to sign lease.');
+    } finally {
+      setIsSigning(false);
+    }
+  };
+  const handleInviteCoLandlord = async () => {
+    if (!token) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(coEmail.trim())) {
+      toast.error("That doesn't look like an email address.");
+      return;
+    }
+    setIsInvitingCo(true);
+    try {
+      const res = await fetch(
+        `${DJANGO_API_URL}/leases/${leaseId}/invite_co_landlord/`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: coName.trim(),
+            email: coEmail.trim().toLowerCase(),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          body.detail || body.email?.[0] || `Failed to invite (${res.status})`
+        );
+      }
+      toast.success(`Invited ${coEmail.trim()} as a co-landlord.`);
+      setCoName('');
+      setCoEmail('');
+      setIsInviteCoOpen(false);
+      fetchLease();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to invite.');
+    } finally {
+      setIsInvitingCo(false);
     }
   };
   const handleResendInvite = async (leaseTenantId: string) => {
@@ -700,29 +773,34 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
           </div>
         </div>
       )}
-      {!lease.landlord_signed && !lease.is_locked && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md flex items-center justify-between gap-4">
-          <div className="flex items-start">
-            <Signature className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">
-                Your signature is needed
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                The lease activates once you and every tenant have signed.
-              </p>
+      {!lease.landlord_signed &&
+        !lease.is_locked &&
+        !lease.landlord_signatories?.some(
+          (s) =>
+            !!user?.email && s.email.toLowerCase() === user.email.toLowerCase()
+        ) && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md flex items-center justify-between gap-4">
+            <div className="flex items-start">
+              <Signature className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">
+                  Your signature is needed
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  The lease activates once you and every tenant have signed.
+                </p>
+              </div>
             </div>
+            <Button size="sm" onClick={handleLandlordSign} disabled={isSigning}>
+              {isSigning ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Signature className="h-4 w-4 mr-2" />
+              )}
+              Sign as Landlord
+            </Button>
           </div>
-          <Button size="sm" onClick={handleLandlordSign} disabled={isSigning}>
-            {isSigning ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Signature className="h-4 w-4 mr-2" />
-            )}
-            Sign as Landlord
-          </Button>
-        </div>
-      )}
+        )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
           <CardHeader>
@@ -826,38 +904,150 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
             <CardTitle>Landlord Signature</CardTitle>
           </CardHeader>
           <CardContent>
-            {lease.landlord_signed ? (
-              <div className="flex items-center text-green-700 text-sm">
-                <CheckCircle2 className="h-4 w-4 mr-2" /> Signed{' '}
-                {lease.landlord_signed_date
-                  ? new Date(lease.landlord_signed_date).toLocaleDateString()
-                  : ''}
-              </div>
-            ) : (
-              <div className="flex items-center text-amber-700 text-sm">
-                <Clock className="h-4 w-4 mr-2" /> Not yet signed
-              </div>
-            )}
-            {lease.co_hosts && lease.co_hosts.length > 0 && (
-              <div className="mt-3 pt-3 border-t text-sm">
-                <p className="text-slate-500 mb-1">
-                  Co-landlord{lease.co_hosts.length > 1 ? 's' : ''} on the
-                  agreement
-                </p>
-                {lease.co_hosts.map((h, i) => (
-                  <p key={i} className="text-slate-800">
-                    {h.name}
-                    {h.email ? (
-                      <span className="text-slate-500"> · {h.email}</span>
-                    ) : null}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-700">Owner</span>
+              {lease.landlord_signed ? (
+                <span className="flex items-center text-green-700">
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" /> Signed{' '}
+                  {lease.landlord_signed_date
+                    ? new Date(lease.landlord_signed_date).toLocaleDateString()
+                    : ''}
+                </span>
+              ) : (
+                <span className="flex items-center text-amber-700">
+                  <Clock className="h-4 w-4 mr-1.5" /> Not yet signed
+                </span>
+              )}
+            </div>
+
+            {lease.landlord_signatories &&
+              lease.landlord_signatories.length > 0 && (
+                <div className="mt-3 pt-3 border-t space-y-2">
+                  {lease.landlord_signatories.map((s) => {
+                    const isMe =
+                      !!user?.email &&
+                      s.email.toLowerCase() === user.email.toLowerCase();
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between text-sm gap-2"
+                      >
+                        <span className="text-slate-700 truncate">
+                          {s.display_name || s.email}
+                          <span className="text-slate-400"> · co-landlord</span>
+                        </span>
+                        {s.has_signed ? (
+                          <span className="flex items-center text-green-700 shrink-0">
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" /> Signed
+                          </span>
+                        ) : isMe && !lease.is_locked ? (
+                          <Button
+                            size="sm"
+                            onClick={handleCoLandlordSign}
+                            disabled={isSigning}
+                          >
+                            {isSigning ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Sign as Co-Landlord'
+                            )}
+                          </Button>
+                        ) : (
+                          <span className="flex items-center text-amber-700 shrink-0">
+                            <Clock className="h-4 w-4 mr-1.5" /> Pending
+                            {!s.is_linked ? ' (invite sent)' : ''}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-slate-400">
+                    The lease activates once every landlord and a tenant have
+                    signed.
                   </p>
-                ))}
-                <p className="text-xs text-slate-400 mt-1">
-                  Named on the lease document. This is a record on the
-                  agreement, not a separate signature or app login.
-                </p>
-              </div>
-            )}
+                </div>
+              )}
+
+            {/* Legacy name-only co-hosts (no signature), only if no real
+                signatories exist to avoid showing them twice. */}
+            {(!lease.landlord_signatories ||
+              lease.landlord_signatories.length === 0) &&
+              lease.co_hosts &&
+              lease.co_hosts.length > 0 && (
+                <div className="mt-3 pt-3 border-t text-sm">
+                  <p className="text-slate-500 mb-1">
+                    Co-landlord{lease.co_hosts.length > 1 ? 's' : ''} on the
+                    agreement
+                  </p>
+                  {lease.co_hosts.map((h, i) => (
+                    <p key={i} className="text-slate-800">
+                      {h.name}
+                      {h.email ? (
+                        <span className="text-slate-500"> · {h.email}</span>
+                      ) : null}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+            {/* Owner-only: invite a co-landlord to co-sign this lease. Hidden
+                from co-landlord viewers (they appear in the signatory list). */}
+            {!lease.is_locked &&
+              !lease.landlord_signatories?.some(
+                (s) =>
+                  !!user?.email &&
+                  s.email.toLowerCase() === user.email.toLowerCase()
+              ) && (
+                <div className="mt-3 pt-3 border-t">
+                  {isInviteCoOpen ? (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Co-landlord name"
+                        value={coName}
+                        onChange={(e) => setCoName(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Co-landlord email"
+                        type="email"
+                        value={coEmail}
+                        onChange={(e) => setCoEmail(e.target.value)}
+                      />
+                      <p className="text-xs text-slate-400">
+                        They&apos;ll be emailed an invite, co-sign this lease,
+                        and be named on future leases for this property.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleInviteCoLandlord}
+                          disabled={isInvitingCo}
+                        >
+                          {isInvitingCo ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Send invite'
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsInviteCoOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsInviteCoOpen(true)}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" /> Invite co-landlord
+                    </Button>
+                  )}
+                </div>
+              )}
           </CardContent>
         </Card>
       </div>

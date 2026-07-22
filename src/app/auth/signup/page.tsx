@@ -53,12 +53,21 @@ export default function Page() {
   // with those fields editable in place (no need to hit Back).
   const [showEmailOnStep2, setShowEmailOnStep2] = useState(false);
 
-  // Prefill the email when arriving from an invite link
-  // (e.g. co-landlord invite: /auth/signup?email=...).
+  const [invitedEmail, setInvitedEmail] = useState('');
+
+  // Prefill the email when arriving from an invite link (e.g. co-landlord
+  // invite: /auth/signup?email=...). Co-landlords are landlords, so lock the
+  // role to LANDLORD and skip straight past the role picker.
   useEffect(() => {
     const invited = new URLSearchParams(window.location.search).get('email');
     if (invited && EMAIL_RE.test(invited)) {
-      setFormData((prev) => ({ ...prev, email: invited }));
+      setInvitedEmail(invited);
+      setFormData((prev) => ({
+        ...prev,
+        email: invited,
+        user_type: 'LANDLORD',
+      }));
+      setStep(2); // role already decided by the invite
     }
   }, []);
 
@@ -238,6 +247,18 @@ export default function Page() {
 
         {step === 2 && (
           <>
+            {invitedEmail && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                <p className="font-medium text-primary">
+                  You&apos;ve been invited as a co-landlord
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  Finish creating your account for{' '}
+                  <strong>{invitedEmail}</strong> to manage the property and
+                  sign the lease you were added to.
+                </p>
+              </div>
+            )}
             {/* Email always visible on step 2 so conflicts can be fixed in place */}
             {(showEmailOnStep2 || fieldErrors.email) && (
               <div className="space-y-2 rounded-lg border border-danger/30 bg-danger-soft/40 p-3">
