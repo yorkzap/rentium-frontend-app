@@ -103,7 +103,7 @@ export async function fetchInsights(
   status?: string
 ): Promise<{ insights: RamaInsightRow[] }> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await fetch(`${DJANGO_API_URL}/rama/insights/${qs}`, {
+  const res = await fetch(ramaUrl(`/rama/insights/${qs}`), {
     headers: headers(token),
   });
   return handle(res);
@@ -114,7 +114,7 @@ export async function updateInsightStatus(
   id: number,
   status: string
 ) {
-  const res = await fetch(`${DJANGO_API_URL}/rama/insights/${id}/`, {
+  const res = await fetch(ramaUrl(`/rama/insights/${id}/`), {
     method: 'PATCH',
     headers: headers(token),
     body: JSON.stringify({ status }),
@@ -135,7 +135,7 @@ export interface Holding {
 export async function fetchHoldings(
   token: string
 ): Promise<{ holdings: Holding[] }> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/holdings/`, {
+  const res = await fetch(ramaUrl('/rama/holdings/'), {
     headers: headers(token),
   });
   return handle(res);
@@ -157,7 +157,7 @@ export interface BankBalanceRow {
 export async function fetchBankBalances(
   token: string
 ): Promise<{ balances: BankBalanceRow[]; count: number }> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/bank-balances/`, {
+  const res = await fetch(ramaUrl('/rama/bank-balances/'), {
     headers: headers(token),
   });
   return handle(res);
@@ -172,7 +172,7 @@ export async function setBankBalance(
     as_of?: string;
   }
 ): Promise<BankBalanceRow> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/bank-balances/`, {
+  const res = await fetch(ramaUrl('/rama/bank-balances/'), {
     method: 'POST',
     headers: headers(token),
     body: JSON.stringify(payload),
@@ -245,6 +245,45 @@ function headers(token: string): Record<string, string> {
   };
 }
 
+// Which portfolio RAMA acts on — set when a co-landlord picks an owner in the
+// panel switcher. Appended as ?as=<owner_id> to every RAMA call so chat, config,
+// constitution, insights etc. all operate on the same selected portfolio.
+let _actingAs: string | null = null;
+export function setActingPortfolio(ownerId: string | null) {
+  _actingAs = ownerId;
+}
+export function getActingPortfolio(): string | null {
+  return _actingAs;
+}
+function ramaUrl(path: string): string {
+  const base = `${DJANGO_API_URL}${path}`;
+  if (!_actingAs) return base;
+  return (
+    base +
+    (path.includes('?') ? '&' : '?') +
+    `as=${encodeURIComponent(_actingAs)}`
+  );
+}
+
+export interface RamaPortfolio {
+  owner_id: string;
+  name: string;
+  is_own: boolean;
+  property_count: number;
+}
+export async function fetchPortfolios(
+  token: string
+): Promise<{
+  portfolios: RamaPortfolio[];
+  acting_as: string;
+  acting_name: string;
+}> {
+  const res = await fetch(`${DJANGO_API_URL}/rama/portfolios/`, {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
 async function handle(res: Response) {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { detail?: unknown });
@@ -262,14 +301,14 @@ async function handle(res: Response) {
 }
 
 export async function fetchRamaConfig(token: string): Promise<RamaConfig> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/config/`, {
+  const res = await fetch(ramaUrl('/rama/config/'), {
     headers: headers(token),
   });
   return handle(res);
 }
 
 export async function fetchRamaSettings(token: string): Promise<RamaSettings> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {
+  const res = await fetch(ramaUrl('/rama/settings/'), {
     headers: headers(token),
   });
   return handle(res);
@@ -287,7 +326,7 @@ export async function updateRamaSettings(
     fsa?: RamaRoleModelPatch;
   }
 ): Promise<RamaSettings> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/settings/`, {
+  const res = await fetch(ramaUrl('/rama/settings/'), {
     method: 'PATCH',
     headers: headers(token),
     body: JSON.stringify(payload),
@@ -319,7 +358,7 @@ export interface Constitution {
 }
 
 export async function fetchConstitution(token: string): Promise<Constitution> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/constitution/`, {
+  const res = await fetch(ramaUrl('/rama/constitution/'), {
     headers: headers(token),
   });
   return handle(res);
@@ -329,7 +368,7 @@ export async function amendConstitution(
   token: string,
   payload: { key: string; title?: string; body_md?: string }
 ): Promise<Constitution> {
-  const res = await fetch(`${DJANGO_API_URL}/rama/constitution/`, {
+  const res = await fetch(ramaUrl('/rama/constitution/'), {
     method: 'POST',
     headers: headers(token),
     body: JSON.stringify(payload),
@@ -345,7 +384,7 @@ export async function uploadRamaPhoto(
 ): Promise<string> {
   const form = new FormData();
   form.append('image', file);
-  const res = await fetch(`${DJANGO_API_URL}/rama/upload/`, {
+  const res = await fetch(ramaUrl('/rama/upload/'), {
     method: 'POST',
     headers: { Authorization: `Token ${token}` }, // no Content-Type: browser sets multipart boundary
     body: form,
@@ -366,7 +405,7 @@ export async function sendRamaMessage(
   const path = role === 'general' ? '/rama/general/chat/' : '/rama/chat/';
   try {
     // Tool loops can take a while (several provider round-trips).
-    const res = await fetch(`${DJANGO_API_URL}${path}`, {
+    const res = await fetch(ramaUrl(path), {
       method: 'POST',
       headers: headers(token),
       body: JSON.stringify(payload),

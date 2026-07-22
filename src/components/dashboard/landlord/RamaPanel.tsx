@@ -10,10 +10,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   fetchRamaConfig,
+  fetchPortfolios,
+  setActingPortfolio,
   sendRamaMessage,
   uploadRamaPhoto,
   type RamaConfig,
   type RamaPendingPlan,
+  type RamaPortfolio,
   type RamaRole,
 } from '@/lib/ramaApi';
 
@@ -47,6 +50,10 @@ export default function RamaPanel() {
     { id: string; name: string }[]
   >([]);
   const [uploading, setUploading] = useState(false);
+  // Portfolios this user can act on. A co-landlord who co-hosts other owners can
+  // switch which portfolio RAMA operates on (own = primary; others = co-hosted).
+  const [portfolios, setPortfolios] = useState<RamaPortfolio[]>([]);
+  const [actingAs, setActingAs] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -71,10 +78,35 @@ export default function RamaPanel() {
 
   useEffect(() => {
     if (!token) return;
-    fetchRamaConfig(token)
-      .then(setConfig)
-      .catch(() => setConfig(null));
+    // Resolve the portfolio to act on FIRST (the backend's smart default lands a
+    // co-landlord on the owner's portfolio, not their empty own account), then
+    // load config for that portfolio.
+    fetchPortfolios(token)
+      .then((p) => {
+        setPortfolios(p.portfolios);
+        setActingPortfolio(p.acting_as);
+        setActingAs(p.acting_as);
+      })
+      .catch(() => {})
+      .finally(() => {
+        fetchRamaConfig(token)
+          .then(setConfig)
+          .catch(() => setConfig(null));
+      });
   }, [token]);
+
+  const onSwitchPortfolio = (ownerId: string) => {
+    setActingPortfolio(ownerId);
+    setActingAs(ownerId);
+    // New portfolio = fresh context: reset the conversation and reload config.
+    setBubbles([]);
+    setConversationId(undefined);
+    setPendingPlan(null);
+    if (token)
+      fetchRamaConfig(token)
+        .then(setConfig)
+        .catch(() => {});
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -258,6 +290,29 @@ export default function RamaPanel() {
               </button>
             </div>
           </div>
+
+          {portfolios.length > 1 && (
+            <div
+              className="flex items-center gap-2 border-b bg-[hsl(var(--surface-sunken))] px-4 py-2 text-xs"
+              style={{ borderColor: 'hsl(var(--line))' }}
+            >
+              <span className="text-[hsl(var(--ink-4))]">Managing</span>
+              <select
+                value={actingAs ?? ''}
+                onChange={(e) => onSwitchPortfolio(e.target.value)}
+                className="flex-1 rounded-md border bg-white px-2 py-1 text-[hsl(var(--ink-1))]"
+                style={{ borderColor: 'hsl(var(--line))' }}
+              >
+                {portfolios.map((p) => (
+                  <option key={p.owner_id} value={p.owner_id}>
+                    {p.name}
+                    {p.is_own ? ' (you)' : ' — co-host'} · {p.property_count}{' '}
+                    {p.property_count === 1 ? 'property' : 'properties'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
             {bubbles.length === 0 && (
