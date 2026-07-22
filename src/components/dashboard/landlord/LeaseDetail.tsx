@@ -109,6 +109,7 @@ interface LeaseDetailData {
   bills_summary: string;
   special_terms: string;
   common_space_clause_text: string;
+  co_hosts?: { name: string; email?: string; phone?: string }[];
   total_rent: string;
   total_monthly_rent: string;
   unallocated_rent: string;
@@ -835,6 +836,26 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
             ) : (
               <div className="flex items-center text-amber-700 text-sm">
                 <Clock className="h-4 w-4 mr-2" /> Not yet signed
+              </div>
+            )}
+            {lease.co_hosts && lease.co_hosts.length > 0 && (
+              <div className="mt-3 pt-3 border-t text-sm">
+                <p className="text-slate-500 mb-1">
+                  Co-landlord{lease.co_hosts.length > 1 ? 's' : ''} on the
+                  agreement
+                </p>
+                {lease.co_hosts.map((h, i) => (
+                  <p key={i} className="text-slate-800">
+                    {h.name}
+                    {h.email ? (
+                      <span className="text-slate-500"> · {h.email}</span>
+                    ) : null}
+                  </p>
+                ))}
+                <p className="text-xs text-slate-400 mt-1">
+                  Named on the lease document. This is a record on the
+                  agreement, not a separate signature or app login.
+                </p>
               </div>
             )}
           </CardContent>
