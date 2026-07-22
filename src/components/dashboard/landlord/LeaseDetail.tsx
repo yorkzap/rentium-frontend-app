@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import LeaseInspections from './LeaseInspections';
 import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
+import BillsEditor, { type BillsMap } from './BillsEditor';
 interface RentAdjustment {
   id: string;
   adjustment_type: string;
@@ -107,6 +108,7 @@ interface LeaseDetailData {
   pet_deposit: string;
   cleaning_fee: string;
   bills_summary: string;
+  bills_included?: BillsMap;
   special_terms: string;
   common_space_clause_text: string;
   co_hosts?: { name: string; email?: string; phone?: string }[];
@@ -151,6 +153,8 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
   const [coName, setCoName] = useState('');
   const [coEmail, setCoEmail] = useState('');
   const [isInvitingCo, setIsInvitingCo] = useState(false);
+  const [billsOpen, setBillsOpen] = useState(false);
+  const [savingBills, setSavingBills] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [isAddTenantOpen, setIsAddTenantOpen] = useState(false);
   interface RosterRow {
@@ -284,6 +288,35 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
       toast.error(err instanceof Error ? err.message : 'Failed to invite.');
     } finally {
       setIsInvitingCo(false);
+    }
+  };
+  const handleSaveBills = async (bills: BillsMap) => {
+    if (!token) return;
+    setSavingBills(true);
+    try {
+      const res = await fetch(`${DJANGO_API_URL}/leases/${leaseId}/`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bills_included: bills }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg =
+          body.bills_included?.[0] ||
+          body.detail ||
+          `Failed to save bills (${res.status})`;
+        throw new Error(msg);
+      }
+      toast.success('Bills updated.');
+      setBillsOpen(false);
+      fetchLease();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save bills.');
+    } finally {
+      setSavingBills(false);
     }
   };
   const handleResendInvite = async (leaseTenantId: string) => {
@@ -879,12 +912,31 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                 )}
               </div>
             )}
-            {lease.bills_summary && (
-              <div className="col-span-2 pt-2 border-t">
-                <p className="text-slate-500 mb-1">Bills</p>
-                <p>{lease.bills_summary}</p>
+            <div className="col-span-2 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-500 mb-1">Bills &amp; Utilities</p>
+                {!lease.is_locked && (
+                  <button
+                    onClick={() => setBillsOpen((o) => !o)}
+                    className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
+                  >
+                    {billsOpen ? 'Close' : 'Edit'}
+                  </button>
+                )}
               </div>
-            )}
+              {!billsOpen && <p>{lease.bills_summary}</p>}
+              {billsOpen && !lease.is_locked && (
+                <div className="mt-2">
+                  <BillsEditor
+                    value={lease.bills_included || {}}
+                    onSave={handleSaveBills}
+                    saving={savingBills}
+                    title=""
+                    hint="Mark each utility as included in rent or tenant-paid. Applies to this lease."
+                  />
+                </div>
+              )}
+            </div>
             {lease.common_space_clause_text && (
               <div className="col-span-2 pt-2 border-t">
                 <p className="text-slate-500 mb-1">Shared Spaces</p>

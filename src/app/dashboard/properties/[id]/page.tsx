@@ -47,6 +47,9 @@ import {
 } from '@/lib/propertyApi';
 import { EmptyState, PageHeader, Pill, Skeleton } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
+import BillsEditor, {
+  type BillsMap,
+} from '@/components/dashboard/landlord/BillsEditor';
 
 // Images come back as relative /media/ paths; the API and the app are on
 // different origins in dev.
@@ -89,6 +92,7 @@ interface FullProperty extends PropertyDetail {
   group_name: string | null;
   unit_type_display: string | null;
   room_type_display: string | null;
+  default_bills_included?: BillsMap;
 }
 
 export default function PropertyDetailPage() {
@@ -579,6 +583,12 @@ export default function PropertyDetailPage() {
           </section>
 
           <CoLandlordsCard token={token} propertyId={id} />
+          <DefaultBillsCard
+            token={token}
+            propertyId={id}
+            value={p.default_bills_included || {}}
+            onSaved={load}
+          />
         </aside>
       </div>
 
@@ -605,6 +615,59 @@ export default function PropertyDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function DefaultBillsCard({
+  token,
+  propertyId,
+  value,
+  onSaved,
+}: {
+  token: string | null;
+  propertyId: string;
+  value: BillsMap;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const save = async (bills: BillsMap) => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${DJANGO_API_URL}/properties/${propertyId}/`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ default_bills_included: bills }),
+      });
+      if (!res.ok) throw new Error('Failed to save default bills.');
+      toast.success(
+        'Default bills saved — new leases here will start with these.'
+      );
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section
+      className="rounded-xl border p-4"
+      style={{ borderColor: 'hsl(var(--line))' }}
+    >
+      <BillsEditor
+        value={value}
+        onSave={save}
+        saving={saving}
+        title="Default bills for future leases"
+        hint="New leases created on this property start pre-filled with these. Existing leases are unchanged."
+      />
+    </section>
   );
 }
 
