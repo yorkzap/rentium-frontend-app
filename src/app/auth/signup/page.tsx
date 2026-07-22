@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,15 @@ export default function Page() {
   // When signup fails because email/phone is taken, keep the user on step 2
   // with those fields editable in place (no need to hit Back).
   const [showEmailOnStep2, setShowEmailOnStep2] = useState(false);
+
+  // Prefill the email when arriving from an invite link
+  // (e.g. co-landlord invite: /auth/signup?email=...).
+  useEffect(() => {
+    const invited = new URLSearchParams(window.location.search).get('email');
+    if (invited && EMAIL_RE.test(invited)) {
+      setFormData((prev) => ({ ...prev, email: invited }));
+    }
+  }, []);
 
   const clearFieldError = (id: keyof FieldErrors) => {
     if (fieldErrors[id]) {
