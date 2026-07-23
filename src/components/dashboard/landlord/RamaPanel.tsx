@@ -13,7 +13,7 @@ import {
   fetchPortfolios,
   setActingPortfolio,
   sendRamaMessage,
-  uploadRamaPhoto,
+  uploadRamaDocument,
   type RamaConfig,
   type RamaPendingPlan,
   type RamaPortfolio,
@@ -44,8 +44,7 @@ export default function RamaPanel() {
   // Corporal = fast ops agent; General = your chief of staff (Constitution,
   // delegation, stronger model). Each mode keeps its own conversation.
   const [role, setRole] = useState<RamaRole>('corporal');
-  // Photos the landlord attached this message (staged server-side; the ids ride
-  // along with the next send so RAMA can attach_photo_to_listing them).
+  // Business records are staged, OCRed, and sent as document context.
   const [attachments, setAttachments] = useState<
     { id: string; name: string }[]
   >([]);
@@ -62,13 +61,13 @@ export default function RamaPanel() {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const id = await uploadRamaPhoto(token, file);
-        setAttachments((a) => [...a, { id, name: file.name }]);
+        const document = await uploadRamaDocument(token, file);
+        setAttachments((a) => [...a, { id: document.id, name: file.name }]);
       }
     } catch {
       setBubbles((b) => [
         ...b,
-        { role: 'error', text: "Couldn't upload that photo — try again." },
+        { role: 'error', text: "Couldn't upload that document — try again." },
       ]);
     } finally {
       setUploading(false);
@@ -182,7 +181,7 @@ export default function RamaPanel() {
         role: 'user',
         text:
           message +
-          (uploadIds.length ? ` 📎 ${uploadIds.length} photo(s)` : ''),
+          (uploadIds.length ? ` 📎 ${uploadIds.length} document(s)` : ''),
       },
     ]);
     setAttachments([]);
@@ -193,7 +192,7 @@ export default function RamaPanel() {
         {
           message: message || 'Here is a photo to attach.',
           conversation_id: conversationId,
-          upload_ids: uploadIds.length ? uploadIds : undefined,
+          document_ids: uploadIds.length ? uploadIds : undefined,
         },
         role
       );
@@ -458,7 +457,7 @@ export default function RamaPanel() {
                     <span className="max-w-[120px] truncate">{a.name}</span>
                     <button
                       type="button"
-                      aria-label="Remove photo"
+                      aria-label="Remove document"
                       onClick={() =>
                         setAttachments((list) =>
                           list.filter((x) => x.id !== a.id)
@@ -476,7 +475,7 @@ export default function RamaPanel() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,.webp,.heic,.heif"
                 multiple
                 hidden
                 onChange={(e) => void onPickPhotos(e.target.files)}
@@ -485,8 +484,8 @@ export default function RamaPanel() {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={busy || uploading}
-                aria-label="Attach photo"
-                title="Attach a photo"
+                aria-label="Attach business document"
+                title="Attach a receipt, notice, invoice, or other business document"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[hsl(var(--ink-3))] transition hover:text-[hsl(var(--brand))] disabled:opacity-40"
                 style={{ borderColor: 'hsl(var(--line))' }}
               >

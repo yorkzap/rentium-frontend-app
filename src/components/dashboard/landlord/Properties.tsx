@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { DJANGO_API_URL } from '@/lib/config';
 import { formatStatus } from '@/lib/utils'; // Assuming utility functions
+import { fetchHoldings, type Holding } from '@/lib/ramaApi';
 
 // --- CORRECTED IMPORTS ---
 import { PropertyList } from './properties/PropertyList'; // Named import for named export
@@ -88,6 +89,7 @@ export default function AssetManagement() {
   const [groupToDeleteId, setGroupToDeleteId] = useState<string | null>(null);
   const [properties, setProperties] = useState<PropertyDetail[]>([]);
   const [groups, setGroups] = useState<PropertyGroupListData[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [isLoadingProps, setIsLoadingProps] = useState(true);
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -95,9 +97,9 @@ export default function AssetManagement() {
 
   const initialViewMode =
     searchParams.get('view') === 'groups' ? 'groups' : 'properties';
-  const [viewMode, setViewMode] = useState<'properties' | 'groups'>(
-    initialViewMode
-  );
+  const [viewMode, setViewMode] = useState<
+    'properties' | 'groups' | 'holdings'
+  >(initialViewMode);
   const [categoryTab, setCategoryTab] = useState('all');
 
   // --- Utility Functions ---
@@ -156,11 +158,14 @@ export default function AssetManagement() {
       const groupPromise = fetch(`${DJANGO_API_URL}/properties/groups/`, {
         headers: { Authorization: `Token ${token}` },
       });
+      const holdingPromise = fetchHoldings(token);
 
-      const [propResponse, groupResponse] = await Promise.all([
+      const [propResponse, groupResponse, holdingResponse] = await Promise.all([
         propPromise,
         groupPromise,
+        holdingPromise,
       ]);
+      setHoldings(holdingResponse.holdings);
 
       // Process Properties
       if (!propResponse.ok)
@@ -387,7 +392,7 @@ export default function AssetManagement() {
           </div>
           <Button className="whitespace-nowrap shrink-0" onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-1.5" />{' '}
-            {viewMode === 'groups' ? 'Create Group' : 'Add Property'}
+            {viewMode === 'groups' ? 'Create Group' : 'Add Listing'}
           </Button>
         </div>
       </div>
@@ -396,7 +401,9 @@ export default function AssetManagement() {
       <Tabs
         defaultValue={initialViewMode}
         value={viewMode}
-        onValueChange={(value) => setViewMode(value as 'properties' | 'groups')}
+        onValueChange={(value) =>
+          setViewMode(value as 'properties' | 'groups' | 'holdings')
+        }
       >
         <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground overflow-x-auto">
           <TabsTrigger
@@ -405,6 +412,13 @@ export default function AssetManagement() {
           >
             <Home className="h-4 w-4 mr-2 shrink-0" /> Properties (
             {categoryCounts.all})
+          </TabsTrigger>
+          <TabsTrigger
+            value="holdings"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Building2 className="h-4 w-4 mr-2 shrink-0" /> Buildings &amp;
+            addresses ({holdings.length})
           </TabsTrigger>
           <TabsTrigger
             value="groups"
@@ -486,6 +500,51 @@ export default function AssetManagement() {
               searchTerm={searchTerm}
               tabType={categoryTab}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="holdings" className="mt-6">
+          <div className="mb-4 rounded-lg border bg-muted/30 p-4 text-sm text-ink-2">
+            A building or legal address is the filing and financial container.
+            Its rentable units and rooms appear beneath it; room groups only
+            describe shared interior space.
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {holdings.map((holding) => (
+              <Card key={holding.id}>
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3">
+                    <Building2 className="mt-0.5 h-5 w-5 text-brand" />
+                    <div>
+                      <h3 className="font-semibold">{holding.name}</h3>
+                      <p className="text-sm text-ink-3">
+                        {holding.address}
+                        {holding.city ? `, ${holding.city}` : ''}
+                      </p>
+                      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-ink-4">
+                        Listings inside
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {holding.listings.length ? (
+                          holding.listings.map((listing) => (
+                            <span
+                              key={listing}
+                              className="rounded-full bg-muted px-2 py-1 text-xs"
+                            >
+                              {listing}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-ink-4">
+                            No rooms or units assigned
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 

@@ -14,9 +14,7 @@ import { Button } from '@/components/ui/button';
 import Wordmark from './Wordmark';
 
 const NAV = [
-  // TODO(local): feed the browse link from publicApi getCities() once this
-  // component is wired into the [province] layouts.
-  { href: '/bc/saanich', label: 'Browse rentals' },
+  { href: '/rentals', label: 'Browse rentals' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/about', label: 'About' },
   { href: '/help', label: 'Help' },

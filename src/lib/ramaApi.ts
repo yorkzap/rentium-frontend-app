@@ -271,9 +271,7 @@ export interface RamaPortfolio {
   is_own: boolean;
   property_count: number;
 }
-export async function fetchPortfolios(
-  token: string
-): Promise<{
+export async function fetchPortfolios(token: string): Promise<{
   portfolios: RamaPortfolio[];
   acting_as: string;
   acting_name: string;
@@ -393,12 +391,113 @@ export async function uploadRamaPhoto(
   return data.upload_id as string;
 }
 
+export interface RamaDocument {
+  id: string;
+  status:
+    'QUEUED' | 'PROCESSING' | 'NEEDS_REVIEW' | 'READY' | 'FILED' | 'FAILED';
+  kind: string;
+  kind_display: string;
+  title: string;
+  issuer: string;
+  reference_number: string;
+  document_date: string | null;
+  due_date: string | null;
+  amount: string | null;
+  currency: string;
+  expense_category: string;
+  payment_state: 'NOT_APPLICABLE' | 'PAID' | 'UNPAID' | 'UNKNOWN';
+  holding_id: string | null;
+  holding_name: string | null;
+  property_id: number | null;
+  property_name: string | null;
+  portfolio_wide: boolean;
+  clarification_question: string;
+  original_filename: string;
+  canonical_filename: string;
+  archival_pdf: string | null;
+  ledger_entry_id: string | null;
+  failure_reason: string;
+  created_at: string;
+  filed_at: string | null;
+  duplicate?: boolean;
+}
+
+export async function fetchRamaDocuments(
+  token: string,
+  status?: string
+): Promise<{ documents: RamaDocument[] }> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(ramaUrl(`/rama/documents/${query}`), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function uploadRamaDocument(
+  token: string,
+  file: File
+): Promise<RamaDocument> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(ramaUrl('/rama/documents/'), {
+    method: 'POST',
+    headers: { Authorization: `Token ${token}` },
+    body: form,
+  });
+  return handle(res);
+}
+
+export async function fileRamaDocument(
+  token: string,
+  id: string,
+  payload: {
+    holding_id?: string;
+    property_id?: number;
+    portfolio_wide?: boolean;
+    kind?: string;
+    title?: string;
+    issuer?: string;
+    reference_number?: string;
+    document_date?: string;
+    due_date?: string;
+    amount?: string;
+    expense_category?: string;
+    payment_state?: string;
+    clarification_answer?: string;
+  }
+): Promise<RamaDocument> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function downloadRamaDocument(
+  token: string,
+  document: RamaDocument
+): Promise<void> {
+  const res = await fetch(ramaUrl(`/rama/documents/${document.id}/download/`), {
+    headers: { Authorization: `Token ${token}` },
+  });
+  if (!res.ok) await handle(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = window.document.createElement('a');
+  anchor.href = url;
+  anchor.download = document.canonical_filename || document.original_filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function sendRamaMessage(
   token: string,
   payload: {
     message: string;
     conversation_id?: string;
     upload_ids?: string[];
+    document_ids?: string[];
   },
   role: RamaRole = 'corporal'
 ): Promise<RamaReply> {

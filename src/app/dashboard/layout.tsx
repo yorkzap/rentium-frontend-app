@@ -55,6 +55,7 @@ const LANDLORD_NAV = [
   { href: '/dashboard/properties', label: 'Properties', icon: Building2 },
   { href: '/dashboard/leases', label: 'Leases', icon: FileText },
   { href: '/dashboard/financial', label: 'Financial', icon: DollarSign },
+  { href: '/dashboard/documents', label: 'Documents', icon: FileText },
   { href: '/dashboard/insights', label: 'Insights', icon: Sparkles },
   { href: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench },
   { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes },

@@ -1,0 +1,7 @@
+name = "rentium-vanity-subdomains"
+main = "vanity-subdomains.mjs"
+compatibility_date = "2026-07-23"
+
+routes = [
+  { pattern = "*.rentium.ca/*", zone_name = "rentium.ca" }
+]

@@ -8,7 +8,7 @@
 // and listing pages are real HTML on first byte, which is the entire reason they
 // can be indexed at all.
 
-import { DJANGO_API_URL } from "@/lib/config";
+import { DJANGO_API_URL } from '@/lib/config';
 
 // --------------------------------------------------------------- origins
 //
@@ -47,24 +47,24 @@ const BROWSER_ORIGIN = new URL(BROWSER_BASE).origin;
 function rewriteOrigins<T>(data: T): T {
   if (SERVER_ORIGIN === BROWSER_ORIGIN) return data;
   return JSON.parse(
-    JSON.stringify(data).split(SERVER_ORIGIN).join(BROWSER_ORIGIN),
+    JSON.stringify(data).split(SERVER_ORIGIN).join(BROWSER_ORIGIN)
   ) as T;
 }
 
 export const PROVINCES: Record<string, string> = {
-  ab: "Alberta",
-  bc: "British Columbia",
-  mb: "Manitoba",
-  nb: "New Brunswick",
-  nl: "Newfoundland and Labrador",
-  ns: "Nova Scotia",
-  nt: "Northwest Territories",
-  nu: "Nunavut",
-  on: "Ontario",
-  pe: "Prince Edward Island",
-  qc: "Quebec",
-  sk: "Saskatchewan",
-  yt: "Yukon",
+  ab: 'Alberta',
+  bc: 'British Columbia',
+  mb: 'Manitoba',
+  nb: 'New Brunswick',
+  nl: 'Newfoundland and Labrador',
+  ns: 'Nova Scotia',
+  nt: 'Northwest Territories',
+  nu: 'Nunavut',
+  on: 'Ontario',
+  pe: 'Prince Edward Island',
+  qc: 'Quebec',
+  sk: 'Saskatchewan',
+  yt: 'Yukon',
 };
 
 export interface PublicCard {
@@ -145,6 +145,12 @@ export interface SitemapData {
   showcases: { slug: string; updated_at: string }[];
 }
 
+export interface RentalDiscoveryPayload {
+  total: number;
+  areas: CityIndexRow[];
+  results: PublicCard[];
+}
+
 // A short revalidate window is what makes "the sitemap regenerates as properties
 // change" true without a build step: a room going OCCUPIED drops out of
 // Property.objects.public(), and within five minutes it drops out of here too.
@@ -172,12 +178,14 @@ async function get<T>(path: string): Promise<T | null> {
   try {
     res = await fetch(url, {
       next: { revalidate: REVALIDATE },
-      headers: { Accept: "application/json" },
+      headers: { Accept: 'application/json' },
     });
   } catch (err) {
     const msg = `Public API unreachable: ${url}`;
-    if (process.env.NODE_ENV !== "production") {
-      throw new Error(`${msg} — is Django running on ${SERVER_BASE}?`, { cause: err });
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(`${msg} — is Django running on ${SERVER_BASE}?`, {
+        cause: err,
+      });
     }
     console.error(msg, err);
     return null;
@@ -186,9 +194,9 @@ async function get<T>(path: string): Promise<T | null> {
   if (res.status === 404) return null;
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    const msg = `Public API ${res.status} on ${url}${body ? ` — ${body.slice(0, 300)}` : ""}`;
-    if (process.env.NODE_ENV !== "production") throw new Error(msg);
+    const body = await res.text().catch(() => '');
+    const msg = `Public API ${res.status} on ${url}${body ? ` — ${body.slice(0, 300)}` : ''}`;
+    if (process.env.NODE_ENV !== 'production') throw new Error(msg);
     console.error(msg);
     return null;
   }
@@ -197,7 +205,8 @@ async function get<T>(path: string): Promise<T | null> {
     return rewriteOrigins((await res.json()) as T);
   } catch (err) {
     const msg = `Public API returned non-JSON on ${url}`;
-    if (process.env.NODE_ENV !== "production") throw new Error(msg, { cause: err });
+    if (process.env.NODE_ENV !== 'production')
+      throw new Error(msg, { cause: err });
     console.error(msg, err);
     return null;
   }
@@ -208,20 +217,34 @@ async function get<T>(path: string): Promise<T | null> {
 export function getCity(
   province: string,
   city: string,
-  search?: Record<string, string | undefined>,
+  search?: Record<string, string | undefined>
 ): Promise<CityPayload | null> {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(search ?? {})) {
     if (v) params.set(k, v);
   }
   const qs = params.toString();
-  return get<CityPayload>(`/cities/${province}/${city}/${qs ? `?${qs}` : ""}`);
+  return get<CityPayload>(`/cities/${province}/${city}/${qs ? `?${qs}` : ''}`);
 }
 
-export const getCities = () => get<{ cities: CityIndexRow[] }>("/cities/");
-export const getListing = (slug: string) => get<PublicDetail>(`/listings/${slug}/`);
-export const getShowcase = (slug: string) => get<ShowcasePayload>(`/l/${slug}/`);
-export const getSitemapData = () => get<SitemapData>("/sitemap-data/");
+export const getCities = () => get<{ cities: CityIndexRow[] }>('/cities/');
+export function getRentalListings(
+  search?: Record<string, string | undefined>
+): Promise<RentalDiscoveryPayload | null> {
+  // Cloudflare caches public GETs. Version this response when its URL or
+  // serialization contract changes so corrected media URLs take effect now.
+  const params = new URLSearchParams({ v: '2' });
+  for (const [key, value] of Object.entries(search ?? {})) {
+    if (value) params.set(key, value);
+  }
+  const query = params.toString();
+  return get<RentalDiscoveryPayload>(`/listings/${query ? `?${query}` : ''}`);
+}
+export const getListing = (slug: string) =>
+  get<PublicDetail>(`/listings/${slug}/`);
+export const getShowcase = (slug: string) =>
+  get<ShowcasePayload>(`/l/${slug}/`);
+export const getSitemapData = () => get<SitemapData>('/sitemap-data/');
 
 // -------------------------------------------------- the one write: contact
 //
@@ -239,20 +262,22 @@ export async function sendInquiry(payload: {
   website?: string;
 }): Promise<{ ok: boolean; detail: string }> {
   const res = await fetch(`${PUBLIC_BROWSER}/inquiries/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    cache: "no-store",
+    cache: 'no-store',
   });
 
-  const body = await res.json().catch(() => ({} as Record<string, unknown>));
+  const body = await res.json().catch(() => ({}) as Record<string, unknown>);
 
   if (!res.ok) {
     // DRF shape: {"field": ["message"]} or {"detail": "..."}
     const msg =
       (body as { detail?: string }).detail ||
       (body as { property_slug?: string[] }).property_slug?.[0] ||
-      Object.values(body).flat().filter((v) => typeof v === "string")[0] ||
+      Object.values(body)
+        .flat()
+        .filter((v) => typeof v === 'string')[0] ||
       "Couldn't send your message. Try again in a moment.";
     throw new Error(String(msg));
   }
@@ -263,14 +288,14 @@ export async function sendInquiry(payload: {
 // ------------------------------------------------------------------ format
 
 export function money(v: string | null): string {
-  if (!v) return "—";
+  if (!v) return '—';
   return `$${Math.round(Number(v)).toLocaleString()}`;
 }
 
 export function prettyDate(iso: string | null): string {
-  if (!iso) return "Now";
+  if (!iso) return 'Now';
   const d = new Date(`${iso}T00:00:00`);
   return isNaN(d.getTime())
     ? iso
-    : d.toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+    : d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
 }

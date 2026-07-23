@@ -214,3 +214,12 @@ than a few weeks, something in this document was over-designed.
 - No staged/dirty data in official records without per-entry human promotion.
 - No self-hosted orchestrator until the hosted baseline sets the reliability
   bar it must match (3).
+
+# Document intelligence
+
+The landlord Documents page and RAMA attachment control accept PDFs and common
+image formats. Backend OCR creates a searchable PDF/A, resolves the physical
+`PropertyHolding`, and proposes document and payment metadata. The UI requires
+review before filing or creating an immutable ledger expense. The Properties
+page exposes holdings as buildings/legal addresses with their room and unit
+listings nested underneath.

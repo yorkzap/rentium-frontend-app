@@ -41,6 +41,7 @@ const RESERVED_SUBDOMAINS = new Set([
   'pricing',
   'privacy',
   'public',
+  'rentals',
   'rentium',
   'settings',
   'signup',

@@ -18,7 +18,7 @@ const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] =
     {
       heading: 'Explore',
       links: [
-        { href: '/bc/saanich', label: 'Browse rentals' },
+        { href: '/rentals', label: 'Browse rentals' },
         { href: '/about', label: 'About' },
         { href: '/help', label: 'Help & FAQ' },
       ],

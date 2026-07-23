@@ -18,6 +18,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: SITE, changeFrequency: 'daily', priority: 1 },
+    {
+      url: `${SITE}/rentals`,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
     ...data.cities.map((c) => ({
       url: `${SITE}/${c.province_code}/${c.city_slug}`,
       changeFrequency: 'daily' as const,

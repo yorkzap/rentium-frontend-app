@@ -69,11 +69,18 @@ to loopback, so `http://raj-rentals.localhost:3000` works out of the box.
 **Going live (Cloudflare):**
 
 1. Set `NEXT_PUBLIC_ROOT_DOMAIN=rentium.ca` in the production environment.
-2. Add a wildcard DNS record in Cloudflare: `*.rentium.ca` → the app host
-   (same target as the apex record), proxied.
-3. TLS: Cloudflare's Universal SSL covers `*.rentium.ca` at the first level —
-   no per-tenant certificates and no Next.js config needed.
-4. SEO: the canonical URL stays the path form. Showcase pages should emit
+2. Add a proxied wildcard DNS record in Cloudflare:
+   `*.rentium.ca` → `rentium.ca`.
+3. Deploy `cloudflare/vanity-subdomains.mjs` with
+   `npm run deploy:vanity-worker`. Its `*.rentium.ca/*` route terminates TLS at
+   Cloudflare and fetches the matching `/l/<slug>` page from the apex Vercel
+   deployment. Do not attach `*.rentium.ca` directly to Vercel: Vercel does
+   not provision that wildcard certificate while Cloudflare owns the
+   nameservers, which produces Cloudflare error 525.
+4. In Cloudflare SSL/TLS, use **Full** mode. Universal SSL covers the public
+   first-level wildcard; the Worker connects to Vercel as `rentium.ca`, whose
+   origin certificate is valid.
+5. SEO: the canonical URL stays the path form. Showcase pages should emit
    `rel=canonical` → `https://rentium.ca/l/<slug>` so the subdomain and path
    don't compete in search results.
 

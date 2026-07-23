@@ -13,17 +13,30 @@ VERCEL_TOKEN=... CF_API_TOKEN=... ./scripts/deploy-frontend.sh
 
 That script links/creates the `rentium-frontend` project, sets the three
 production env vars (`NEXT_PUBLIC_ROOT_DOMAIN`, `NEXT_PUBLIC_DJANGO_API_URL`,
-`DJANGO_API_URL`), deploys `--prod`, attaches `rentium.ca` + `www` +
-`*.rentium.ca` to the project, and creates the Cloudflare DNS records
-(DNS-only — Vercel terminates TLS). Idempotent; re-run any time.
+`DJANGO_API_URL`), and deploys the apex site to Vercel.
 
 **After the first run**, connect the GitHub repo in the Vercel dashboard
 (Project → Settings → Git) so every push to `main` auto-deploys — the CLI
 deploy is just the bootstrap.
 
-**Wildcard caveat**: `*.rentium.ca` certificates require Vercel nameservers.
-Until you switch NS (or if you don't want to), showcase pages still work at
-`rentium.ca/l/<slug>` — only the vanity `<slug>.rentium.ca` form waits.
+### Vanity subdomains
+
+Cloudflare must terminate wildcard TLS because Cloudflare owns the
+nameservers. A proxied `*.rentium.ca` CNAME pointed at Vercel without a Worker
+causes error 525: Cloudflare asks Vercel for a certificate for
+`<slug>.rentium.ca`, but Vercel has no wildcard certificate for that hostname.
+
+Keep the proxied `*.rentium.ca` CNAME pointing to `rentium.ca`, then deploy the
+Worker checked into this repository:
+
+```bash
+CLOUDFLARE_API_TOKEN=... npm run deploy:vanity-worker
+```
+
+The Worker route is `*.rentium.ca/*`. It serves
+`https://<slug>.rentium.ca/` from the corresponding Vercel `/l/<slug>` route,
+while leaving `api.rentium.ca` and all other reserved infrastructure hosts
+alone. Set Cloudflare SSL/TLS mode to **Full**.
 
 ## 2. Backend → your machine, behind a Cloudflare Tunnel
 

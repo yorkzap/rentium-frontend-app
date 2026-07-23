@@ -25,7 +25,7 @@ export default function NotFound() {
           Back to home
         </Link>
         <Link
-          href="/bc/saanich"
+          href="/rentals"
           className="rounded-full border border-neutral-200 bg-white px-6 py-2.5 text-sm font-medium text-ink-2 transition-colors hover:bg-neutral-50"
         >
           Browse rentals

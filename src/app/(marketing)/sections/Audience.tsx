@@ -76,7 +76,7 @@ export default function Audience() {
               variant="outline"
               className="mt-8 rounded-full px-6"
             >
-              <Link href="/bc/saanich">Browse rentals</Link>
+              <Link href="/rentals">Browse rentals</Link>
             </Button>
           </TabsContent>
         </Tabs>
