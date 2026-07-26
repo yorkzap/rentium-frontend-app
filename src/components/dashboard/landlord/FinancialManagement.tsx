@@ -86,6 +86,8 @@ import {
   splitUtilityBill,
   markExpensePaid,
   newIdempotencyKey,
+  fetchTenantStatement,
+  type TenantStatement,
   PAYMENT_METHODS,
   EXPENSE_CATEGORIES,
   type LedgerEntry,
@@ -1319,6 +1321,10 @@ function TenantQuickViewDialog({
   onClose: () => void;
 }) {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  // What the tenant actually owes. Must come from the server: filtering
+  // entries by tenant=<id> misses household charges (they carry tenant=null),
+  // which made a tenant owing $2,144 read as owing $19.78.
+  const [statement, setStatement] = useState<TenantStatement | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1326,6 +1332,9 @@ function TenantQuickViewDialog({
     const load = async () => {
       setLoading(true);
       try {
+        fetchTenantStatement(token, tenantId)
+          .then((st) => !cancelled && setStatement(st))
+          .catch(() => undefined);
         const res = await fetch(
           `${DJANGO_API_URL}/ledger/entries/?tenant=${tenantId}`,
           {
@@ -1362,17 +1371,12 @@ function TenantQuickViewDialog({
     'OVERDUE',
     'PARTIALLY_PAID',
   ];
-  const openCharges = entries.filter(
-    (e) =>
-      e.charge_status && openStatuses.includes(e.charge_status as ChargeStatus)
+  const openCharges = (statement?.charges ?? []).filter(
+    (c) => c.status && openStatuses.includes(c.status as ChargeStatus)
   );
-  const outstanding = openCharges.reduce(
-    (s, e) => s + Number(e.outstanding ?? 0),
-    0
-  );
-  const overdueCount = openCharges.filter(
-    (e) => e.charge_status === 'OVERDUE'
-  ).length;
+  const outstanding = Number(statement?.owes_now ?? 0);
+  const overdueCount = openCharges.filter((c) => c.status === 'OVERDUE').length;
+  const damageOwed = Number(statement?.of_which_damage ?? 0);
   const payments = entries
     .filter((e) => e.entry_type === 'PAYMENT' && !e.voided)
     .sort((a, b) => (a.effective_date < b.effective_date ? 1 : -1));
@@ -1421,15 +1425,54 @@ function TenantQuickViewDialog({
                 </p>
               </div>
               <div className="rounded-md border p-3">
-                <p className="text-xs text-ink-3">Payments recorded</p>
-                <p className="text-lg font-semibold">{payments.length}</p>
+                <p className="text-xs text-ink-3">Deposit held</p>
+                <p className="text-lg font-semibold">
+                  {money(statement?.deposit_held ?? 0)}
+                </p>
                 <p className="text-xs text-ink-4">
-                  {payments[0]
-                    ? `last on ${payments[0].effective_date}`
-                    : 'none yet'}
+                  {payments.length} payment(s) recorded
                 </p>
               </div>
             </div>
+
+            {statement && statement.charges.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-ink-3">
+                  What they owe
+                  {damageOwed > 0 && (
+                    <span className="text-ink-4">
+                      {' '}
+                      · {money(damageOwed)} of it damage
+                    </span>
+                  )}
+                </p>
+                <ul className="divide-y rounded-md border">
+                  {statement.charges.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-start justify-between gap-2 p-2.5 text-sm"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-ink-2">
+                          {c.description || c.type}
+                        </span>
+                        <span className="text-xs text-ink-4">
+                          {c.due_date}
+                          {/* Each tenant on a joint lease is liable for the
+                              WHOLE household charge, not a share of it. */}
+                          {c.is_joint ? ' · shared household charge' : ''}
+                          {c.is_damage ? ' · damage claim' : ''}
+                        </span>
+                      </span>
+                      <span className="whitespace-nowrap font-medium">
+                        {money(c.outstanding)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-xs text-ink-4">{statement.note}</p>
+              </div>
+            )}
 
             {leaseIds.length > 0 && (
               <div>

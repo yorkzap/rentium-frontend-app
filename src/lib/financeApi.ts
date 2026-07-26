@@ -649,3 +649,47 @@ export async function fetchLeaseBillingInfo(
     lease_tenants: data.lease_tenants || [],
   };
 }
+
+/**
+ * Everything one tenant owes and has paid.
+ *
+ * Do NOT rebuild this by filtering entries on `tenant=<id>`: household charges
+ * on a roommate lease carry tenant=null, so that view showed a damage claim
+ * and no rent — making someone who owed $2,144 look like they owed $19.78.
+ */
+export interface TenantStatementCharge {
+  id: string;
+  type: string;
+  description: string;
+  due_date: string | null;
+  amount: string;
+  outstanding: string;
+  status: ChargeStatus | null;
+  /** Household charge — this tenant is liable for ALL of it, not a share. */
+  is_joint: boolean;
+  is_damage: boolean;
+  lease: string | null;
+}
+
+export interface TenantStatement {
+  tenant: string;
+  owes_now: string;
+  of_which_damage: string;
+  paid_to_date: string;
+  deposit_held: string;
+  charges: TenantStatementCharge[];
+  note: string;
+}
+
+export async function fetchTenantStatement(
+  token: string,
+  tenantId: number | string,
+  leaseId?: string
+): Promise<TenantStatement> {
+  const params = new URLSearchParams({ tenant: String(tenantId) });
+  if (leaseId) params.set('lease', leaseId);
+  const res = await fetch(`${LEDGER}/tenant-statement/?${params}`, {
+    headers: authHeaders(token, false),
+  });
+  return handle(res);
+}
