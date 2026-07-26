@@ -21,11 +21,7 @@ export type WorkOrderCategory =
 export type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'EMERGENCY';
 
 export type WorkOrderStatus =
-  | 'NEW'
-  | 'SCHEDULED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED';
+  'NEW' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export interface WorkOrderImage {
   id: number;
@@ -54,8 +50,14 @@ export interface MaintenanceArea {
 
 export interface WorkOrder {
   id: string; // UUID
-  property_name: string;
-  property_address: string;
+  /** Null for a job in SHARED space — a leaking shower serving three rooms
+   *  belongs to the unit, not to whichever room was mentioned. Show `place`,
+   *  which resolves either target, or such jobs render blank. */
+  property_name: string | null;
+  property_address: string | null;
+  unit_name: string | null;
+  /** Where the job is, whichever target it has. Always populated. */
+  place: string;
   area_name: string | null;
   reported_by_name: string;
   origin: 'TENANT' | 'LANDLORD' | 'ROUTINE';

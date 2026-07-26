@@ -18,12 +18,7 @@ export type EntryType =
   | 'REVERSAL';
 
 export type ChargeStatus =
-  | 'VOIDED'
-  | 'PAID'
-  | 'PARTIALLY_PAID'
-  | 'OVERDUE'
-  | 'DUE'
-  | 'SCHEDULED';
+  'VOIDED' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'DUE' | 'SCHEDULED';
 
 export type PaymentMethod = 'ETRANSFER' | 'CASH' | 'CHEQUE' | 'OTHER';
 
@@ -88,6 +83,11 @@ export interface LedgerEntry {
 
   property: number | null;
   property_name: string | null;
+  /** The address this entry belongs to. A shared-space repair has no listing
+   *  to charge — the shower serves three rooms — so it is booked against the
+   *  holding instead. Without this such entries appear to belong nowhere. */
+  holding: string | null;
+  holding_name: string | null;
   /** "ROOM" | "COMPLETE_UNIT" — what kind of space this charge is for. */
   property_category: string | null;
 

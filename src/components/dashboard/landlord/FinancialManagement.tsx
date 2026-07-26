@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LedgerFeed } from './finance/LedgerFeed';
 import {
   Select,
   SelectContent,
@@ -191,7 +192,7 @@ export default function FinancialManagement() {
   const [expenses, setExpenses] = useState<LedgerEntry[]>([]);
   const [properties, setProperties] = useState<PropertyLite[]>([]);
   const [leases, setLeases] = useState<LeaseLite[]>([]);
-  const [tab, setTab] = useState<'charges' | 'expenses'>('charges');
+  const [tab, setTab] = useState<'ledger' | 'charges' | 'expenses'>('ledger');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -412,14 +413,24 @@ export default function FinancialManagement() {
       <div className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
         <Tabs
           value={tab}
-          onValueChange={(v) => setTab(v as 'charges' | 'expenses')}
+          onValueChange={(v) => setTab(v as 'ledger' | 'charges' | 'expenses')}
         >
           <TabsList>
+            {/* One continuous ledger is the default: "what happened with my
+                money?" is one question, not two screens. Charges and Expenses
+                remain for the bulk actions that only make sense per type. */}
+            <TabsTrigger value="ledger">Ledger</TabsTrigger>
             <TabsTrigger value="charges">Charges</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex w-full flex-wrap gap-2 md:w-auto">
+        {/* The ledger carries its own filters (type/property/search), so the
+            per-table controls would only duplicate them here. */}
+        <div
+          className={`w-full flex-wrap gap-2 md:w-auto ${
+            tab === 'ledger' ? 'hidden' : 'flex'
+          }`}
+        >
           <Select value={propertyFilter} onValueChange={setPropertyFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All properties" />
@@ -460,7 +471,13 @@ export default function FinancialManagement() {
         </div>
       </div>
 
-      {tab === 'charges' ? (
+      {tab === 'ledger' ? (
+        <LedgerFeed
+          token={token ?? ''}
+          properties={properties}
+          onOpenWorkOrder={() => router.push('/dashboard/maintenance')}
+        />
+      ) : tab === 'charges' ? (
         <ChargesTable
           rows={charges}
           loading={loading}

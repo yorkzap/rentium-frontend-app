@@ -33,6 +33,7 @@ import {
   Flame,
   CalendarClock,
   MessageSquare,
+  Receipt,
   Send,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -135,10 +136,21 @@ export default function MaintenanceRequests() {
 
   const counts = {
     NEW: orders.filter((o) => o.status === 'NEW').length,
+    // SCHEDULED sat in no tile at all, so a repair that was arranged but not
+    // yet started disappeared from the summary.
+    SCHEDULED: orders.filter((o) => o.status === 'SCHEDULED').length,
     IN_PROGRESS: orders.filter((o) => o.status === 'IN_PROGRESS').length,
     COMPLETED: orders.filter((o) => o.status === 'COMPLETED').length,
   };
   const breaches = orders.filter((o) => o.sla_breached).length;
+  // What the repairs actually cost. It was recorded on each job and shown
+  // nowhere, so "what have I spent on maintenance?" had no answer here.
+  const spent = orders.reduce((sum, o) => sum + Number(o.cost ?? 0), 0);
+  const money = (v: number) =>
+    `$${v.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   return (
     <div className="space-y-6">
@@ -183,12 +195,18 @@ export default function MaintenanceRequests() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <MiniStat
           label="New / unactioned"
           value={counts.NEW}
           icon={<AlertCircle className="h-5 w-5" />}
           tone="amber"
+        />
+        <MiniStat
+          label="Scheduled"
+          value={counts.SCHEDULED}
+          icon={<CalendarClock className="h-5 w-5" />}
+          tone="slate"
         />
         <MiniStat
           label="In progress"
@@ -201,6 +219,12 @@ export default function MaintenanceRequests() {
           value={counts.COMPLETED}
           icon={<CheckCircle className="h-5 w-5" />}
           tone="green"
+        />
+        <MiniStat
+          label="Spent on repairs"
+          value={money(spent)}
+          icon={<Receipt className="h-5 w-5" />}
+          tone="slate"
         />
       </div>
 
@@ -232,6 +256,7 @@ export default function MaintenanceRequests() {
                   <th className="px-4 py-3 text-left">Priority</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">SLA</th>
+                  <th className="px-4 py-3 text-left">Cost</th>
                   <th className="px-4 py-3 text-left">Origin</th>
                   <th className="px-4 py-3">
                     <span className="sr-only">Actions</span>
@@ -257,7 +282,7 @@ export default function MaintenanceRequests() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink-3">
-                        {wo.property_name}
+                        {wo.place}
                         {wo.area_name ? (
                           <span className="text-ink-4"> · {wo.area_name}</span>
                         ) : null}
@@ -285,6 +310,13 @@ export default function MaintenanceRequests() {
                           </span>
                         ) : (
                           <span className="text-ink-5">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {wo.cost ? (
+                          money(Number(wo.cost))
+                        ) : (
+                          <span className="text-ink-4">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-ink-3 text-xs">
@@ -354,14 +386,15 @@ function MiniStat({
   tone,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
-  tone: 'amber' | 'blue' | 'green';
+  tone: 'amber' | 'blue' | 'green' | 'slate';
 }) {
   const tones = {
     amber: 'bg-amber-50 text-amber-600',
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
+    slate: 'bg-slate-100 text-slate-600',
   };
   return (
     <Card>
@@ -650,7 +683,7 @@ function ManageWorkOrderDialog({
             {wo.title}
           </DialogTitle>
           <DialogDescription>
-            {wo.property_name}
+            {wo.place}
             {wo.area_name ? ` · ${wo.area_name}` : ''} · {wo.category_display} ·{' '}
             {wo.priority_display}
           </DialogDescription>
