@@ -126,8 +126,9 @@ function UnitCard({
           <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 p-2 text-sm text-amber-900">
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
+              {/* A plain string, not JSX — an HTML entity would render literally. */}
               {unit.missing_layout_notes ||
-                'Some of this unit&rsquo;s layout has not been recorded yet.'}
+                'Some of this unit’s layout has not been recorded yet.'}
             </span>
           </div>
         )}
