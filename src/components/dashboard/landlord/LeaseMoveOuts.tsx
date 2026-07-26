@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { DepositBadge, DepositSettlement } from './moveout/DepositSettlement';
 import {
   Select,
   SelectContent,
@@ -433,9 +434,30 @@ export default function LeaseMoveOuts({
                     )}
                   </p>
                 </div>
-                <Badge variant="outline" className={statusBadge(r.status)}>
-                  {r.status_display}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <DepositBadge request={r} />
+                  <Badge variant="outline" className={statusBadge(r.status)}>
+                    {r.status_display}
+                  </Badge>
+                </div>
+
+                {/* An accepted move-out is where the 15-day deposit clock
+                    lives. It is the highest-consequence deadline in the app,
+                    so it sits on the record itself rather than behind a
+                    report nobody thinks to open. */}
+                {r.status === 'ACCEPTED' && (
+                  <div className="w-full">
+                    <DepositSettlement
+                      token={token ?? ''}
+                      request={r}
+                      onChanged={(updated) =>
+                        setRequests((prev) =>
+                          prev.map((x) => (x.id === updated.id ? updated : x))
+                        )
+                      }
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

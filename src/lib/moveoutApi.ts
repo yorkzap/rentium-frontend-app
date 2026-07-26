@@ -18,9 +18,7 @@ export interface MoveOutRules {
 }
 
 export type MoveOutKind =
-  | 'TENANT_NOTICE'
-  | 'LANDLORD_NOTICE'
-  | 'MUTUAL_AGREEMENT';
+  'TENANT_NOTICE' | 'LANDLORD_NOTICE' | 'MUTUAL_AGREEMENT';
 export type MoveOutStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
 export type RentHandling = 'NONE' | 'VOID_FINAL' | 'PRORATE_FINAL';
 
@@ -47,7 +45,66 @@ export interface MoveOutRequest {
   landlord_signed: boolean;
   landlord_signed_at: string | null;
   rules_snapshot: Partial<MoveOutRules>;
+
+  // --- deposit settlement -------------------------------------------------
+  forwarding_address: string;
+  forwarding_address_received_on: string | null;
+  deposit_settlement: DepositSettlement;
+  settlement_display: string;
+  tenant_agreement_signed_on: string | null;
+  rtb_file_number: string;
+  deposit_status: DepositStatus;
+
   created_at: string;
+}
+
+export type DepositSettlement = 'PENDING' | 'RETURNED' | 'AGREED' | 'RTB';
+
+/**
+ * The 15-day clock, computed server-side. `deadline` is null until the clock
+ * has genuinely STARTED — it runs from the later of the tenancy ending and
+ * the forwarding address arriving in writing. Showing a date derived from the
+ * end date alone would name a deadline that hasn't begun, which is worse than
+ * showing none because the landlord would act on it.
+ */
+export interface DepositStatus {
+  settlement: DepositSettlement;
+  settled: boolean;
+  forwarding_address_received: string | null;
+  clock_starts: string | null;
+  deadline: string | null;
+  days_left: number | null;
+  overdue: boolean;
+  /** Why the clock hasn't started, when it hasn't. */
+  blocked_on: string | null;
+  what_must_happen: string | null;
+  if_missed: string;
+}
+
+export interface SettleDepositPayload {
+  forwarding_address?: string;
+  forwarding_address_received_on?: string;
+  deposit_settlement?: DepositSettlement;
+  /** Required when settling as AGREED — a written agreement has a date. */
+  tenant_agreement_signed_on?: string;
+  /** Required when settling as RTB — an application has a file number. */
+  rtb_file_number?: string;
+}
+
+export async function settleDeposit(
+  token: string,
+  id: string,
+  payload: SettleDepositPayload
+): Promise<MoveOutRequest> {
+  const res = await fetch(
+    `${DJANGO_API_URL}/leases/moveouts/${id}/settle_deposit/`,
+    {
+      method: 'POST',
+      headers: headers(token),
+      body: JSON.stringify(payload),
+    }
+  );
+  return handle(res);
 }
 
 function headers(token: string, json = true): Record<string, string> {

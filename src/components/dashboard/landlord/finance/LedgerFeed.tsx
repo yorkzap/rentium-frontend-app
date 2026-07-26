@@ -5,23 +5,17 @@
  *
  * The financial page used to split money into a "Charges" tab and an
  * "Expenses" tab, which is the accountant's filing cabinet rather than the
- * question a landlord actually asks — "what happened with my money?". Rent
- * charged in July and the $19.78 knob that fixed the shower are the same
- * story and belong on the same timeline.
+ * question a landlord asks — "what happened with my money?". Rent charged in
+ * July and the $19.78 knob that fixed the shower are the same story and belong
+ * on one timeline.
  *
- * Every row is a LedgerEntry; the type is a column, not a separate screen.
+ * Presentation is deliberately plain: one table, one muted header, a quiet
+ * month separator. An earlier version gave every row an icon, a type badge and
+ * its own card, which turned a list you scan into a wall you read.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Clock,
-  Loader2,
-  Search,
-  Wrench,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Search, Wrench } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -67,33 +61,24 @@ function placeOf(e: LedgerEntry): string {
   return e.property_name || e.holding_name || 'Portfolio-wide';
 }
 
-function StatusChip({ entry }: { entry: LedgerEntry }) {
-  if (entry.voided) return <Badge variant="outline">Voided</Badge>;
-  if (entry.entry_type === 'EXPENSE') {
-    return entry.bank_status === 'PAID' ? (
-      <Badge variant="secondary">Left the bank</Badge>
-    ) : (
-      <Badge variant="outline">Not yet taken</Badge>
-    );
-  }
-  if (!entry.charge_status) return null;
-  const tone: Record<string, string> = {
-    OVERDUE: 'bg-red-100 text-red-800 border-red-200',
-    DUE: 'bg-amber-100 text-amber-900 border-amber-200',
-    PARTIALLY_PAID: 'bg-amber-100 text-amber-900 border-amber-200',
-    PAID: 'bg-green-100 text-green-800 border-green-200',
-    SCHEDULED: 'bg-slate-100 text-slate-700 border-slate-200',
+function statusOf(e: LedgerEntry): { label: string; cls: string } | null {
+  if (e.voided) return { label: 'Voided', cls: 'text-ink-4' };
+  if (e.entry_type === 'EXPENSE')
+    return e.bank_status === 'PAID'
+      ? { label: 'Paid', cls: 'text-ink-3' }
+      : { label: 'Not yet taken', cls: 'text-amber-700' };
+  if (!e.charge_status) return null;
+  const cls: Record<string, string> = {
+    OVERDUE: 'text-red-700',
+    DUE: 'text-amber-700',
+    PARTIALLY_PAID: 'text-amber-700',
+    PAID: 'text-green-700',
+    SCHEDULED: 'text-ink-4',
   };
-  const label = entry.charge_status.replace('_', ' ').toLowerCase();
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs capitalize ${
-        tone[entry.charge_status] ?? ''
-      }`}
-    >
-      {label}
-    </span>
-  );
+  return {
+    label: e.charge_status.replace('_', ' ').toLowerCase(),
+    cls: cls[e.charge_status] ?? 'text-ink-3',
+  };
 }
 
 const TYPE_FILTERS: { value: string; label: string }[] = [
@@ -142,23 +127,6 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
     return () => clearTimeout(t);
   }, [load, search]);
 
-  /** Group by month so a long timeline stays readable. */
-  const months = useMemo(() => {
-    const out: { key: string; label: string; entries: LedgerEntry[] }[] = [];
-    for (const e of rows) {
-      const d = new Date(e.effective_date);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const label = d.toLocaleDateString('en-CA', {
-        month: 'long',
-        year: 'numeric',
-      });
-      const last = out[out.length - 1];
-      if (last && last.key === key) last.entries.push(e);
-      else out.push({ key, label, entries: [e] });
-    }
-    return out;
-  }, [rows]);
-
   /** Totals for what's on screen, so a filtered view still adds up. */
   const totals = useMemo(() => {
     let inn = 0;
@@ -174,11 +142,18 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
     return { inn, out, expected, net: inn - out };
   }, [rows]);
 
+  /** A quiet month label before the first row of each month. */
+  const monthOf = (e: LedgerEntry) =>
+    new Date(e.effective_date).toLocaleDateString('en-CA', {
+      month: 'long',
+      year: 'numeric',
+    });
+
   return (
     <div className="space-y-4">
       <div className="flex w-full flex-wrap gap-2">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -213,136 +188,148 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-ink-4">Money in</p>
-            <p className="text-lg font-semibold text-green-700">
+      {/* One quiet summary line rather than four competing tiles. */}
+      <Card>
+        <CardContent className="flex flex-wrap gap-x-8 gap-y-2 p-4 text-sm">
+          <span>
+            <span className="text-ink-4">In</span>{' '}
+            <span className="font-medium text-green-700">
               {money(totals.inn)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-ink-4">Money out</p>
-            <p className="text-lg font-semibold text-red-700">
+            </span>
+          </span>
+          <span>
+            <span className="text-ink-4">Out</span>{' '}
+            <span className="font-medium text-red-700">
               {money(totals.out)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-ink-4">Net</p>
-            <p className="text-lg font-semibold">{money(totals.net)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-ink-4">Charged (expected)</p>
-            <p className="text-lg font-semibold text-ink-2">
+            </span>
+          </span>
+          <span>
+            <span className="text-ink-4">Net</span>{' '}
+            <span className="font-medium">{money(totals.net)}</span>
+          </span>
+          <span>
+            <span className="text-ink-4">Charged</span>{' '}
+            <span className="font-medium text-ink-2">
               {money(totals.expected)}
+            </span>
+          </span>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-5 w-5 animate-spin text-ink-4" />
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="py-12 text-center text-sm text-ink-4">
+              Nothing in the ledger for this view yet.
             </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-ink-4" />
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="py-12 text-center text-ink-4">
-          Nothing in the ledger for this view yet.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {months.map((m) => (
-            <section key={m.key}>
-              <h3 className="mb-2 text-sm font-medium text-ink-4">{m.label}</h3>
-              <Card>
-                <CardContent className="p-0">
-                  <ul className="divide-y">
-                    {m.entries.map((e) => {
-                      const dir = directionOf(e);
-                      return (
-                        <li
-                          key={e.id}
-                          className="flex flex-wrap items-start gap-3 px-4 py-3"
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            {dir === 'in' && (
-                              <ArrowDownLeft className="h-4 w-4 text-green-600" />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-3">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Description</th>
+                    <th className="hidden px-4 py-3 text-left md:table-cell">
+                      Where
+                    </th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {rows.map((e, i) => {
+                    const dir = directionOf(e);
+                    const status = statusOf(e);
+                    const month = monthOf(e);
+                    const newMonth = i === 0 || month !== monthOf(rows[i - 1]);
+                    return (
+                      <React.Fragment key={e.id}>
+                        {newMonth && (
+                          <tr className="bg-canvas/60">
+                            <td
+                              colSpan={5}
+                              className="px-4 py-1.5 text-xs font-medium text-ink-4"
+                            >
+                              {month}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="hover:bg-canvas">
+                          <td className="whitespace-nowrap px-4 py-3 text-ink-3">
+                            {new Date(e.effective_date).toLocaleDateString(
+                              'en-CA',
+                              { month: 'short', day: 'numeric' }
                             )}
-                            {dir === 'out' && (
-                              <ArrowUpRight className="h-4 w-4 text-red-600" />
-                            )}
-                            {dir === 'expected' && (
-                              <Clock className="h-4 w-4 text-ink-4" />
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium">
-                                {e.description || e.entry_type_display}
-                              </span>
-                              <Badge variant="outline" className="shrink-0">
-                                {e.entry_type_display}
-                              </Badge>
-                              <StatusChip entry={e} />
-                            </div>
-                            <p className="text-sm text-ink-4">
-                              {new Date(e.effective_date).toLocaleDateString(
-                                'en-CA'
-                              )}{' '}
-                              &middot; {placeOf(e)}
-                              {e.tenant_name ? ` · ${e.tenant_name}` : ''}
-                              {e.lease_number ? ` · ${e.lease_number}` : ''}
-                              {e.vendor ? ` · ${e.vendor}` : ''}
-                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-ink">
+                              {e.description || e.entry_type_display}
+                            </span>
+                            <span className="ml-2 text-xs text-ink-4">
+                              {e.entry_type_display}
+                            </span>
                             {e.work_order && (
                               <button
                                 type="button"
                                 onClick={() => onOpenWorkOrder?.(e.work_order!)}
-                                className="mt-1 inline-flex items-center gap-1 text-xs text-ink-4 hover:text-ink-1"
+                                className="ml-2 inline-flex items-center gap-1 align-middle text-xs text-ink-4 hover:text-ink"
+                                title="From a maintenance job"
                               >
                                 <Wrench className="h-3 w-3" />
-                                From a maintenance job
                               </button>
                             )}
-                          </div>
-
-                          <div className="shrink-0 text-right">
-                            <p
-                              className={`font-semibold ${
-                                dir === 'in'
-                                  ? 'text-green-700'
-                                  : dir === 'out'
-                                    ? 'text-red-700'
-                                    : ''
-                              } ${e.voided ? 'line-through opacity-60' : ''}`}
-                            >
-                              {dir === 'out' ? '−' : dir === 'in' ? '+' : ''}
-                              {money(e.amount)}
-                            </p>
+                            <span className="block text-xs text-ink-4 md:hidden">
+                              {placeOf(e)}
+                            </span>
+                          </td>
+                          <td className="hidden px-4 py-3 text-ink-3 md:table-cell">
+                            {placeOf(e)}
+                            {e.tenant_name && (
+                              <span className="block text-xs text-ink-4">
+                                {e.tenant_name}
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={`whitespace-nowrap px-4 py-3 text-right font-medium ${
+                              dir === 'in'
+                                ? 'text-green-700'
+                                : dir === 'out'
+                                  ? 'text-red-700'
+                                  : 'text-ink'
+                            } ${e.voided ? 'line-through opacity-60' : ''}`}
+                          >
+                            {dir === 'out' ? '−' : dir === 'in' ? '+' : ''}
+                            {money(e.amount)}
+                          </td>
+                          <td
+                            className={`whitespace-nowrap px-4 py-3 text-xs capitalize ${
+                              status?.cls ?? 'text-ink-4'
+                            }`}
+                          >
+                            {status?.label ?? '—'}
                             {e.outstanding &&
                               Number(e.outstanding) > 0 &&
                               !e.voided && (
-                                <p className="text-xs text-ink-4">
-                                  {money(e.outstanding)} outstanding
-                                </p>
+                                <span className="block text-ink-4">
+                                  {money(e.outstanding)} left
+                                </span>
                               )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            </section>
-          ))}
-        </div>
-      )}
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
