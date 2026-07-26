@@ -4,7 +4,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Plus, Search, Home, Users, Loader2 } from 'lucide-react';
+import {
+  Building2,
+  Plus,
+  Search,
+  Home,
+  Users,
+  Loader2,
+  LayoutGrid,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -26,6 +34,7 @@ import { fetchHoldings, type Holding } from '@/lib/ramaApi';
 // --- CORRECTED IMPORTS ---
 import { PropertyList } from './properties/PropertyList'; // Named import for named export
 import { GroupList } from './properties/GroupList'; // Named import for named export
+import { PortfolioHierarchy } from './properties/PortfolioHierarchy';
 // -------------------------
 
 // --- Interfaces (Assuming these match your latest backend structure) ---
@@ -95,10 +104,19 @@ export default function AssetManagement() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Portfolio (address -> unit -> what's on the market) is the default: the
+  // flat listing view is what made nine physical units read as fourteen rooms.
+  const viewParam = searchParams.get('view');
   const initialViewMode =
-    searchParams.get('view') === 'groups' ? 'groups' : 'properties';
+    viewParam === 'groups'
+      ? 'groups'
+      : viewParam === 'properties'
+        ? 'properties'
+        : viewParam === 'holdings'
+          ? 'holdings'
+          : 'portfolio';
   const [viewMode, setViewMode] = useState<
-    'properties' | 'groups' | 'holdings'
+    'portfolio' | 'properties' | 'groups' | 'holdings'
   >(initialViewMode);
   const [categoryTab, setCategoryTab] = useState('all');
 
@@ -402,15 +420,23 @@ export default function AssetManagement() {
         defaultValue={initialViewMode}
         value={viewMode}
         onValueChange={(value) =>
-          setViewMode(value as 'properties' | 'groups' | 'holdings')
+          setViewMode(
+            value as 'portfolio' | 'properties' | 'groups' | 'holdings'
+          )
         }
       >
         <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground overflow-x-auto">
           <TabsTrigger
+            value="portfolio"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <LayoutGrid className="h-4 w-4 mr-2 shrink-0" /> Portfolio
+          </TabsTrigger>
+          <TabsTrigger
             value="properties"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
           >
-            <Home className="h-4 w-4 mr-2 shrink-0" /> Properties (
+            <Home className="h-4 w-4 mr-2 shrink-0" /> All listings (
             {categoryCounts.all})
           </TabsTrigger>
           <TabsTrigger
@@ -424,10 +450,21 @@ export default function AssetManagement() {
             value="groups"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
           >
-            <Users className="h-4 w-4 mr-2 shrink-0" /> Property Groups (
+            <Users className="h-4 w-4 mr-2 shrink-0" /> Room-rental groups (
             {groups?.length ?? 0})
           </TabsTrigger>
         </TabsList>
+
+        {/* Portfolio: the shape the buildings actually have */}
+        <TabsContent value="portfolio" className="mt-6">
+          {token ? (
+            <PortfolioHierarchy
+              token={token}
+              searchTerm={searchTerm}
+              onOpenListing={(id) => router.push(`/dashboard/properties/${id}`)}
+            />
+          ) : null}
+        </TabsContent>
 
         {/* Properties Tab Content */}
         <TabsContent value="properties" className="mt-6">
