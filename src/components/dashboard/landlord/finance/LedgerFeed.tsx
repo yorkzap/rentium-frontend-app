@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Search, Wrench } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { dateLabel } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -62,7 +63,18 @@ function placeOf(e: LedgerEntry): string {
 }
 
 function statusOf(e: LedgerEntry): { label: string; cls: string } | null {
-  if (e.voided) return { label: 'Voided', cls: 'text-ink-4' };
+  if (e.voided) {
+    // The strike-through has to explain itself, or hiding the REVERSAL row
+    // just turns a confusing three-row correction into a silent one.
+    const when = e.voided_on
+      ? ` ${dateLabel(e.voided_on, { month: 'short', day: 'numeric' })}`
+      : '';
+    return { label: `Voided${when}`, cls: 'text-ink-4' };
+  }
+  // A reversal only surfaces with "Show corrections" on. Unlabelled, it read as
+  // a third copy of the same amount sitting next to the entry it cancelled.
+  if (e.entry_type === 'REVERSAL')
+    return { label: 'Correction', cls: 'text-ink-4' };
   if (e.entry_type === 'EXPENSE')
     return e.bank_status === 'PAID'
       ? { label: 'Paid', cls: 'text-ink-3' }
@@ -102,6 +114,7 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
   const [typeFilter, setTypeFilter] = useState('all');
   const [propertyFilter, setPropertyFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [showCorrections, setShowCorrections] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,7 +140,29 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
     return () => clearTimeout(t);
   }, [load, search]);
 
-  /** Totals for what's on screen, so a filtered view still adds up. */
+  /**
+   * A void is one event, not two rows. The entry it voided already says so —
+   * struck through, "Voided <date> — <reason>" — so the REVERSAL underneath it
+   * is duplicate bookkeeping on screen: a $19.78 repair read as three separate
+   * $19.78 lines. It stays one click away rather than gone.
+   */
+  const reversalCount = useMemo(
+    () => rows.filter((e) => e.entry_type === 'REVERSAL').length,
+    [rows]
+  );
+  const visible = useMemo(
+    () =>
+      showCorrections ? rows : rows.filter((e) => e.entry_type !== 'REVERSAL'),
+    [rows, showCorrections]
+  );
+
+  /**
+   * Totals for what's on screen, so a filtered view still adds up.
+   * Deliberately over `rows`, not `visible`: hiding a correction must not
+   * change a number. It happens to be a no-op either way — directionOf()
+   * returns 'none' for REVERSAL and for anything voided — but that is a
+   * property of directionOf, not something the totals should rely on.
+   */
   const totals = useMemo(() => {
     let inn = 0;
     let out = 0;
@@ -144,10 +179,7 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
 
   /** A quiet month label before the first row of each month. */
   const monthOf = (e: LedgerEntry) =>
-    new Date(e.effective_date).toLocaleDateString('en-CA', {
-      month: 'long',
-      year: 'numeric',
-    });
+    dateLabel(e.effective_date, { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-4">
@@ -186,6 +218,15 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        {reversalCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowCorrections((v) => !v)}
+            className="whitespace-nowrap px-2 text-sm text-ink-4 underline-offset-4 hover:text-ink hover:underline"
+          >
+            {showCorrections ? 'Hide' : 'Show'} corrections ({reversalCount})
+          </button>
+        )}
       </div>
 
       {/* One quiet summary line rather than four competing tiles. */}
@@ -222,7 +263,7 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-5 w-5 animate-spin text-ink-4" />
             </div>
-          ) : rows.length === 0 ? (
+          ) : visible.length === 0 ? (
             <p className="py-12 text-center text-sm text-ink-4">
               Nothing in the ledger for this view yet.
             </p>
@@ -241,11 +282,14 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {rows.map((e, i) => {
+                  {visible.map((e, i) => {
                     const dir = directionOf(e);
                     const status = statusOf(e);
                     const month = monthOf(e);
-                    const newMonth = i === 0 || month !== monthOf(rows[i - 1]);
+                    // Grouped over the rendered array, so a month whose only
+                    // entry was a hidden correction leaves no orphan heading.
+                    const newMonth =
+                      i === 0 || month !== monthOf(visible[i - 1]);
                     return (
                       <React.Fragment key={e.id}>
                         {newMonth && (
@@ -260,10 +304,10 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                         )}
                         <tr className="hover:bg-canvas">
                           <td className="whitespace-nowrap px-4 py-3 text-ink-3">
-                            {new Date(e.effective_date).toLocaleDateString(
-                              'en-CA',
-                              { month: 'short', day: 'numeric' }
-                            )}
+                            {dateLabel(e.effective_date, {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-ink">
@@ -272,6 +316,17 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                             <span className="ml-2 text-xs text-ink-4">
                               {e.entry_type_display}
                             </span>
+                            {e.entry_type === 'REVERSAL' &&
+                              e.reverses_effective_date && (
+                                <span className="ml-2 text-xs text-ink-4">
+                                  · voids the{' '}
+                                  {dateLabel(e.reverses_effective_date, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}{' '}
+                                  entry
+                                </span>
+                              )}
                             {e.work_order && (
                               <button
                                 type="button"
@@ -281,6 +336,11 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                               >
                                 <Wrench className="h-3 w-3" />
                               </button>
+                            )}
+                            {e.voided && e.void_reason && (
+                              <span className="block text-xs text-ink-4">
+                                {e.void_reason}
+                              </span>
                             )}
                             <span className="block text-xs text-ink-4 md:hidden">
                               {placeOf(e)}
@@ -312,7 +372,14 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                             }`}
                           >
                             {status?.label ?? '—'}
-                            {e.outstanding &&
+                            {/* "left" is a charge concept. An expense or a
+                                payment has no balance to still owe, so the
+                                type guard belongs here as well as in the
+                                annotation that feeds it. */}
+                            {(CHARGE_TYPES as string[]).includes(
+                              e.entry_type
+                            ) &&
+                              e.outstanding &&
                               Number(e.outstanding) > 0 &&
                               !e.voided && (
                                 <span className="block text-ink-4">

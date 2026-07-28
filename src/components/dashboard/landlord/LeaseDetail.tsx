@@ -49,6 +49,7 @@ import LeaseInspections from './LeaseInspections';
 import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
 import BillsEditor, { type BillsMap } from './BillsEditor';
+import { dateLabel } from '@/lib/utils';
 interface RentAdjustment {
   id: string;
   adjustment_type: string;
@@ -962,7 +963,7 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                 <span className="flex items-center text-green-700">
                   <CheckCircle2 className="h-4 w-4 mr-1.5" /> Signed{' '}
                   {lease.landlord_signed_date
-                    ? new Date(lease.landlord_signed_date).toLocaleDateString()
+                    ? dateLabel(lease.landlord_signed_date)
                     : ''}
                 </span>
               ) : (

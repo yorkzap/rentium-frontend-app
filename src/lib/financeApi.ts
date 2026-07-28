@@ -119,10 +119,22 @@ export interface LedgerEntry {
   /** Derived from paid_on, so the UI never reimplements the null-check. */
   bank_status: BankStatus;
 
+  /** CHARGES ONLY — null on every other entry type. An expense or a payment
+   *  is not a receivable, so it has no balance left to owe. */
   settled_amount: string | null;
   outstanding: string | null;
   charge_status: ChargeStatus | null;
   voided: boolean;
+
+  /** Set when this entry has been voided: when, and why. Carried on the entry
+   *  itself rather than left on the REVERSAL row, because the reversal is
+   *  dated the day of the correction (not the original) and is filtered out
+   *  entirely by an entry_type filter — so the two can't be paired client-side.
+   *  Optional so a frontend deployed ahead of the backend degrades quietly. */
+  voided_on?: string | null;
+  void_reason?: string | null;
+  /** On a REVERSAL row: the date of the entry it voids. */
+  reverses_effective_date?: string | null;
 
   metadata: Record<string, unknown>;
   attachments: LedgerAttachment[];
@@ -143,13 +155,40 @@ export interface MonthlyRow {
    * (docs/phase-b-spec.md, B1); absent means "not reported", treated as 0.
    */
   deposits_collected?: string;
+  /**
+   * Damage-recovery claims raised this month. Reported beside expected
+   * income, never folded into it: a claim is contested and settles at
+   * move-out, not on this month's rent run.
+   */
+  damage_claimed?: string;
 }
 
 export interface LedgerSummary {
   monthly: MonthlyRow[];
+  /** INCOME charges only — excludes deposits. Prefer owed_* for anything the
+   *  landlord compares against the ledger rows they can see. */
   outstanding_total: string;
   outstanding_count: number;
   overdue_count: number;
+
+  /**
+   * Every charge type that is due and unsettled — the same set the ledger feed
+   * and Charges tab badge. The tiles read these so a $425 overdue deposit can
+   * no longer be badged "overdue" in the rows while being invisible above them.
+   * Optional so a frontend deployed ahead of the backend falls back quietly.
+   */
+  owed_total?: string;
+  owed_count?: number;
+  owed_overdue_count?: number;
+  /** The parts of owed_total, so the tile can show what it's made of. */
+  rent_outstanding?: string;
+  rent_outstanding_count?: number;
+  damage_claims_outstanding?: string;
+  damage_claims_outstanding_count?: number;
+  deposits_outstanding?: string;
+  deposits_outstanding_count?: number;
+  deposits_overdue_count?: number;
+
   deposits_held: string;
   /** Expenses you've recorded but that haven't cleared your bank yet. */
   expenses_not_yet_paid: string;

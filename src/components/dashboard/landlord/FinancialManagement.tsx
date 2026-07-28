@@ -99,21 +99,11 @@ import {
   type ExpenseCategory,
   type LeaseBillingInfo,
 } from '@/lib/financeApi';
+import { dateLabel } from '@/lib/utils';
 
 const money = (v: string | number | null | undefined) =>
   `$${Number(v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
-const prettyDate = (iso: string | null | undefined) => {
-  if (!iso) return '—';
-  const d = new Date(`${iso}T00:00:00`);
-  return isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString('en-CA', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-};
 
 // The serializer returns lease, lease_number, tenant, tenant_name, is_joint,
 // property_category and paid_on. The local LedgerEntry type may lag behind, so
@@ -276,6 +266,22 @@ export default function FinancialManagement() {
     [unpaidExpenses]
   );
 
+  // The parts of what's owed. Deposits are money the landlord is holding for
+  // the tenant, not money they've earned — the labels have to keep that
+  // distinction visible now that the total includes them.
+  const owedBreakdown = useMemo(
+    () =>
+      [
+        { label: 'rent & fees', amount: summary?.rent_outstanding },
+        { label: 'damage claims', amount: summary?.damage_claims_outstanding },
+        {
+          label: 'deposits (refundable)',
+          amount: summary?.deposits_outstanding,
+        },
+      ].filter((p) => Number(p.amount ?? 0) > 0),
+    [summary]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
@@ -317,16 +323,28 @@ export default function FinancialManagement() {
           icon={<ArrowUpRight className="h-5 w-5" />}
           tone="green"
         />
+        {/* owed_* covers every charge type, matching the rows in the ledger
+            below. outstanding_* is income-only, so a landlord looking at an
+            overdue deposit saw it badged in the feed and counted nowhere up
+            here. Fall back to the old fields if the backend predates them. */}
         <StatCard
           label="Outstanding"
-          value={money(summary?.outstanding_total)}
-          hint={summary ? `${summary.outstanding_count} charge(s) owed` : ''}
+          value={money(summary?.owed_total ?? summary?.outstanding_total)}
+          hint={
+            summary
+              ? `${summary.owed_count ?? summary.outstanding_count} charge(s) owed`
+              : ''
+          }
           icon={<Wallet className="h-5 w-5" />}
           tone="amber"
         />
         <StatCard
           label="Overdue"
-          value={summary ? String(summary.overdue_count) : '—'}
+          value={
+            summary
+              ? String(summary.owed_overdue_count ?? summary.overdue_count)
+              : '—'
+          }
           hint="past due, unpaid"
           icon={<ArrowDownRight className="h-5 w-5" />}
           tone="red"
@@ -334,11 +352,30 @@ export default function FinancialManagement() {
         <StatCard
           label="Deposits held"
           value={money(summary?.deposits_held)}
-          hint="refundable liability"
+          hint={
+            Number(summary?.deposits_outstanding ?? 0) > 0
+              ? `${money(summary?.deposits_outstanding)} still owed`
+              : 'refundable liability'
+          }
           icon={<ShieldCheck className="h-5 w-5" />}
           tone="blue"
         />
       </div>
+
+      {/* What the Outstanding total is made of. Without this the new number is
+          just a different number; with it, the page states for itself why a
+          deposit is owed but never counted as income. */}
+      {owedBreakdown.length > 1 && (
+        <p className="px-1 text-sm text-ink-3">
+          Of <strong>{money(summary?.owed_total)}</strong> owed:{' '}
+          {owedBreakdown.map((part, i) => (
+            <span key={part.label}>
+              {i > 0 && ' · '}
+              {money(part.amount)} {part.label}
+            </span>
+          ))}
+        </p>
+      )}
 
       {unpaidTotal > 0 && (
         <button
@@ -981,7 +1018,7 @@ function ExpensesTable({
                           className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-green-700 hover:underline"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" /> Paid{' '}
-                          {prettyDate(paidOn)}
+                          {dateLabel(paidOn)}
                         </button>
                       ) : (
                         <button
@@ -1238,7 +1275,7 @@ function MarkPaidDialog({
     try {
       await markExpensePaid(token, entry.id, value);
       toast.success(
-        value ? `Marked paid on ${prettyDate(value)}.` : 'Back to unpaid.'
+        value ? `Marked paid on ${dateLabel(value)}.` : 'Back to unpaid.'
       );
       onDone();
     } catch (err) {
@@ -1947,7 +1984,7 @@ function ExpenseDialog({
             />
             <p className="text-xs text-ink-3">
               {paidOn
-                ? `Recorded as paid on ${prettyDate(paidOn)}.`
+                ? `Recorded as paid on ${dateLabel(paidOn)}.`
                 : 'Leave blank if it hasn\'t cleared yet — it\'ll show as "Not yet taken", and you can mark it paid later.'}
             </p>
           </div>
@@ -2342,7 +2379,7 @@ function UtilityBillSheet({
                   />
                   <p className="text-xs text-ink-3">
                     {paidOn
-                      ? `Recorded as paid on ${prettyDate(paidOn)}.`
+                      ? `Recorded as paid on ${dateLabel(paidOn)}.`
                       : 'Leave blank if it hasn\'t cleared yet — it\'ll show as "Not yet taken", and you can mark it paid later.'}
                   </p>
                 </div>

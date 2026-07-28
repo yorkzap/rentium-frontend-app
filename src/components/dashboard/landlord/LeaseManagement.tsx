@@ -24,6 +24,7 @@ import {
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { DJANGO_API_URL } from '@/lib/config';
+import { parseLocalDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface LeaseListItem {
@@ -55,9 +56,9 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function daysRemaining(endDate: string | null): number | null {
-  if (!endDate) return null;
-  const diff = new Date(endDate).getTime() - Date.now();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const end = parseLocalDate(endDate);
+  if (!end) return null;
+  return Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 function formatCurrency(value: string | number) {

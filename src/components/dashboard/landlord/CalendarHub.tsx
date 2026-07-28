@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { dateLabel } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -315,7 +316,7 @@ export default function CalendarHub() {
                             {i.title}
                           </p>
                           <p className="text-xs text-ink-3">
-                            {new Date(i.date).toLocaleDateString([], {
+                            {dateLabel(i.date, {
                               month: 'short',
                               day: 'numeric',
                             })}

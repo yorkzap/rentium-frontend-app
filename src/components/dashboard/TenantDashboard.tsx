@@ -63,6 +63,7 @@ import TenantPaymentsTab from './tenant/TenantPaymentsTab';
 import TenantDocumentsTab from './tenant/TenantDocumentsTab';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO } from 'date-fns';
+import { parseLocalDate } from '@/lib/utils';
 
 const formatCurrency = (amount: number | string | null | undefined): string => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -378,8 +379,8 @@ export default function TenantDashboard() {
         )
         .sort(
           (a, b) =>
-            new Date(b.effective_date).getTime() -
-            new Date(a.effective_date).getTime()
+            (parseLocalDate(b.effective_date)?.getTime() ?? 0) -
+            (parseLocalDate(a.effective_date)?.getTime() ?? 0)
         ),
     [ledgerEntries]
   );
@@ -394,8 +395,8 @@ export default function TenantDashboard() {
         )
         .sort(
           (a, b) =>
-            new Date(a.due_date || a.effective_date).getTime() -
-            new Date(b.due_date || b.effective_date).getTime()
+            (parseLocalDate(a.due_date || a.effective_date)?.getTime() ?? 0) -
+            (parseLocalDate(b.due_date || b.effective_date)?.getTime() ?? 0)
         ),
     [myCharges]
   );
