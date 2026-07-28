@@ -8,7 +8,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, Clock, Globe, MessageCircle, User } from 'lucide-react';
+import {
+  BookOpenCheck,
+  Brain,
+  Clock,
+  Globe,
+  MessageCircle,
+  TrendingUp,
+  User,
+  Zap,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
@@ -17,14 +26,39 @@ import PublicPageSettings from '@/components/dashboard/settings/PublicPageSettin
 import ConstitutionEditor from '@/components/dashboard/settings/ConstitutionEditor';
 import ChannelsSettings from '@/components/dashboard/settings/ChannelsSettings';
 import AvailabilitySettings from '@/components/dashboard/settings/AvailabilitySettings';
+import MemorySettings from '@/components/dashboard/settings/MemorySettings';
+import AutoActionsSettings from '@/components/dashboard/settings/AutoActionsSettings';
+import TreasurerSettings from '@/components/dashboard/settings/TreasurerSettings';
 
-type Tab = 'account' | 'public' | 'hours' | 'constitution' | 'channels';
+type Tab =
+  | 'account'
+  | 'public'
+  | 'hours'
+  | 'constitution'
+  | 'memory'
+  | 'auto'
+  | 'treasurer'
+  | 'channels';
+
+// Landlord-only tabs, so the tenant filter below stays a single list rather
+// than a growing set of exceptions.
+const LANDLORD_ONLY: Tab[] = [
+  'public',
+  'hours',
+  'constitution',
+  'memory',
+  'auto',
+  'treasurer',
+];
 
 const TABS: { id: Tab; label: string; icon: typeof User }[] = [
   { id: 'account', label: 'Account & RAMA', icon: User },
   { id: 'public', label: 'Public page', icon: Globe },
   { id: 'hours', label: 'Viewing hours', icon: Clock },
   { id: 'constitution', label: 'Constitution', icon: BookOpenCheck },
+  { id: 'memory', label: 'Memory', icon: Brain },
+  { id: 'auto', label: 'Done automatically', icon: Zap },
+  { id: 'treasurer', label: 'Treasurer', icon: TrendingUp },
   { id: 'channels', label: 'Channels', icon: MessageCircle },
 ];
 
@@ -38,13 +72,8 @@ export default function SettingsPage() {
   // useSearchParams' Suspense requirement and hydration mismatches.
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get('tab');
-    if (
-      wanted === 'public' ||
-      wanted === 'hours' ||
-      wanted === 'constitution' ||
-      wanted === 'channels'
-    ) {
-      setTab(wanted);
+    if (wanted && TABS.some((t) => t.id === wanted)) {
+      setTab(wanted as Tab);
     }
   }, []);
 
@@ -52,7 +81,7 @@ export default function SettingsPage() {
   // (so they can link Telegram for viewing notices). Landlords get everything.
   const visibleTabs = isLandlord
     ? TABS
-    : TABS.filter((t) => t.id === 'account' || t.id === 'channels');
+    : TABS.filter((t) => !LANDLORD_ONLY.includes(t.id));
   const activeTab: Tab = visibleTabs.some((t) => t.id === tab)
     ? tab
     : 'account';
@@ -102,6 +131,9 @@ export default function SettingsPage() {
       {activeTab === 'public' && <PublicPageSettings />}
       {activeTab === 'hours' && <AvailabilitySettings />}
       {activeTab === 'constitution' && <ConstitutionEditor />}
+      {activeTab === 'memory' && <MemorySettings />}
+      {activeTab === 'auto' && <AutoActionsSettings />}
+      {activeTab === 'treasurer' && <TreasurerSettings />}
       {activeTab === 'channels' && (
         <ChannelsSettings showBriefing={isLandlord} />
       )}

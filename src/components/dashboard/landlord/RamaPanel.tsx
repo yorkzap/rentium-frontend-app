@@ -17,8 +17,15 @@ import {
   type RamaConfig,
   type RamaPendingPlan,
   type RamaPortfolio,
+  RAMA_ROLES,
+  ramaRole,
   type RamaRole,
 } from '@/lib/ramaApi';
+
+// The roles you can talk to directly. The Analyst has no chat surface — it
+// only ever answers a background finding — so it is absent by construction
+// rather than by an exclusion list here.
+const CHAT_ROLES = RAMA_ROLES.filter((r) => r.chatPath);
 
 interface Bubble {
   role: 'user' | 'assistant' | 'error';
@@ -41,8 +48,8 @@ export default function RamaPanel() {
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [pendingPlan, setPendingPlan] = useState<RamaPendingPlan | null>(null);
-  // Corporal = fast ops agent; General = your chief of staff (Constitution,
-  // delegation, stronger model). Each mode keeps its own conversation.
+  // Ops = fast operational agent; General = chief of staff; Treasurer =
+  // finance head. Each keeps its own conversation thread.
   const [role, setRole] = useState<RamaRole>('corporal');
   // Business records are staged, OCRed, and sent as document context.
   const [attachments, setAttachments] = useState<
@@ -242,32 +249,38 @@ export default function RamaPanel() {
               <Sparkles className="h-4 w-4" />
               <div>
                 <p className="text-sm font-semibold leading-tight">
-                  RAMA {role === 'general' ? '· General' : ''}
+                  RAMA {role === 'corporal' ? '' : `· ${ramaRole(role).label}`}
                 </p>
                 <p className="text-[11px] leading-tight text-white/75">
-                  {role === 'general'
-                    ? 'Chief of staff · follows your Constitution'
-                    : 'Your portfolio · asks before acting · private to you'}
+                  {ramaRole(role).tagline}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  // Each mode keeps its own conversation thread.
-                  setRole(role === 'general' ? 'corporal' : 'general');
-                  setBubbles([]);
-                  setConversationId(undefined);
-                  setPendingPlan(null);
-                }}
-                title={
-                  role === 'general'
-                    ? 'Switch to the ops agent'
-                    : 'Switch to the General (chief of staff)'
-                }
-                className="ml-1 rounded-full border border-white/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/15"
-              >
-                {role === 'general' ? 'General' : 'Ops'}
-              </button>
+              <div className="ml-1 flex items-center gap-1">
+                {CHAT_ROLES.map((spec) => (
+                  <button
+                    key={spec.key}
+                    type="button"
+                    onClick={() => {
+                      if (spec.key === role) return;
+                      // Each role keeps its own conversation thread.
+                      setRole(spec.key);
+                      setBubbles([]);
+                      setConversationId(undefined);
+                      setPendingPlan(null);
+                    }}
+                    title={spec.blurb}
+                    aria-pressed={spec.key === role}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                      spec.key === role
+                        ? 'border-white bg-white/20'
+                        : 'border-white/30 hover:bg-white/15'
+                    )}
+                  >
+                    {spec.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-1">
               {bubbles.length > 0 && (

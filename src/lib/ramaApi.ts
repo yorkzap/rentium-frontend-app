@@ -40,6 +40,7 @@ export interface RamaSettings {
   byok?: boolean;
   general?: RamaRoleModel;
   fsa?: RamaRoleModel;
+  treasurer?: RamaRoleModel;
 }
 
 /** Write shape for a per-role override. Omit a field to leave it; api_key '' keeps
@@ -322,6 +323,7 @@ export async function updateRamaSettings(
     clear_api_key?: boolean;
     general?: RamaRoleModelPatch;
     fsa?: RamaRoleModelPatch;
+    treasurer?: RamaRoleModelPatch;
   }
 ): Promise<RamaSettings> {
   const res = await fetch(ramaUrl('/rama/settings/'), {
@@ -332,7 +334,71 @@ export async function updateRamaSettings(
   return handle(res);
 }
 
-export type RamaRole = 'corporal' | 'general';
+export type RamaRole = 'corporal' | 'general' | 'fsa' | 'treasurer';
+
+/** One row per role — the single place a role is described.
+ *
+ * Both the chat router and the settings cards read this, so adding a fifth
+ * role is a row here rather than a new branch in each of them. `chatPath` is
+ * null for roles that are only reachable through the General's delegation
+ * (the FSA analyses sentinel findings; it has no chat surface of its own).
+ */
+export interface RamaRoleSpec {
+  key: RamaRole;
+  /** Backend key in RamaSettings / the PATCH payload. Corporal is the main
+   * model, so it has no per-role override slot. */
+  settingsKey: 'general' | 'fsa' | 'treasurer' | null;
+  chatPath: string | null;
+  label: string;
+  /** Shown under the model card and in the chat header. */
+  tagline: string;
+  blurb: string;
+}
+
+export const RAMA_ROLES: readonly RamaRoleSpec[] = [
+  {
+    key: 'corporal',
+    settingsKey: null,
+    chatPath: '/rama/chat/',
+    label: 'Ops',
+    tagline: 'Your portfolio · asks before acting · private to you',
+    blurb:
+      'Does the work: lookups, edits, plans. This is your main model, set above.',
+  },
+  {
+    key: 'general',
+    settingsKey: 'general',
+    chatPath: '/rama/general/chat/',
+    label: 'General',
+    tagline: 'Chief of staff · follows your Constitution',
+    blurb:
+      'Routes and plans, and relays what the other roles need from you. Give it your smartest model — it makes the decisions the others carry out.',
+  },
+  {
+    key: 'fsa',
+    settingsKey: 'fsa',
+    chatPath: null,
+    label: 'Analyst',
+    tagline: 'Reads only · explains what the watchers found',
+    blurb:
+      'Turns a background finding (a low balance, a late-payment pattern) into a short explanation. Read-only, and never reachable directly.',
+  },
+  {
+    key: 'treasurer',
+    settingsKey: 'treasurer',
+    chatPath: '/rama/treasurer/chat/',
+    label: 'Treasurer',
+    tagline: 'Finance head · reads only · never moves money',
+    blurb:
+      'Works out where money is being lost or could be made — retrofits, financing, rent, tax. Reads only: anything it recommends still comes to you as a plan from the General.',
+  },
+] as const;
+
+export function ramaRole(key: RamaRole): RamaRoleSpec {
+  const found = RAMA_ROLES.find((r) => r.key === key);
+  if (!found) throw new Error(`Unknown RAMA role ${key}`);
+  return found;
+}
 
 export interface ConstitutionSection {
   key: string;
@@ -501,7 +567,10 @@ export async function sendRamaMessage(
   },
   role: RamaRole = 'corporal'
 ): Promise<RamaReply> {
-  const path = role === 'general' ? '/rama/general/chat/' : '/rama/chat/';
+  const path = ramaRole(role).chatPath;
+  if (!path) {
+    throw new Error(`The ${ramaRole(role).label} is not reachable directly.`);
+  }
   try {
     // Tool loops can take a while (several provider round-trips).
     const res = await fetch(ramaUrl(path), {
@@ -522,4 +591,148 @@ export async function sendRamaMessage(
     }
     throw err;
   }
+}
+
+// ---------------------------------------------------------------- memory
+/** A durable preference RAMA holds for this landlord. Never a portfolio
+ * figure — memory refuses money, dates and counts by design, because it is
+ * injected into every prompt with no as-of date. */
+export interface RamaMemoryRow {
+  id: string;
+  subject: string;
+  fact: string;
+  applies_to: string;
+  source: string;
+  personal_data: boolean;
+  used: number;
+  recorded: string;
+}
+
+export async function fetchRamaMemories(
+  token: string,
+  query = ''
+): Promise<{ memories: RamaMemoryRow[] }> {
+  const qs = query ? `?q=${encodeURIComponent(query)}` : '';
+  const res = await fetch(ramaUrl(`/rama/memory/${qs}`), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+/** Genuine erasure, not a status flag — a privacy request has to remove the
+ * text. What survives in the audit is that something went, and when. */
+export async function deleteRamaMemory(
+  token: string,
+  id: string
+): Promise<{ deleted: boolean; subject: string }> {
+  const res = await fetch(ramaUrl(`/rama/memory/${id}/`), {
+    method: 'DELETE',
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+// ---------------------------------------------------------- auto-actions
+/** Something RAMA did without asking. An unattended write the landlord
+ * cannot see is indistinguishable from a bug, so this is the receipt drawer. */
+export interface RamaAutoActionRow {
+  id: string;
+  tool: string;
+  target: string;
+  status: string;
+  conversation_id: string;
+  undoable: boolean;
+  created_at: string;
+  undone_at: string | null;
+}
+
+export async function fetchRamaAutoActions(
+  token: string
+): Promise<{ auto_actions: RamaAutoActionRow[] }> {
+  const res = await fetch(ramaUrl('/rama/auto-actions/'), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function undoRamaAutoAction(
+  token: string,
+  id: string
+): Promise<{ undone?: boolean; error?: string }> {
+  const res = await fetch(ramaUrl(`/rama/auto-actions/${id}/undo/`), {
+    method: 'POST',
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+// ------------------------------------------------------------- treasurer
+export interface TreasurerProfile {
+  consented: boolean;
+  consent_scope: string;
+  occupation: string;
+  employment_income_band: string;
+  other_income_band: string;
+  filing_situation: string;
+  tax_province: string;
+  self_reported_marginal_rate: string | null;
+}
+
+export interface TreasurerRequestRow {
+  id: string;
+  question: string;
+  why_it_matters: string;
+  blocking: boolean;
+  status: string;
+  created_at: string;
+}
+
+export interface TreasurerDeliberationRow {
+  id: string;
+  topic: string;
+  question: string;
+  status: string;
+  trigger: string;
+  holding: string | null;
+  created_at: string;
+}
+
+export interface TreasurerSettings {
+  profile: TreasurerProfile;
+  choices: {
+    income_bands: { value: string; label: string }[];
+    filing_situations: { value: string; label: string }[];
+  };
+  requests: TreasurerRequestRow[];
+  deliberations: TreasurerDeliberationRow[];
+  /** What the Treasurer cannot work out yet, named concretely — a percentage
+   * would not tell you what to go and do. */
+  data_gaps: { holding: string; missing: string[] }[];
+}
+
+export async function fetchTreasurerSettings(
+  token: string
+): Promise<TreasurerSettings> {
+  const res = await fetch(ramaUrl('/rama/treasurer/'), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+/** Writes only the consent gate and the personal fields behind it. Holding
+ * financials, valuations and mortgages go through the General's confirmed
+ * plans — the agent that concludes "your equity looks strong" must not be the
+ * one that types in the valuation. */
+export async function updateTreasurerProfile(
+  token: string,
+  payload: Partial<Omit<TreasurerProfile, 'consented' | 'consent_scope'>> & {
+    consented?: boolean;
+  }
+): Promise<TreasurerSettings> {
+  const res = await fetch(ramaUrl('/rama/treasurer/'), {
+    method: 'PATCH',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
 }

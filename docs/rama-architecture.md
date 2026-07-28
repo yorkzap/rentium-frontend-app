@@ -182,6 +182,40 @@ Why hosted-frontier first:
    human review. Run those behind the same adapter as a cost experiment.
    The orchestrator stays frontier.
 
+### Revisited, July 2026 — Hermes Agent (the framework, not the model)
+
+Nous Research since shipped [hermes-agent](https://github.com/nousresearch/hermes-agent):
+a self-improving personal assistant with an agent loop, a gateway across ~20
+messaging platforms, six terminal backends, cron, MCP, and cross-session user
+modelling. MIT, very actively developed. We evaluated adopting it as RAMA's
+orchestrator, one instance per landlord. **Decision: no.** Four reasons, in
+descending order of weight:
+
+1. **Its headline feature is autonomous skill creation — generated code.**
+   `RAMA_EVOLUTION_PLAN.md` rules that out in as many words. Adopting a system
+   whose main selling point is the thing we ruled out, on a platform holding
+   deposits and signed leases, is not a plumbing decision.
+2. **Its execution model is a terminal in a sandbox.** RAMA's multi-tenancy is
+   enforced _by construction_: `landlord` is injected server-side in
+   `registry.execute()` and appears in no tool schema, so the model cannot even
+   express "some other landlord". Postgres has no row-level tenancy — that
+   boundary lives entirely in Python. Shell access needs DB credentials to be
+   useful, and those are not landlord-scoped. That trades
+   isolation-by-construction for isolation-by-sandbox-configuration.
+3. **There is no equivalent of the confirm invariant.** A general agent loop
+   has no concept of "the model may prepare a write but never approve it".
+4. **Per-landlord instances put agent state outside Postgres**, breaking
+   Postgres-as-system-of-record, `RamaAudit` as the complete record, and the
+   eval harness (which drives real HTTP against a shared app). Its gateway also
+   has no notion of our tenant boundary, which `comms/api/views.py` enforces
+   with two tests.
+
+What we took instead, as patterns rather than a dependency: **durable
+cross-session memory** (`rama/memory.py`) and the **autonomy tier**
+(`rama/autonomy.py`) — with a human gate where Hermes has none. The orchestrator
+was never the bottleneck: `rama/` is ~33k lines and the agent loop itself is
+about 60 of them.
+
 ---
 
 ## 4. Phased build path
@@ -209,11 +243,25 @@ than a few weeks, something in this document was over-designed.
 
 - No self-generated schemas, SQL, or tools (2.3).
 - No writes without a human approval, until and except the v3 allowlist.
+  **v3 shipped (July 2026)** as the autonomy tier: a landlord may pre-authorise
+  named categories in their Constitution, and only tools that declare an exact
+  inverse may join. Everything else still requires an explicit yes, and the
+  model still cannot set `confirm` — see `rentium/rama/autonomy.py`.
 - No cross-landlord retrieval, ever; aggregates only, opt-in (2.5).
-- No long-term memory of conversational resolutions — per-conversation only.
+- ~~No long-term memory of conversational resolutions — per-conversation only.~~
+  **Amended July 2026.** RAMA now keeps durable per-landlord _preferences_
+  across conversations (`rentium/rama/memory.py`). The original rule was aimed
+  at the real hazard — storing conversational _resolutions and portfolio
+  facts_, which go stale and then confidently mislead — and that hazard is now
+  addressed structurally instead of by abstinence: `memory.rejects()` refuses
+  to store rents, balances, dates, counts and occupancy at all, the block is
+  declared subordinate to LIVE PORTFOLIO in the prompt, and conversation
+  summaries remain explicitly out of scope. Preferences only ("never viewings
+  on Sundays"), never state.
 - No staged/dirty data in official records without per-entry human promotion.
 - No self-hosted orchestrator until the hosted baseline sets the reliability
-  bar it must match (3).
+  bar it must match (3). **Reaffirmed July 2026** after evaluating
+  NousResearch/hermes-agent — see §3.
 
 # Document intelligence
 
