@@ -316,11 +316,23 @@ export default function FinancialManagement() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* What actually hit the bank — rent AND deposits. collected_income is
+            income-only by design (a deposit is a liability, not earnings), so
+            showing it here meant a landlord who had just banked a $100 deposit
+            still read "Collected this month $0.00". The backend already
+            computed the combined figure; this tile just never used it. The
+            hint keeps the accounting distinction visible. */}
         <StatCard
-          label="Collected this month"
-          value={money(thisMonth?.collected_income)}
+          label="Received this month"
+          value={money(
+            summary?.collected_this_month_total ?? thisMonth?.collected_income
+          )}
           hint={
-            thisMonth ? `of ${money(thisMonth.expected_income)} expected` : ''
+            Number(thisMonth?.deposits_collected ?? 0) > 0
+              ? `${money(thisMonth?.collected_income)} rent of ${money(thisMonth?.expected_income)} expected · ${money(thisMonth?.deposits_collected)} deposits`
+              : thisMonth
+                ? `of ${money(thisMonth.expected_income)} rent expected`
+                : ''
           }
           icon={<ArrowUpRight className="h-5 w-5" />}
           tone="green"
