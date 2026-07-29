@@ -266,16 +266,18 @@ export default function FinancialManagement() {
     [unpaidExpenses]
   );
 
-  // The parts of what's owed. Deposits are money the landlord is holding for
-  // the tenant, not money they've earned — the labels have to keep that
-  // distinction visible now that the total includes them.
+  // The parts of what tenants still owe YOU. "Owed" on its own never said in
+  // which direction — a landlord reasonably reads it as money they owe — and a
+  // deposit made it worse, because that one becomes a liability the moment it
+  // arrives. So the heading states the direction and the deposit says what it
+  // turns into.
   const owedBreakdown = useMemo(
     () =>
       [
         { label: 'rent & fees', amount: summary?.rent_outstanding },
         { label: 'damage claims', amount: summary?.damage_claims_outstanding },
         {
-          label: 'deposits (refundable)',
+          label: 'deposits (yours to hold, then return)',
           amount: summary?.deposits_outstanding,
         },
       ].filter((p) => Number(p.amount ?? 0) > 0),
@@ -328,11 +330,11 @@ export default function FinancialManagement() {
             overdue deposit saw it badged in the feed and counted nowhere up
             here. Fall back to the old fields if the backend predates them. */}
         <StatCard
-          label="Outstanding"
+          label="Owed to you"
           value={money(summary?.owed_total ?? summary?.outstanding_total)}
           hint={
             summary
-              ? `${summary.owed_count ?? summary.outstanding_count} charge(s) owed`
+              ? `across ${summary.owed_count ?? summary.outstanding_count} unpaid charge(s)`
               : ''
           }
           icon={<Wallet className="h-5 w-5" />}
@@ -354,8 +356,8 @@ export default function FinancialManagement() {
           value={money(summary?.deposits_held)}
           hint={
             Number(summary?.deposits_outstanding ?? 0) > 0
-              ? `${money(summary?.deposits_outstanding)} still owed`
-              : 'refundable liability'
+              ? `${money(summary?.deposits_outstanding)} not received yet`
+              : "yours to hold, the tenant's to get back"
           }
           icon={<ShieldCheck className="h-5 w-5" />}
           tone="blue"
@@ -367,7 +369,8 @@ export default function FinancialManagement() {
           deposit is owed but never counted as income. */}
       {owedBreakdown.length > 1 && (
         <p className="px-1 text-sm text-ink-3">
-          Of <strong>{money(summary?.owed_total)}</strong> owed:{' '}
+          <strong>{money(summary?.owed_total)}</strong> still to come in from
+          tenants:{' '}
           {owedBreakdown.map((part, i) => (
             <span key={part.label}>
               {i > 0 && ' · '}
