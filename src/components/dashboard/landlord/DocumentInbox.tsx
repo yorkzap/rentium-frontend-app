@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  CheckSquare,
   FileCheck2,
   FileSearch,
   Loader2,
   Search,
+  Square,
   Trash2,
   Upload,
   X,
@@ -14,13 +16,17 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/contexts/AuthContext';
 import {
+  bulkRamaDocuments,
   deleteRamaDocument,
   fetchHoldings,
   fetchRamaDocuments,
   fetchRamaDocumentTags,
   downloadRamaDocument,
   fileRamaDocument,
+  markRamaDocumentPaid,
+  moveRamaDocument,
   reocrRamaDocument,
+  restoreRamaDocument,
   updateRamaDocumentTags,
   uploadRamaDocument,
   type Holding,
@@ -73,6 +79,7 @@ const STATUS_OPTIONS = [
   { value: 'QUEUED', label: 'Queued' },
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'FAILED', label: 'Failed' },
+  { value: 'TRASH', label: 'Trash' },
 ];
 
 function documentHeadline(row: RamaDocument): string {
@@ -115,6 +122,14 @@ export default function DocumentInbox({
   const [yearFilter, setYearFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
   const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [bulkHolding, setBulkHolding] = useState('');
+  const [bulkTag, setBulkTag] = useState('');
+
+  const viewingTrash = statusFilter === 'TRASH';
+  const selectedIds = Object.entries(selected)
+    .filter(([, on]) => on)
+    .map(([id]) => id);
 
   // Debounce free-text search
   useEffect(() => {
@@ -162,6 +177,7 @@ export default function DocumentInbox({
     setPagination(docs.pagination ?? null);
     setHoldings(propertyHoldings.holdings);
     setAvailableTags(tags.tags ?? []);
+    setSelected({});
   }, [
     token,
     page,
@@ -277,15 +293,31 @@ export default function DocumentInbox({
 
   const remove = async (row: RamaDocument) => {
     if (!token) return;
-    if (row.ledger_entry_id) {
-      toast.error(
-        'Linked to a ledger expense — cannot delete while linked. Void/unlink the expense first if needed.'
-      );
+    if (viewingTrash) {
+      if (
+        !window.confirm(
+          `Permanently delete “${documentHeadline(row)}”? This cannot be undone.`
+        )
+      ) {
+        return;
+      }
+      setBusy(true);
+      try {
+        await deleteRamaDocument(token, row.id, { hard: true });
+        toast.success('Document permanently deleted.');
+        await reload();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : 'Could not delete document'
+        );
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (
       !window.confirm(
-        `Delete “${documentHeadline(row)}”? This cannot be undone.`
+        `Move “${documentHeadline(row)}” to trash? You can restore it later.`
       )
     ) {
       return;
@@ -293,15 +325,152 @@ export default function DocumentInbox({
     setBusy(true);
     try {
       await deleteRamaDocument(token, row.id);
-      toast.success('Document deleted.');
+      toast.success('Moved to trash.');
       await reload();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Could not delete document'
+        error instanceof Error ? error.message : 'Could not trash document'
       );
     } finally {
       setBusy(false);
     }
+  };
+
+  const restore = async (row: RamaDocument) => {
+    if (!token) return;
+    setBusy(true);
+    try {
+      await restoreRamaDocument(token, row.id);
+      toast.success('Document restored.');
+      await reload();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not restore document'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const markPaid = async (row: RamaDocument) => {
+    if (!token) return;
+    if (!row.ledger_entry_id) {
+      toast.error('No linked ledger expense on this document yet.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await markRamaDocumentPaid(token, row.id);
+      toast.success('Marked paid in the ledger.');
+      await reload();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not mark paid'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const moveHolding = async (row: RamaDocument, holdingId: string) => {
+    if (!token) return;
+    setBusy(true);
+    try {
+      const result = await moveRamaDocument(
+        token,
+        row.id,
+        holdingId === 'portfolio'
+          ? { portfolio_wide: true }
+          : { holding_id: holdingId }
+      );
+      if (result.warning) {
+        toast.warning(result.warning);
+      } else {
+        toast.success(
+          holdingId === 'portfolio'
+            ? 'Moved to whole portfolio.'
+            : 'Moved to the selected property (expense reallocated if linked).'
+        );
+      }
+      await reload();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not move document'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runBulk = async (
+    action: 'trash' | 'restore' | 'tag' | 'move' | 'hard_delete'
+  ) => {
+    if (!token || selectedIds.length === 0) {
+      toast.error('Select at least one document.');
+      return;
+    }
+    if (action === 'tag' && !bulkTag.trim()) {
+      toast.error('Enter a tag name for bulk tag.');
+      return;
+    }
+    if (action === 'move' && !bulkHolding) {
+      toast.error('Choose a property for bulk move.');
+      return;
+    }
+    if (
+      action === 'hard_delete' &&
+      !window.confirm(
+        `Permanently delete ${selectedIds.length} document(s)? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await bulkRamaDocuments(token, {
+        document_ids: selectedIds,
+        action,
+        tag_names:
+          action === 'tag'
+            ? bulkTag
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : undefined,
+        holding_id:
+          action === 'move' && bulkHolding !== 'portfolio'
+            ? bulkHolding
+            : undefined,
+        portfolio_wide: action === 'move' && bulkHolding === 'portfolio',
+      });
+      const errors = result.results.filter((r) => r.error).length;
+      toast.success(
+        errors
+          ? `${action}: ${result.count - errors} ok, ${errors} failed.`
+          : `${action}: ${result.count} document(s).`
+      );
+      setSelected({});
+      await reload();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Bulk action failed'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === documents.length) {
+      setSelected({});
+      return;
+    }
+    const next: Record<string, boolean> = {};
+    for (const row of documents) next[row.id] = true;
+    setSelected(next);
   };
 
   const retryOcr = async (row: RamaDocument) => {
@@ -526,7 +695,9 @@ export default function DocumentInbox({
             <FileSearch className="h-8 w-8 text-[hsl(var(--ink-4))]" />
             <p className="font-medium">
               {hasActiveFilters
-                ? 'No documents match these filters'
+                ? viewingTrash
+                  ? 'Trash is empty'
+                  : 'No documents match these filters'
                 : 'No business documents yet'}
             </p>
             <p className="max-w-md text-sm text-[hsl(var(--ink-3))]">
@@ -543,6 +714,7 @@ export default function DocumentInbox({
               <span>
                 {pagination.total} document
                 {pagination.total === 1 ? '' : 's'}
+                {viewingTrash ? ' in trash' : ''}
                 {pagination.total > pageSize
                   ? ` · page ${pagination.page}`
                   : ''}
@@ -569,6 +741,118 @@ export default function DocumentInbox({
               </div>
             </div>
           )}
+
+          <Card>
+            <CardContent className="flex flex-wrap items-end gap-3 pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={toggleSelectAll}
+                disabled={busy || documents.length === 0}
+              >
+                {selectedIds.length === documents.length &&
+                documents.length > 0 ? (
+                  <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <Square className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {selectedIds.length
+                  ? `${selectedIds.length} selected`
+                  : 'Select all'}
+              </Button>
+              {viewingTrash ? (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || !selectedIds.length}
+                    onClick={() => runBulk('restore')}
+                  >
+                    Restore selected
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={busy || !selectedIds.length}
+                    onClick={() => runBulk('hard_delete')}
+                  >
+                    Delete forever
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || !selectedIds.length}
+                    onClick={() => runBulk('trash')}
+                  >
+                    Trash selected
+                  </Button>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Bulk tag</Label>
+                      <Input
+                        className="h-8 w-40"
+                        placeholder="tax-2026"
+                        value={bulkTag}
+                        onChange={(e) => setBulkTag(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || !selectedIds.length}
+                      onClick={() => runBulk('tag')}
+                    >
+                      Apply tag
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Bulk move</Label>
+                      <Select
+                        value={bulkHolding || 'none'}
+                        onValueChange={(v) =>
+                          setBulkHolding(v === 'none' ? '' : v)
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-48">
+                          <SelectValue placeholder="Property…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Choose…</SelectItem>
+                          <SelectItem value="portfolio">
+                            Whole portfolio
+                          </SelectItem>
+                          {holdings.map((h) => (
+                            <SelectItem key={h.id} value={h.id}>
+                              {h.address || h.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || !selectedIds.length}
+                      onClick={() => runBulk('move')}
+                    >
+                      Move selected
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {documents.map((row) => (
             <Card
               key={row.id}
@@ -581,39 +865,55 @@ export default function DocumentInbox({
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base">
-                      {documentHeadline(row)}
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
-                      {row.canonical_filename || row.original_filename}
-                      {row.original_filename &&
-                      row.title &&
-                      row.original_filename !== row.title
-                        ? ` · was ${row.original_filename}`
-                        : ''}{' '}
-                      · {row.status.replaceAll('_', ' ')}
-                      {row.holding_name ? ` · ${row.holding_name}` : ''}
-                      {row.amount ? ` · $${row.amount}` : ''}
-                      {row.kind ? ` · ${row.kind_display || row.kind}` : ''}
-                    </p>
-                    {(row.tags?.length ?? 0) > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {row.tags!.map((tag) => (
-                          <button
-                            key={tag.id}
-                            type="button"
-                            className="rounded-full bg-[hsl(var(--surface-2))] px-2 py-0.5 text-xs text-[hsl(var(--ink-2))] hover:bg-[hsl(var(--surface-3))]"
-                            onClick={() => {
-                              setTagFilter(tag.slug);
-                              setPage(1);
-                            }}
-                          >
-                            {tag.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      className="mt-1 text-[hsl(var(--ink-3))] hover:text-[hsl(var(--ink-1))]"
+                      onClick={() => toggleSelect(row.id)}
+                      aria-label={
+                        selected[row.id] ? 'Deselect' : 'Select document'
+                      }
+                    >
+                      {selected[row.id] ? (
+                        <CheckSquare className="h-4 w-4" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </button>
+                    <div>
+                      <CardTitle className="text-base">
+                        {documentHeadline(row)}
+                      </CardTitle>
+                      <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
+                        {row.canonical_filename || row.original_filename}
+                        {row.original_filename &&
+                        row.title &&
+                        row.original_filename !== row.title
+                          ? ` · was ${row.original_filename}`
+                          : ''}{' '}
+                        · {row.status.replaceAll('_', ' ')}
+                        {row.holding_name ? ` · ${row.holding_name}` : ''}
+                        {row.amount ? ` · $${row.amount}` : ''}
+                        {row.kind ? ` · ${row.kind_display || row.kind}` : ''}
+                      </p>
+                      {(row.tags?.length ?? 0) > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {row.tags!.map((tag) => (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              className="rounded-full bg-[hsl(var(--surface-2))] px-2 py-0.5 text-xs text-[hsl(var(--ink-2))] hover:bg-[hsl(var(--surface-3))]"
+                              onClick={() => {
+                                setTagFilter(tag.slug);
+                                setPage(1);
+                              }}
+                            >
+                              {tag.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     {row.archival_pdf && token && (
@@ -633,20 +933,43 @@ export default function DocumentInbox({
                         Download PDF/A
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
-                      disabled={busy || !!row.ledger_entry_id}
-                      title={
-                        row.ledger_entry_id
-                          ? 'Linked to a ledger expense'
-                          : 'Delete document'
-                      }
-                      onClick={() => remove(row)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
+                    {viewingTrash ? (
+                      <>
+                        <button
+                          type="button"
+                          className="text-sm text-[hsl(var(--brand))] hover:underline disabled:opacity-40"
+                          disabled={busy}
+                          onClick={() => restore(row)}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
+                          disabled={busy || !!row.ledger_entry_id}
+                          title={
+                            row.ledger_entry_id
+                              ? 'Linked to a ledger expense — cannot hard-delete'
+                              : 'Delete forever'
+                          }
+                          onClick={() => remove(row)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete forever
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
+                        disabled={busy}
+                        title="Move to trash"
+                        onClick={() => remove(row)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Trash
+                      </button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -898,24 +1221,64 @@ export default function DocumentInbox({
                     </Button>
                   </>
                 )}
-                {row.status === 'FILED' && (
-                  <div className="space-y-1 text-sm text-emerald-700">
-                    <p>
-                      Filed as {row.canonical_filename}
-                      {row.ledger_entry_id
-                        ? ' and linked to its immutable expense entry.'
-                        : '.'}
-                    </p>
-                    {holdingLabel(row) && (
-                      <p className="text-[hsl(var(--ink-3))]">
-                        Property: {holdingLabel(row)}
-                        {row.payment_state === 'PAID'
-                          ? ' · Paid'
-                          : row.payment_state === 'UNPAID'
-                            ? ' · Not yet taken from bank'
-                            : ''}
+                {row.status === 'FILED' && !viewingTrash && (
+                  <div className="space-y-3">
+                    <div className="space-y-1 text-sm text-emerald-700">
+                      <p>
+                        Filed as {row.canonical_filename}
+                        {row.ledger_entry_id
+                          ? ' and linked to its immutable expense entry.'
+                          : '.'}
                       </p>
-                    )}
+                      {holdingLabel(row) && (
+                        <p className="text-[hsl(var(--ink-3))]">
+                          Property: {holdingLabel(row)}
+                          {row.payment_state === 'PAID'
+                            ? ' · Paid'
+                            : row.payment_state === 'UNPAID'
+                              ? ' · Not yet taken from bank'
+                              : ''}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--surface-1))] p-3">
+                      {row.ledger_entry_id &&
+                        row.payment_state === 'UNPAID' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => markPaid(row)}
+                          >
+                            Mark paid
+                          </Button>
+                        )}
+                      <div className="min-w-[14rem] flex-1 space-y-1">
+                        <Label className="text-xs">Move to property</Label>
+                        <Select
+                          value={
+                            row.portfolio_wide
+                              ? 'portfolio'
+                              : (row.holding_id ?? '')
+                          }
+                          onValueChange={(value) => moveHolding(row, value)}
+                        >
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Choose property…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="portfolio">
+                              Whole portfolio
+                            </SelectItem>
+                            {holdings.map((holding) => (
+                              <SelectItem key={holding.id} value={holding.id}>
+                                {holding.address || holding.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>

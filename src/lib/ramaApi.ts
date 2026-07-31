@@ -567,6 +567,8 @@ export interface RamaDocument {
   tags?: RamaDocumentTag[];
   created_at: string;
   filed_at: string | null;
+  deleted_at?: string | null;
+  in_trash?: boolean;
   duplicate?: boolean;
 }
 
@@ -638,11 +640,72 @@ export async function updateRamaDocumentTags(
 
 export async function deleteRamaDocument(
   token: string,
-  id: string
-): Promise<{ deleted: boolean; document_id: string }> {
-  const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
+  id: string,
+  opts?: { hard?: boolean }
+): Promise<{ deleted: boolean; trashed?: boolean; document_id: string }> {
+  const qs = opts?.hard ? '?hard=1' : '';
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/${qs}`), {
     method: 'DELETE',
     headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function restoreRamaDocument(
+  token: string,
+  id: string
+): Promise<RamaDocument & { restored?: boolean }> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/restore/`), {
+    method: 'POST',
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function markRamaDocumentPaid(
+  token: string,
+  id: string,
+  paidOn?: string
+): Promise<RamaDocument & { updated?: boolean }> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/mark-paid/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(paidOn ? { paid_on: paidOn } : {}),
+  });
+  return handle(res);
+}
+
+export async function moveRamaDocument(
+  token: string,
+  id: string,
+  payload: { holding_id?: string; portfolio_wide?: boolean }
+): Promise<RamaDocument & { updated?: boolean; warning?: string }> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/move/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function bulkRamaDocuments(
+  token: string,
+  payload: {
+    document_ids: string[];
+    action: 'trash' | 'restore' | 'tag' | 'move' | 'hard_delete';
+    tag_names?: string[];
+    holding_id?: string;
+    portfolio_wide?: boolean;
+  }
+): Promise<{
+  action: string;
+  count: number;
+  results: Array<Record<string, unknown>>;
+}> {
+  const res = await fetch(ramaUrl('/rama/documents/bulk/'), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify(payload),
   });
   return handle(res);
 }
