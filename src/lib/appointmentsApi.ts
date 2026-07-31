@@ -39,6 +39,10 @@ export interface Appointment {
   contact_email: string;
   contact_phone: string;
   notes: string;
+  /** Prospect status-page open tracking (invite link). */
+  prospect_link_first_opened_at?: string | null;
+  prospect_link_last_opened_at?: string | null;
+  prospect_link_open_count?: number;
   proposals: AppointmentProposal[];
 }
 

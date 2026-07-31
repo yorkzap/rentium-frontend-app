@@ -957,6 +957,20 @@ export default function LandlordCalendarPage() {
                                       at {appt.property_name}
                                     </span>
                                   </p>
+                                  {typeof appt.prospect_link_open_count ===
+                                    'number' &&
+                                    appt.kind === 'VIEWING' && (
+                                      <p className="text-xs text-slate-500">
+                                        {appt.prospect_link_open_count > 0
+                                          ? `Invite link opened ${appt.prospect_link_open_count}×`
+                                          : 'Invite link not opened yet'}
+                                        {appt.prospect_link_last_opened_at
+                                          ? ` · last ${new Date(
+                                              appt.prospect_link_last_opened_at
+                                            ).toLocaleString()}`
+                                          : ''}
+                                      </p>
+                                    )}
                                   {(appt.contact_email ||
                                     appt.contact_phone) && (
                                     <p className="text-xs text-slate-500 break-all">
