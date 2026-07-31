@@ -8,15 +8,20 @@ import Link from 'next/link';
 import { Loader2, Paperclip, RotateCcw, Send, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { DJANGO_API_URL } from '@/lib/config';
 import {
   fetchRamaConfig,
   fetchPortfolios,
   setActingPortfolio,
   sendRamaMessage,
-  uploadRamaDocument,
+  removeRamaAttachment,
+  uploadRamaAttachmentBatch,
+  type RamaAttachment,
   type RamaConfig,
   type RamaPendingPlan,
   type RamaPortfolio,
+  type RamaPropertyMediaAttachment,
+  type RamaReplyAttachment,
   RAMA_ROLES,
   ramaRole,
   type RamaRole,
@@ -31,7 +36,28 @@ interface Bubble {
   role: 'user' | 'assistant' | 'error';
   text: string;
   model?: string;
+  attachments?: RamaReplyAttachment[];
 }
+
+const mediaUrl = (value: string): string => {
+  if (!value || value.startsWith('http') || value.startsWith('blob:'))
+    return value;
+  try {
+    const origin = new URL(DJANGO_API_URL).origin;
+    return `${origin}${value.startsWith('/') ? '' : '/'}${value}`;
+  } catch {
+    return value;
+  }
+};
+
+const isPropertyMediaAttachment = (
+  value: RamaReplyAttachment
+): value is RamaPropertyMediaAttachment =>
+  value.kind === 'property_media' &&
+  'property_id' in value &&
+  'label' in value &&
+  'media' in value &&
+  Array.isArray(value.media);
 
 const SUGGESTIONS = [
   'How are things going this month?',
@@ -51,10 +77,11 @@ export default function RamaPanel() {
   // Ops = fast operational agent; General = chief of staff; Treasurer =
   // finance head. Each keeps its own conversation thread.
   const [role, setRole] = useState<RamaRole>('corporal');
-  // Business records are staged, OCRed, and sent as document context.
-  const [attachments, setAttachments] = useState<
-    { id: string; name: string }[]
-  >([]);
+  // Files remain one explicit composer batch until this message is sent. RAMA
+  // classifies that batch from the instruction; it never reaches back to old
+  // uploads from another message or conversation.
+  const [attachmentBatchId, setAttachmentBatchId] = useState<string>();
+  const [attachments, setAttachments] = useState<RamaAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   // Portfolios this user can act on. A co-landlord who co-hosts other owners can
   // switch which portfolio RAMA operates on (own = primary; others = co-hosted).
@@ -67,18 +94,44 @@ export default function RamaPanel() {
     if (!files || !token) return;
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        const document = await uploadRamaDocument(token, file);
-        setAttachments((a) => [...a, { id: document.id, name: file.name }]);
-      }
+      const activeConversation = conversationId ?? crypto.randomUUID();
+      if (!conversationId) setConversationId(activeConversation);
+      const batch = await uploadRamaAttachmentBatch(
+        token,
+        Array.from(files),
+        activeConversation,
+        attachmentBatchId
+      );
+      setAttachmentBatchId(batch.batch_id);
+      setAttachments(batch.attachments);
     } catch {
       setBubbles((b) => [
         ...b,
-        { role: 'error', text: "Couldn't upload that document — try again." },
+        { role: 'error', text: "Couldn't attach those files — try again." },
       ]);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const onRemoveAttachment = async (attachmentId: string) => {
+    if (!token) return;
+    try {
+      const batch = await removeRamaAttachment(token, attachmentId);
+      setAttachments(batch.attachments);
+      if (batch.attachments.length === 0) setAttachmentBatchId(undefined);
+    } catch (err) {
+      setBubbles((b) => [
+        ...b,
+        {
+          role: 'error',
+          text:
+            err instanceof Error
+              ? err.message
+              : "Couldn't remove that attachment.",
+        },
+      ]);
     }
   };
 
@@ -108,6 +161,8 @@ export default function RamaPanel() {
     setBubbles([]);
     setConversationId(undefined);
     setPendingPlan(null);
+    setAttachmentBatchId(undefined);
+    setAttachments([]);
     if (token)
       fetchRamaConfig(token)
         .then(setConfig)
@@ -179,8 +234,7 @@ export default function RamaPanel() {
 
   const ask = async (text: string) => {
     const message = text.trim();
-    const uploadIds = attachments.map((a) => a.id);
-    if ((!message && uploadIds.length === 0) || !token || busy) return;
+    if ((!message && attachments.length === 0) || !token || busy) return;
     setInput('');
     setBubbles((b) => [
       ...b,
@@ -188,10 +242,9 @@ export default function RamaPanel() {
         role: 'user',
         text:
           message +
-          (uploadIds.length ? ` 📎 ${uploadIds.length} document(s)` : ''),
+          (attachments.length ? ` 📎 ${attachments.length} file(s)` : ''),
       },
     ]);
-    setAttachments([]);
     setBusy(true);
     try {
       const reply = await sendRamaMessage(
@@ -199,15 +252,23 @@ export default function RamaPanel() {
         {
           message: message || 'Here is a photo to attach.',
           conversation_id: conversationId,
-          document_ids: uploadIds.length ? uploadIds : undefined,
+          attachment_batch_id:
+            attachments.length > 0 ? attachmentBatchId : undefined,
         },
         role
       );
       setConversationId(reply.conversation_id);
       setPendingPlan(reply.pending_plan ?? null);
+      setAttachmentBatchId(undefined);
+      setAttachments([]);
       setBubbles((b) => [
         ...b,
-        { role: 'assistant', text: reply.reply, model: reply.model },
+        {
+          role: 'assistant',
+          text: reply.reply,
+          model: reply.model,
+          attachments: reply.attachments,
+        },
       ]);
     } catch (err) {
       const text =
@@ -224,6 +285,8 @@ export default function RamaPanel() {
     setBubbles([]);
     setConversationId(undefined);
     setPendingPlan(null);
+    setAttachmentBatchId(undefined);
+    setAttachments([]);
   };
 
   return (
@@ -374,7 +437,52 @@ export default function RamaPanel() {
                     'rounded-bl-sm bg-red-50 text-red-800'
                 )}
               >
-                {bubble.text}
+                <div>{bubble.text}</div>
+                {bubble.attachments?.map((attachment, attachmentIndex) => {
+                  if (!isPropertyMediaAttachment(attachment)) return null;
+                  return (
+                    <div
+                      key={`${attachment.property_id}-${attachmentIndex}`}
+                      className="mt-3 grid grid-cols-2 gap-2"
+                    >
+                      {attachment.media.map((item) => (
+                        <div
+                          key={item.handle}
+                          className="overflow-hidden rounded-lg border bg-white"
+                          style={{ borderColor: 'hsl(var(--line))' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={mediaUrl(item.url)}
+                            alt={
+                              item.caption ||
+                              `Photo ${item.selection_number} on ${attachment.label}`
+                            }
+                            className="aspect-square w-full object-cover"
+                          />
+                          <div className="flex items-center justify-between gap-1 p-1.5">
+                            <span className="truncate text-[10px] text-[hsl(var(--ink-3))]">
+                              {item.selection_number}.{' '}
+                              {item.kind === 'primary' ? 'Main' : 'Gallery'}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                void ask(
+                                  `Remove photo ${item.handle} from listing ${attachment.property_id}.`
+                                )
+                              }
+                              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             ))}
             {/* Pending plan card. Confirm/Cancel just send "yes"/"cancel" —
@@ -470,12 +578,8 @@ export default function RamaPanel() {
                     <span className="max-w-[120px] truncate">{a.name}</span>
                     <button
                       type="button"
-                      aria-label="Remove document"
-                      onClick={() =>
-                        setAttachments((list) =>
-                          list.filter((x) => x.id !== a.id)
-                        )
-                      }
+                      aria-label="Remove attachment"
+                      onClick={() => void onRemoveAttachment(a.id)}
                       className="text-[hsl(var(--ink-4))] hover:text-red-600"
                     >
                       <X className="h-3 w-3" />
@@ -497,8 +601,8 @@ export default function RamaPanel() {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={busy || uploading}
-                aria-label="Attach business document"
-                title="Attach a receipt, notice, invoice, or other business document"
+                aria-label="Attach files"
+                title="Attach property photos or business documents"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[hsl(var(--ink-3))] transition hover:text-[hsl(var(--brand))] disabled:opacity-40"
                 style={{ borderColor: 'hsl(var(--line))' }}
               >

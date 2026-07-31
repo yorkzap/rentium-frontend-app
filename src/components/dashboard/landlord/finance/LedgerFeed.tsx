@@ -248,8 +248,8 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
             <span className="text-ink-4">Net</span>{' '}
             <span className="font-medium">{money(totals.net)}</span>
           </span>
-          <span>
-            <span className="text-ink-4">Charged</span>{' '}
+          <span title="Face value of all charge lines in this filtered ledger, including scheduled and overdue charges. Payments received are shown under In.">
+            <span className="text-ink-4">Charges shown</span>{' '}
             <span className="font-medium text-ink-2">
               {money(totals.expected)}
             </span>

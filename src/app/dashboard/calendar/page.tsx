@@ -74,6 +74,7 @@ import {
   createAppointment,
   declineAppointment,
   listAppointments,
+  rescheduleAppointment,
   type Appointment,
   type AppointmentKind,
 } from '@/lib/appointmentsApi';
@@ -104,7 +105,7 @@ const LEGEND: { kind: keyof typeof KIND_STYLES; label: string }[] = [
   { kind: 'DEADLINE', label: 'Deadline' },
 ];
 
-type PanelAction = null | 'schedule' | 'expense' | 'utility';
+type PanelAction = null | 'schedule' | 'expense' | 'utility' | 'reschedule';
 
 export default function LandlordCalendarPage() {
   const router = useRouter();
@@ -130,6 +131,10 @@ export default function LandlordCalendarPage() {
   // countering a viewing request with a different time
   const [counterId, setCounterId] = useState<string | null>(null);
   const [counterWhen, setCounterWhen] = useState('');
+  // reschedule a confirmed visit
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('14:00');
   // schedule form
   const [schedKind, setSchedKind] = useState<AppointmentKind>('VIEWING');
   const [schedTime, setSchedTime] = useState('10:00');
@@ -990,24 +995,109 @@ export default function LandlordCalendarPage() {
                                 </Link>
                               )}
                               {apptId && e.status === 'SCHEDULED' && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  title="Cancel this visit"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    run(
-                                      () => cancelAppointment(token!, apptId),
-                                      'Cancelled — tenants notified.'
-                                    )
-                                  }
-                                >
-                                  <X className="h-3.5 w-3.5 text-slate-400" />
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-1.5 text-[10px]"
+                                    title="Reschedule this visit"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setRescheduleId(apptId);
+                                      setRescheduleDate(
+                                        appt!.starts_at.slice(0, 10)
+                                      );
+                                      setRescheduleTime(
+                                        new Date(appt!.starts_at)
+                                          .toTimeString()
+                                          .slice(0, 5)
+                                      );
+                                      setAction('reschedule');
+                                    }}
+                                  >
+                                    Reschedule
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    title="Cancel this visit"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      run(
+                                        () => cancelAppointment(token!, apptId),
+                                        'Cancelled — tenants notified.'
+                                      )
+                                    }
+                                  >
+                                    <X className="h-3.5 w-3.5 text-slate-400" />
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
+                          {action === 'reschedule' &&
+                            rescheduleId === apptId &&
+                            appt && (
+                              <div className="mt-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                                <p className="text-xs font-medium text-slate-700">
+                                  New time for {appt.contact_name || 'visitor'}
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <input
+                                    type="date"
+                                    className="field text-xs"
+                                    value={rescheduleDate}
+                                    onChange={(e) =>
+                                      setRescheduleDate(e.target.value)
+                                    }
+                                  />
+                                  <input
+                                    type="time"
+                                    className="field text-xs"
+                                    value={rescheduleTime}
+                                    onChange={(e) =>
+                                      setRescheduleTime(e.target.value)
+                                    }
+                                  />
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 bg-teal-600 hover:bg-teal-700"
+                                    disabled={
+                                      busy || !rescheduleDate || !rescheduleTime
+                                    }
+                                    onClick={() =>
+                                      run(async () => {
+                                        await rescheduleAppointment(
+                                          token!,
+                                          rescheduleId,
+                                          new Date(
+                                            `${rescheduleDate}T${rescheduleTime}:00`
+                                          ).toISOString()
+                                        );
+                                        setRescheduleId(null);
+                                      }, 'Rescheduled — the visitor was emailed the new time.')
+                                    }
+                                  >
+                                    Save new time
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setAction(null);
+                                      setRescheduleId(null);
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           {/* A REQUESTED viewing is actionable right here,
                               not just in the rail at the top of the page. */}
                           {appt && appt.status === 'REQUESTED' && (

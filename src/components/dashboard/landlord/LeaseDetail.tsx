@@ -80,6 +80,18 @@ interface LeaseTenantDetail {
   decline_reason: string;
   invited_email: string;
   invite_status: 'LINKED' | 'ACCEPTED' | 'PENDING' | 'NOT_SENT' | 'DECLINED';
+  invite_lifecycle?: {
+    invite_sent: boolean;
+    invite_sent_at: string | null;
+    invite_link_opened: boolean;
+    invite_link_opened_at: string | null;
+    account_linked: boolean;
+    account_linked_at: string | null;
+    signed: boolean;
+    signed_at: string | null;
+    declined: boolean;
+    evidence_note: string;
+  };
   invite_url: string | null;
   invite_sent_at: string | null;
   invite_accepted_at: string | null;
@@ -1254,6 +1266,26 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                     )}
                     {lt.room_name && ` · ${lt.room_name}`}
                   </div>
+                  {lt.invite_lifecycle && (
+                    <div
+                      className="mt-1 text-xs text-slate-500"
+                      title={lt.invite_lifecycle.evidence_note}
+                    >
+                      {lt.invite_lifecycle.invite_link_opened
+                        ? `Invite link opened${
+                            lt.invite_lifecycle.invite_link_opened_at
+                              ? ` ${new Date(
+                                  lt.invite_lifecycle.invite_link_opened_at
+                                ).toLocaleString()}`
+                              : ''
+                          }`
+                        : 'Invite link not opened'}
+                      {' · '}
+                      {lt.invite_lifecycle.account_linked
+                        ? 'Account linked'
+                        : 'No account linked yet'}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span

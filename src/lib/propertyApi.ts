@@ -218,6 +218,7 @@ export interface PropertyDetail {
   status: PropertyStatus;
   status_display: string;
   primary_image: string | null;
+  additional_images: PropertyImage[];
 
   unit_type: UnitType | null;
   bedrooms: number | null;
@@ -247,6 +248,25 @@ export interface PropertyDetail {
   is_furnished: boolean; // DERIVED from inventory. Never editable.
   publish_blockers: string[]; // why this can't appear publicly, in plain words
   can_be_published: boolean;
+}
+
+export interface PropertyImage {
+  id: number;
+  image: string;
+  caption: string | null;
+  order: number;
+  created_at?: string;
+}
+
+export interface PropertyMedia {
+  handle: string;
+  kind: 'primary' | 'gallery';
+  id?: number;
+  url: string;
+  filename: string;
+  caption?: string;
+  order: number;
+  selection_number: number;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -392,6 +412,40 @@ export async function deleteGalleryImage(
     }
   );
   await handle(res);
+}
+
+export async function deletePropertyMedia(
+  token: string,
+  propertyId: number | string,
+  mediaHandle: string
+): Promise<{ removed: string; storage_name: string }> {
+  const res = await fetch(
+    `${DJANGO_API_URL}/properties/${propertyId}/media/${encodeURIComponent(
+      mediaHandle
+    )}/`,
+    {
+      method: 'DELETE',
+      headers: headers(token, false),
+    }
+  );
+  return handle(res);
+}
+
+/**
+ * Authoritative primary + gallery list for a listing (handles, order, URLs).
+ * Prefer this over `additional_images` alone when the landlord needs to
+ * review or delete every photo — including ones RAMA attached in bulk.
+ */
+export async function fetchPropertyMedia(
+  token: string,
+  propertyId: number | string
+): Promise<PropertyMedia[]> {
+  const res = await fetch(`${DJANGO_API_URL}/properties/${propertyId}/media/`, {
+    headers: headers(token, false),
+  });
+  const data = await handle<PropertyMedia[] | { media?: PropertyMedia[] }>(res);
+  if (Array.isArray(data)) return data;
+  return data.media ?? [];
 }
 
 // NOTE the URL. Django routes groups at /api/properties/groups/ — the frontend

@@ -163,6 +163,20 @@ export default function ViewingStatusPage() {
           <CardDescription>{tone.body}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Time first — prospects and landlords both need the when, not
+              only the property name. Embedded in prose alone was easy to miss. */}
+          <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-teal-800">
+              When
+            </p>
+            <p className="mt-1 text-lg font-semibold text-teal-950">
+              {fmtWhen(status.starts_at)}
+            </p>
+            <p className="mt-0.5 text-xs text-teal-800/80">
+              Local time on your device
+            </p>
+          </div>
+
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
             <p className="font-medium text-neutral-900">
               {status.property.name}

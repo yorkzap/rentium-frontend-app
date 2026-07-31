@@ -147,6 +147,21 @@ export async function counterAppointment(
   return handle(res);
 }
 
+/** Move a confirmed (or open) viewing to a new datetime; emails the prospect. */
+export async function rescheduleAppointment(
+  token: string,
+  id: string,
+  startsAt: string,
+  message = ''
+): Promise<Appointment> {
+  const res = await fetch(`${DJANGO_API_URL}/appointments/${id}/reschedule/`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ starts_at: startsAt, message }),
+  });
+  return handle(res);
+}
+
 /** Current tenant records consent (advisory) for a showing at their unit. */
 export async function tenantRespondAppointment(
   token: string,

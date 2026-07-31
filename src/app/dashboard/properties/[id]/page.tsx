@@ -50,21 +50,14 @@ import { cn } from '@/lib/utils';
 import BillsEditor, {
   type BillsMap,
 } from '@/components/dashboard/landlord/BillsEditor';
-
-// Images come back as relative /media/ paths; the API and the app are on
-// different origins in dev.
-const ORIGIN = (() => {
-  try {
-    return new URL(DJANGO_API_URL).origin;
-  } catch {
-    return '';
-  }
-})();
+import PropertyMediaManager, {
+  mediaUrl,
+} from '@/components/dashboard/landlord/PropertyMediaManager';
 
 const img = (u: string | null): string | null => {
   if (!u) return null;
-  if (u.startsWith('http') || u.startsWith('blob:')) return u;
-  return ORIGIN ? `${ORIGIN}${u.startsWith('/') ? '' : '/'}${u}` : u;
+  const resolved = mediaUrl(u);
+  return resolved || null;
 };
 
 const money = (v: string | null) =>
@@ -86,7 +79,6 @@ interface InventoryItem {
 
 interface FullProperty extends PropertyDetail {
   landlord_name: string;
-  additional_images: { id: number; image: string; caption: string | null }[];
   private_inventory_items: InventoryItem[];
   shared_inventory_items: InventoryItem[];
   group_name: string | null;
@@ -184,12 +176,10 @@ export default function PropertyDetailPage() {
 
   const isRoom = p.property_category === 'ROOM';
   const typeLabel = isRoom ? p.room_type_display : p.unit_type_display;
-  const gallery = (p.additional_images ?? []).map((i) => ({
-    ...i,
-    url: img(i.image),
-  }));
   const inventory = p.private_inventory_items ?? [];
   const sharedInventory = p.shared_inventory_items ?? [];
+  const photoCount =
+    (p.primary_image ? 1 : 0) + (p.additional_images?.length ?? 0);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -272,46 +262,48 @@ export default function PropertyDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
-          {/* photos */}
-          <section className="card overflow-hidden">
-            <div className="relative aspect-[16/9] bg-[hsl(var(--surface-sunken))]">
-              {img(p.primary_image) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={img(p.primary_image)!}
-                  alt={p.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center text-[hsl(var(--ink-5))]">
-                  <Camera className="mb-2 h-8 w-8" />
-                  <p className="text-sm">
-                    No photo — nobody enquires about a grey box
-                  </p>
-                  <Link
-                    href={`/dashboard/properties/edit/${id}`}
-                    className="mt-2 text-sm font-medium text-[hsl(var(--brand))] hover:underline"
-                  >
-                    Add one
-                  </Link>
-                </div>
-              )}
+          {/* photos — full manager so landlords can strip bad RAMA dumps
+              without hunting a broken gallery on the edit form. */}
+          <section className="card p-4 sm:p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-semibold">Photos</h2>
+                <p className="mt-0.5 text-xs text-[hsl(var(--ink-4))]">
+                  {photoCount === 0
+                    ? 'No photos yet.'
+                    : `${photoCount} on this listing — select and remove any that don't belong.`}
+                </p>
+              </div>
+              <Link
+                href={`/dashboard/properties/edit/${id}`}
+                className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
+              >
+                Add photos
+              </Link>
             </div>
-            {gallery.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto p-3">
-                {gallery.map((g) => (
-                  <div
-                    key={g.id}
-                    className="h-16 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-[hsl(var(--surface-sunken))]"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={g.url ?? ''}
-                      alt={g.caption ?? ''}
-                      className="h-full w-full object-cover"
-                    />
+            {token ? (
+              <PropertyMediaManager
+                propertyId={id}
+                token={token}
+                primaryImage={p.primary_image}
+                additionalImages={p.additional_images}
+                onChange={() => void load()}
+              />
+            ) : (
+              <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-[hsl(var(--surface-sunken))]">
+                {img(p.primary_image) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={img(p.primary_image)!}
+                    alt={p.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-[hsl(var(--ink-5))]">
+                    <Camera className="mb-2 h-8 w-8" />
+                    <p className="text-sm">No photo</p>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </section>

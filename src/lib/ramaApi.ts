@@ -86,7 +86,32 @@ export interface RamaReply {
   model: string;
   tools_used: string[];
   pending_plan?: RamaPendingPlan | null;
+  attachments?: RamaReplyAttachment[];
 }
+
+export interface RamaPropertyMediaItem {
+  handle: string;
+  kind: 'primary' | 'gallery';
+  id?: number;
+  url: string;
+  filename: string;
+  caption?: string;
+  selection_number: number;
+}
+
+export interface RamaPropertyMediaAttachment {
+  kind: 'property_media';
+  property_id: string;
+  label: string;
+  media: RamaPropertyMediaItem[];
+}
+
+export type RamaReplyAttachment =
+  | RamaPropertyMediaAttachment
+  | {
+      kind: string;
+      [key: string]: unknown;
+    };
 
 // ----------------------------------------------------------- insights
 export interface RamaInsightRow {
@@ -457,6 +482,54 @@ export async function uploadRamaPhoto(
   return data.upload_id as string;
 }
 
+export interface RamaAttachment {
+  id: string;
+  name: string;
+  content_type: string;
+  size: number;
+  sequence: number;
+  classification: 'UNKNOWN' | 'PROPERTY_PHOTO' | 'DOCUMENT';
+  status: 'STAGED' | 'CLASSIFIED' | 'APPLIED' | 'REJECTED' | 'FAILED';
+}
+
+export interface RamaAttachmentBatch {
+  batch_id: string;
+  conversation_id: string;
+  status: 'OPEN' | 'SEALED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  attachments: RamaAttachment[];
+}
+
+/** Stage one composer selection as an explicit, conversation-owned batch.
+ * Additional picks append only when the same open batch_id is provided. */
+export async function uploadRamaAttachmentBatch(
+  token: string,
+  files: File[],
+  conversationId: string,
+  batchId?: string
+): Promise<RamaAttachmentBatch> {
+  const form = new FormData();
+  form.append('conversation_id', conversationId);
+  if (batchId) form.append('batch_id', batchId);
+  files.forEach((file) => form.append('files', file));
+  const res = await fetch(ramaUrl('/rama/attachment-batches/'), {
+    method: 'POST',
+    headers: { Authorization: `Token ${token}` },
+    body: form,
+  });
+  return handle(res);
+}
+
+export async function removeRamaAttachment(
+  token: string,
+  attachmentId: string
+): Promise<RamaAttachmentBatch> {
+  const res = await fetch(ramaUrl(`/rama/attachments/${attachmentId}/`), {
+    method: 'DELETE',
+    headers: { Authorization: `Token ${token}` },
+  });
+  return handle(res);
+}
+
 export interface RamaDocument {
   id: string;
   status:
@@ -564,6 +637,7 @@ export async function sendRamaMessage(
     conversation_id?: string;
     upload_ids?: string[];
     document_ids?: string[];
+    attachment_batch_id?: string;
   },
   role: RamaRole = 'corporal'
 ): Promise<RamaReply> {

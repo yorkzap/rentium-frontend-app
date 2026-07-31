@@ -9,12 +9,7 @@
 // on the detail response are optional so a single type can describe both.
 
 export type LeaseStatus =
-  | 'DRAFT'
-  | 'PENDING'
-  | 'ACTIVE'
-  | 'EXPIRED'
-  | 'TERMINATED'
-  | 'RENEWED';
+  'DRAFT' | 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'RENEWED';
 
 export type LeaseType =
   | 'BC_ROOMMATE'
@@ -56,6 +51,18 @@ export interface LeaseTenant {
   invited_name?: string | null;
   invited_phone?: string | null;
   invite_status?: 'NOT_SENT' | 'PENDING' | 'ACCEPTED' | 'LINKED' | 'DECLINED';
+  invite_lifecycle?: {
+    invite_sent: boolean;
+    invite_sent_at: string | null;
+    invite_link_opened: boolean;
+    invite_link_opened_at: string | null;
+    account_linked: boolean;
+    account_linked_at: string | null;
+    signed: boolean;
+    signed_at: string | null;
+    declined: boolean;
+    evidence_note: string;
+  };
   invite_url?: string | null;
   invite_sent_at?: string | null;
   invite_accepted_at?: string | null;

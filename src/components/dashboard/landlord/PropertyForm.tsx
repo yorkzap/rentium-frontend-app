@@ -39,6 +39,9 @@ import {
   updateProperty,
   uploadPrimaryImage,
 } from '@/lib/propertyApi';
+import PropertyMediaManager, {
+  mediaUrl,
+} from '@/components/dashboard/landlord/PropertyMediaManager';
 import AddressInput, { ResolvedAddress } from '@/components/form/AddressInput';
 import {
   CardChoice,
@@ -130,6 +133,7 @@ export default function PropertyForm({ propertyId }: Props) {
   const [primaryFile, setPrimaryFile] = useState<File | null>(null);
   const [primaryPreview, setPrimaryPreview] = useState<string | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [mediaKey, setMediaKey] = useState(0);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -189,7 +193,8 @@ export default function PropertyForm({ propertyId }: Props) {
               .join(', '),
           });
         }
-        setPrimaryPreview(p.primary_image);
+        setPrimaryPreview(p.primary_image ? mediaUrl(p.primary_image) : null);
+        setMediaKey((k) => k + 1);
       })
       .catch(() => toast.error("Couldn't load that property."))
       .finally(() => setLoading(false));
@@ -641,14 +646,41 @@ export default function PropertyForm({ propertyId }: Props) {
         <section className="card p-5">
           <h2 className="font-semibold">Photos</h2>
           <p className="mb-4 mt-1 text-sm text-[hsl(var(--ink-4))]">
-            The first photo does most of the work. Nobody enquires about a grey
-            box.
+            Every photo on this listing — main and gallery. Tick the junk ones
+            (wrong house, mortgage letters) and remove them. The first photo
+            does most of the work on the public page.
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {isEdit && token && propertyId && (
+              <PropertyMediaManager
+                key={mediaKey}
+                propertyId={propertyId}
+                token={token}
+                primaryImage={existing?.primary_image}
+                additionalImages={existing?.additional_images}
+                compact
+                onChange={() => {
+                  setMediaKey((k) => k + 1);
+                  fetchProperty(token, propertyId)
+                    .then((p) => {
+                      setExisting(p);
+                      if (!primaryFile) {
+                        setPrimaryPreview(
+                          p.primary_image ? mediaUrl(p.primary_image) : null
+                        );
+                      }
+                    })
+                    .catch(() => undefined);
+                }}
+              />
+            )}
+
             <div>
-              <p className="mb-2 text-sm font-medium">Main photo</p>
-              {primaryPreview ? (
+              <p className="mb-2 text-sm font-medium">
+                {isEdit ? 'Replace main photo' : 'Main photo'}
+              </p>
+              {primaryPreview && primaryFile ? (
                 <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[hsl(var(--surface-sunken))]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -660,8 +692,13 @@ export default function PropertyForm({ propertyId }: Props) {
                     type="button"
                     onClick={() => {
                       setPrimaryFile(null);
-                      setPrimaryPreview(null);
+                      setPrimaryPreview(
+                        existing?.primary_image
+                          ? mediaUrl(existing.primary_image)
+                          : null
+                      );
                     }}
+                    aria-label="Cancel new main photo"
                     className="absolute right-2 top-2 rounded-lg bg-black/60 p-1.5 text-white"
                   >
                     <X className="h-4 w-4" />
@@ -669,12 +706,12 @@ export default function PropertyForm({ propertyId }: Props) {
                 </div>
               ) : (
                 <label
-                  className="flex aspect-[16/10] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors hover:bg-[hsl(var(--surface-sunken))]"
+                  className="flex aspect-[16/10] max-h-48 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors hover:bg-[hsl(var(--surface-sunken))]"
                   style={{ borderColor: 'hsl(var(--line-strong))' }}
                 >
                   <Camera className="mb-2 h-7 w-7 text-[hsl(var(--ink-5))]" />
                   <span className="text-sm font-medium">
-                    Add the main photo
+                    {isEdit ? 'Upload a new main photo' : 'Add the main photo'}
                   </span>
                   <input
                     type="file"
@@ -692,11 +729,13 @@ export default function PropertyForm({ propertyId }: Props) {
             </div>
 
             <div>
-              <p className="mb-2 text-sm font-medium">More photos</p>
+              <p className="mb-2 text-sm font-medium">
+                {isEdit ? 'Add more photos' : 'More photos'}
+              </p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {galleryFiles.map((f, i) => (
                   <div
-                    key={i}
+                    key={`${f.name}-${i}`}
                     className="relative aspect-square overflow-hidden rounded-lg bg-[hsl(var(--surface-sunken))]"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -728,7 +767,7 @@ export default function PropertyForm({ propertyId }: Props) {
                     className="hidden"
                     onChange={(e) => {
                       const files = Array.from(e.target.files ?? []);
-                      setGalleryFiles((g) => [...g, ...files].slice(0, 12));
+                      setGalleryFiles((g) => [...g, ...files].slice(0, 40));
                       e.target.value = '';
                     }}
                   />
