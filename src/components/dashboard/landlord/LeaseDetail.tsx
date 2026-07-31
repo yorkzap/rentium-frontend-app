@@ -85,6 +85,11 @@ interface LeaseTenantDetail {
     invite_sent_at: string | null;
     invite_link_opened: boolean;
     invite_link_opened_at: string | null;
+    has_seen_lease?: boolean;
+    first_seen_at?: string | null;
+    last_seen_at?: string | null;
+    seen_count?: number;
+    last_seen_source?: 'invite_link' | 'agreement' | 'pdf' | null;
     account_linked: boolean;
     account_linked_at: string | null;
     signed: boolean;
@@ -1295,22 +1300,58 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                   </div>
                   {lt.invite_lifecycle && (
                     <div
-                      className="mt-1 text-xs text-slate-500"
+                      className="mt-1.5 space-y-0.5 text-xs"
                       title={lt.invite_lifecycle.evidence_note}
                     >
-                      {lt.invite_lifecycle.invite_link_opened
-                        ? `Invite link opened${
-                            lt.invite_lifecycle.invite_link_opened_at
-                              ? ` ${new Date(
-                                  lt.invite_lifecycle.invite_link_opened_at
-                                ).toLocaleString()}`
-                              : ''
-                          }`
-                        : 'Invite link not opened'}
-                      {' · '}
-                      {lt.invite_lifecycle.account_linked
-                        ? 'Account linked'
-                        : 'No account linked yet'}
+                      <div
+                        className={
+                          lt.invite_lifecycle.has_seen_lease ||
+                          lt.invite_lifecycle.invite_link_opened
+                            ? 'font-medium text-slate-700'
+                            : 'text-amber-700'
+                        }
+                      >
+                        {lt.invite_lifecycle.last_seen_at ||
+                        lt.invite_lifecycle.invite_link_opened_at ? (
+                          <>
+                            Last seen{' '}
+                            {new Date(
+                              lt.invite_lifecycle.last_seen_at ||
+                                lt.invite_lifecycle.invite_link_opened_at!
+                            ).toLocaleString()}
+                            {lt.invite_lifecycle.last_seen_source === 'pdf'
+                              ? ' (PDF download)'
+                              : lt.invite_lifecycle.last_seen_source ===
+                                  'agreement'
+                                ? ' (agreement view)'
+                                : lt.invite_lifecycle.last_seen_source ===
+                                    'invite_link'
+                                  ? ' (invite link)'
+                                  : ''}
+                            {(lt.invite_lifecycle.seen_count ?? 0) > 1
+                              ? ` · ${lt.invite_lifecycle.seen_count} times`
+                              : ''}
+                          </>
+                        ) : (
+                          <>Not seen yet — invite link not opened</>
+                        )}
+                      </div>
+                      <div className="text-slate-500">
+                        {lt.invite_lifecycle.account_linked
+                          ? 'Account linked'
+                          : 'No account linked yet'}
+                        {lt.invite_lifecycle.invite_sent_at &&
+                          !lt.invite_lifecycle.has_seen_lease &&
+                          !lt.invite_lifecycle.invite_link_opened && (
+                            <>
+                              {' · '}
+                              Invite sent{' '}
+                              {new Date(
+                                lt.invite_lifecycle.invite_sent_at
+                              ).toLocaleDateString()}
+                            </>
+                          )}
+                      </div>
                     </div>
                   )}
                 </div>

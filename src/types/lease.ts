@@ -56,6 +56,12 @@ export interface LeaseTenant {
     invite_sent_at: string | null;
     invite_link_opened: boolean;
     invite_link_opened_at: string | null;
+    /** Aggregate: invite link open and/or authenticated agreement/PDF view. */
+    has_seen_lease?: boolean;
+    first_seen_at?: string | null;
+    last_seen_at?: string | null;
+    seen_count?: number;
+    last_seen_source?: 'invite_link' | 'agreement' | 'pdf' | null;
     account_linked: boolean;
     account_linked_at: string | null;
     signed: boolean;
