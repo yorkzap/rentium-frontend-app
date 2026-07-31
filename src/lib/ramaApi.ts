@@ -563,10 +563,34 @@ export interface RamaDocument {
 
 export async function fetchRamaDocuments(
   token: string,
-  status?: string
-): Promise<{ documents: RamaDocument[] }> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  opts?: { status?: string; page?: number; page_size?: number }
+): Promise<{
+  documents: RamaDocument[];
+  pagination?: {
+    page: number;
+    page_size: number;
+    total: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}> {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.page) params.set('page', String(opts.page));
+  if (opts?.page_size) params.set('page_size', String(opts.page_size));
+  const query = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(ramaUrl(`/rama/documents/${query}`), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function deleteRamaDocument(
+  token: string,
+  id: string
+): Promise<{ deleted: boolean; document_id: string }> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
+    method: 'DELETE',
     headers: headers(token),
   });
   return handle(res);

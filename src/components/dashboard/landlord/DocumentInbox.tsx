@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileCheck2, FileSearch, Loader2, Upload } from 'lucide-react';
+import { FileCheck2, FileSearch, Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/contexts/AuthContext';
 import {
+  deleteRamaDocument,
   fetchHoldings,
   fetchRamaDocuments,
   downloadRamaDocument,
@@ -49,16 +50,26 @@ export default function DocumentInbox({
   const [documents, setDocuments] = useState<RamaDocument[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<{
+    page: number;
+    page_size: number;
+    total: number;
+    has_next: boolean;
+    has_prev: boolean;
+  } | null>(null);
+  const pageSize = 25;
 
   const reload = useCallback(async () => {
     if (!token) return;
     const [docs, propertyHoldings] = await Promise.all([
-      fetchRamaDocuments(token),
+      fetchRamaDocuments(token, { page, page_size: pageSize }),
       fetchHoldings(token),
     ]);
     setDocuments(docs.documents);
+    setPagination(docs.pagination ?? null);
     setHoldings(propertyHoldings.holdings);
-  }, [token]);
+  }, [token, page]);
 
   useEffect(() => {
     reload().catch((error: unknown) =>
@@ -132,6 +143,35 @@ export default function DocumentInbox({
     }
   };
 
+  const remove = async (row: RamaDocument) => {
+    if (!token) return;
+    if (row.ledger_entry_id) {
+      toast.error(
+        'Linked to a ledger expense — cannot delete while linked. Void/unlink the expense first if needed.'
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete “${row.title || row.original_filename}”? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await deleteRamaDocument(token, row.id);
+      toast.success('Document deleted.');
+      await reload();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not delete document'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,6 +212,37 @@ export default function DocumentInbox({
         </Card>
       ) : (
         <div className="space-y-4">
+          {pagination && (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[hsl(var(--ink-3))]">
+              <span>
+                {pagination.total} document
+                {pagination.total === 1 ? '' : 's'}
+                {pagination.total > pageSize
+                  ? ` · page ${pagination.page}`
+                  : ''}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.has_prev || busy}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.has_next || busy}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
           {documents.map((row) => (
             <Card
               key={row.id}
@@ -189,27 +260,45 @@ export default function DocumentInbox({
                       {row.title || row.original_filename}
                     </CardTitle>
                     <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
-                      {row.original_filename} ·{' '}
+                      {row.canonical_filename || row.original_filename} ·{' '}
                       {row.status.replaceAll('_', ' ')}
+                      {row.holding_name ? ` · ${row.holding_name}` : ''}
+                      {row.amount ? ` · $${row.amount}` : ''}
                     </p>
                   </div>
-                  {row.archival_pdf && token && (
+                  <div className="flex items-center gap-3 shrink-0">
+                    {row.archival_pdf && token && (
+                      <button
+                        className="text-sm text-[hsl(var(--brand))] hover:underline"
+                        onClick={() =>
+                          downloadRamaDocument(token, row).catch(
+                            (error: unknown) =>
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : 'Download failed'
+                              )
+                          )
+                        }
+                      >
+                        Download PDF/A
+                      </button>
+                    )}
                     <button
-                      className="text-sm text-[hsl(var(--brand))] hover:underline"
-                      onClick={() =>
-                        downloadRamaDocument(token, row).catch(
-                          (error: unknown) =>
-                            toast.error(
-                              error instanceof Error
-                                ? error.message
-                                : 'Download failed'
-                            )
-                        )
+                      type="button"
+                      className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
+                      disabled={busy || !!row.ledger_entry_id}
+                      title={
+                        row.ledger_entry_id
+                          ? 'Linked to a ledger expense'
+                          : 'Delete document'
                       }
+                      onClick={() => remove(row)}
                     >
-                      Download PDF/A
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
                     </button>
-                  )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
