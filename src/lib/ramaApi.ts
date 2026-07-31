@@ -530,6 +530,13 @@ export async function removeRamaAttachment(
   return handle(res);
 }
 
+export interface RamaDocumentTag {
+  id: string;
+  name: string;
+  slug: string;
+  document_count?: number;
+}
+
 export interface RamaDocument {
   id: string;
   status:
@@ -537,6 +544,7 @@ export interface RamaDocument {
   kind: string;
   kind_display: string;
   title: string;
+  display_title?: string;
   issuer: string;
   reference_number: string;
   document_date: string | null;
@@ -556,14 +564,28 @@ export interface RamaDocument {
   archival_pdf: string | null;
   ledger_entry_id: string | null;
   failure_reason: string;
+  tags?: RamaDocumentTag[];
   created_at: string;
   filed_at: string | null;
   duplicate?: boolean;
 }
 
+export type RamaDocumentListOpts = {
+  status?: string;
+  page?: number;
+  page_size?: number;
+  q?: string;
+  holding?: string;
+  kind?: string;
+  year?: string;
+  tag?: string;
+  payment_state?: string;
+  has_expense?: string;
+};
+
 export async function fetchRamaDocuments(
   token: string,
-  opts?: { status?: string; page?: number; page_size?: number }
+  opts?: RamaDocumentListOpts
 ): Promise<{
   documents: RamaDocument[];
   pagination?: {
@@ -578,9 +600,38 @@ export async function fetchRamaDocuments(
   if (opts?.status) params.set('status', opts.status);
   if (opts?.page) params.set('page', String(opts.page));
   if (opts?.page_size) params.set('page_size', String(opts.page_size));
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.holding) params.set('holding', opts.holding);
+  if (opts?.kind) params.set('kind', opts.kind);
+  if (opts?.year) params.set('year', opts.year);
+  if (opts?.tag) params.set('tag', opts.tag);
+  if (opts?.payment_state) params.set('payment_state', opts.payment_state);
+  if (opts?.has_expense) params.set('has_expense', opts.has_expense);
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(ramaUrl(`/rama/documents/${query}`), {
     headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function fetchRamaDocumentTags(
+  token: string
+): Promise<{ tags: RamaDocumentTag[] }> {
+  const res = await fetch(ramaUrl('/rama/document-tags/'), {
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function updateRamaDocumentTags(
+  token: string,
+  id: string,
+  tags: string[]
+): Promise<RamaDocument> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ tags }),
   });
   return handle(res);
 }
@@ -591,6 +642,17 @@ export async function deleteRamaDocument(
 ): Promise<{ deleted: boolean; document_id: string }> {
   const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
     method: 'DELETE',
+    headers: headers(token),
+  });
+  return handle(res);
+}
+
+export async function reocrRamaDocument(
+  token: string,
+  id: string
+): Promise<RamaDocument> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/reocr/`), {
+    method: 'POST',
     headers: headers(token),
   });
   return handle(res);
