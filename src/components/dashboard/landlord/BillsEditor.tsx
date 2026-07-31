@@ -93,6 +93,81 @@ function toBills(rows: Record<string, RowState>): BillsMap {
   return out;
 }
 
+/** Read-only list of utilities for lease detail / tenant overview. */
+export function BillsSummaryList({
+  bills,
+  fallback,
+  className = '',
+}: {
+  bills?: BillsMap | Record<string, BillEntry> | null;
+  fallback?: string | null;
+  className?: string;
+}) {
+  const rows = CATEGORIES.map(({ key, label }) => {
+    const e = bills?.[key] as BillEntry | undefined;
+    if (!e) return null;
+    const provider = (e.provider || '').trim();
+    const name = provider ? `${label} (${provider})` : label;
+    let status: string;
+    if (e.included) {
+      status = 'Included in rent';
+    } else {
+      const resp = e.tenant_responsibility || {};
+      if (resp.type === 'full') status = 'Tenant pays 100%';
+      else if (resp.type === 'percentage')
+        status = `Tenant pays ${resp.value ?? 100}%`;
+      else if (resp.type === 'fixed')
+        status = `Tenant pays $${resp.value ?? 0}/month`;
+      else status = e.notes?.trim() || 'Tenant-paid';
+    }
+    return { key, name, status };
+  }).filter(Boolean) as { key: string; name: string; status: string }[];
+
+  // Any non-standard keys from the API.
+  if (bills) {
+    for (const [key, e] of Object.entries(bills)) {
+      if (CATEGORIES.some((c) => c.key === key)) continue;
+      if (!e || typeof e !== 'object') continue;
+      const label = key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const provider = (e.provider || '').trim();
+      const name = provider ? `${label} (${provider})` : label;
+      rows.push({
+        key,
+        name,
+        status: e.included
+          ? 'Included in rent'
+          : e.notes?.trim() || 'Tenant-paid',
+      });
+    }
+  }
+
+  if (rows.length === 0) {
+    if (fallback && !fallback.toLowerCase().includes('no bills')) {
+      return (
+        <p className={`text-sm text-slate-700 ${className}`}>{fallback}</p>
+      );
+    }
+    return (
+      <p className={`text-sm text-slate-500 ${className}`}>
+        No utilities recorded on this lease.
+      </p>
+    );
+  }
+
+  return (
+    <ul className={`space-y-1 text-sm text-slate-800 ${className}`}>
+      {rows.map((r) => (
+        <li key={r.key} className="flex flex-wrap gap-x-2">
+          <span className="font-medium">{r.name}</span>
+          <span className="text-slate-500">— {r.status}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function BillsEditor({
   value,
   onSave,

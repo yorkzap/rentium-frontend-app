@@ -118,6 +118,9 @@ export interface Lease {
   special_terms?: string | null;
   common_space_shared_with?: string[] | null;
   common_space_clause_text?: string;
+  property_furnishing_status?: string | null;
+  property_furnishing_details?: string | null;
+  property_furnishing_label?: string | null;
   landlord_service_address?: string | null;
   landlord_daytime_phone?: string | null;
   landlord_other_phone?: string | null;

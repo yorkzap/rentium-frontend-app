@@ -32,6 +32,10 @@ import InspectionSignCard from './InspectionSignCard';
 import UpcomingStrip from './UpcomingStrip';
 import ViewingConsentCard from './ViewingConsentCard';
 import InspectionScheduleCard from './InspectionScheduleCard';
+import {
+  BillsSummaryList,
+  type BillsMap,
+} from '@/components/dashboard/landlord/BillsEditor';
 
 function TenancyLink({
   href,
@@ -222,15 +226,57 @@ export default function TenantOverviewTab({
                 <p className="text-ink-3">Lease type</p>
                 <p>{currentLease.lease_type_display}</p>
               </div>
+              {(currentLease.property_furnishing_label ||
+                currentLease.property_furnishing_status) && (
+                <div>
+                  <p className="text-ink-3">Furnishing</p>
+                  <p>
+                    {currentLease.property_furnishing_label ||
+                      (currentLease.property_furnishing_status === 'FURNISHED'
+                        ? 'Furnished'
+                        : currentLease.property_furnishing_status ===
+                            'SEMI_FURNISHED'
+                          ? 'Semi-furnished'
+                          : 'Unfurnished')}
+                  </p>
+                  {currentLease.property_furnishing_details?.trim() && (
+                    <p className="mt-0.5 text-xs text-ink-3 whitespace-pre-wrap">
+                      {currentLease.property_furnishing_details.trim()}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            {currentLease.bills_summary && (
+            {(currentLease.bills_included || currentLease.bills_summary) && (
               <div className="mt-4 border-t pt-4">
-                <p className="mb-1 text-sm font-medium">
-                  Bills included in rent
+                <p className="mb-2 text-sm font-medium">
+                  Bills &amp; utilities
                 </p>
-                <p className="text-sm text-ink-2">
-                  {currentLease.bills_summary}
+                <BillsSummaryList
+                  bills={
+                    (currentLease.bills_included || null) as BillsMap | null
+                  }
+                  fallback={currentLease.bills_summary}
+                  className="text-ink-2"
+                />
+              </div>
+            )}
+
+            {currentLease.common_space_clause_text?.trim() && (
+              <div className="mt-4 border-t pt-4">
+                <p className="mb-1 text-sm font-medium">Shared spaces</p>
+                <p className="text-sm text-ink-2 whitespace-pre-wrap">
+                  {currentLease.common_space_clause_text.trim()}
+                </p>
+              </div>
+            )}
+
+            {currentLease.special_terms?.trim() && (
+              <div className="mt-4 border-t pt-4">
+                <p className="mb-1 text-sm font-medium">Special terms</p>
+                <p className="text-sm text-ink-2 whitespace-pre-wrap">
+                  {currentLease.special_terms.trim()}
                 </p>
               </div>
             )}

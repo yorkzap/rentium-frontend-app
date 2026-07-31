@@ -48,7 +48,7 @@ import { toast } from 'sonner';
 import LeaseInspections from './LeaseInspections';
 import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
-import BillsEditor, { type BillsMap } from './BillsEditor';
+import BillsEditor, { BillsSummaryList, type BillsMap } from './BillsEditor';
 import { dateLabel } from '@/lib/utils';
 interface RentAdjustment {
   id: string;
@@ -969,7 +969,12 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                   </button>
                 )}
               </div>
-              {!billsOpen && <p>{lease.bills_summary}</p>}
+              {!billsOpen && (
+                <BillsSummaryList
+                  bills={lease.bills_included}
+                  fallback={lease.bills_summary}
+                />
+              )}
               {billsOpen && !lease.is_locked && (
                 <div className="mt-2">
                   <BillsEditor
@@ -985,7 +990,9 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
             {lease.common_space_clause_text && (
               <div className="col-span-2 pt-2 border-t">
                 <p className="text-slate-500 mb-1">Shared Spaces</p>
-                <p>{lease.common_space_clause_text}</p>
+                <p className="whitespace-pre-wrap">
+                  {lease.common_space_clause_text}
+                </p>
               </div>
             )}
             {lease.special_terms && (
