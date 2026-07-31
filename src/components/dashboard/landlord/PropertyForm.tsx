@@ -23,6 +23,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   ApiError,
   BUILDING_AMENITIES,
+  FURNISHING_STATUSES,
+  FurnishingStatus,
   PropertyCategory,
   PropertyDetail,
   PropertyGroupStub,
@@ -95,6 +97,8 @@ interface FormState {
   status: PropertyStatus;
   is_publicly_visible: boolean;
   neighbourhood: string;
+  furnishing_status: FurnishingStatus;
+  furnishing_details: string;
 }
 
 const EMPTY: FormState = {
@@ -114,6 +118,8 @@ const EMPTY: FormState = {
   status: 'AVAILABLE',
   is_publicly_visible: true,
   neighbourhood: '',
+  furnishing_status: 'UNFURNISHED',
+  furnishing_details: '',
 };
 
 export default function PropertyForm({ propertyId }: Props) {
@@ -174,6 +180,8 @@ export default function PropertyForm({ propertyId }: Props) {
           status: p.status,
           is_publicly_visible: p.is_publicly_visible,
           neighbourhood: p.neighbourhood ?? '',
+          furnishing_status: p.furnishing_status ?? 'UNFURNISHED',
+          furnishing_details: p.furnishing_details ?? '',
         });
         // An existing property already has a resolved address. Reconstruct it so
         // the confirmation panel shows what we know, and the landlord only has to
@@ -245,6 +253,8 @@ export default function PropertyForm({ propertyId }: Props) {
 
       status: form.status,
       is_publicly_visible: form.is_publicly_visible,
+      furnishing_status: form.furnishing_status,
+      furnishing_details: form.furnishing_details.trim(),
       max_occupancy: form.max_occupancy ? Number(form.max_occupancy) : null,
       square_footage: form.square_footage ? Number(form.square_footage) : null,
       // Money as a fixed-2 STRING, never a JS number. A JSON float can carry
@@ -576,36 +586,51 @@ export default function PropertyForm({ propertyId }: Props) {
                   />
                 </Field>
               </div>
-
-              {/* Furnished is DERIVED, so it is stated, not asked. Asking a
-                  landlord to tick a box we can already answer from their own
-                  inventory is asking them to tell us something we know — and
-                  giving them the opportunity to be wrong about it. */}
-              {isEdit && existing && (
-                <div className="flex items-start gap-3 rounded-lg bg-[hsl(var(--surface-sunken))] p-3">
-                  <Sofa className="mt-0.5 h-4 w-4 flex-shrink-0 text-[hsl(var(--ink-4))]" />
-                  <div className="text-sm">
-                    <p className="font-medium">
-                      {existing.is_furnished
-                        ? 'Listed as furnished'
-                        : 'Listed as unfurnished'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[hsl(var(--ink-4))]">
-                      We work this out from your inventory — a room counts as
-                      furnished once there&apos;s something to sleep on in it.{' '}
-                      <Link
-                        href="/dashboard/inventory"
-                        className="text-[hsl(var(--brand))] hover:underline"
-                      >
-                        Manage inventory
-                      </Link>
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </section>
         )}
+
+        {/* ---------------------------------------------------- furnishing */}
+        <section className="card p-5">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Sofa className="h-4 w-4" /> Furnishing
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-[hsl(var(--ink-4))]">
+            What you advertise and put on the roommate lease. Specific items
+            still live in inventory; this is the one-word choice for the
+            agreement (unfurnished / semi-furnished / furnished).
+          </p>
+          <div className="space-y-4">
+            <Field label="Status">
+              <Select
+                value={form.furnishing_status}
+                onChange={(v) => set('furnishing_status', v)}
+                options={[...FURNISHING_STATUSES]}
+              />
+            </Field>
+            <Field
+              label="Details (optional)"
+              hint="e.g. bed and dresser only; tenant supplies mattress"
+            >
+              <TextArea
+                value={form.furnishing_details}
+                onChange={(v) => set('furnishing_details', v)}
+                rows={2}
+                placeholder="Optional note for the lease and listing"
+              />
+            </Field>
+            <p className="text-xs text-[hsl(var(--ink-4))]">
+              List exact items under{' '}
+              <Link
+                href="/dashboard/inventory"
+                className="text-[hsl(var(--brand))] hover:underline"
+              >
+                Inventory
+              </Link>
+              . They appear on the lease PDF under “What comes with your room”.
+            </p>
+          </div>
+        </section>
 
         {/* ---------------------------------------------------------- price */}
         <section className="card p-5">

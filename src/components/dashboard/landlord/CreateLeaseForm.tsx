@@ -200,6 +200,9 @@ interface Property {
   bedrooms?: number | null;
   bathrooms?: string | number | null;
   group?: { id: string; name: string } | null;
+  furnishing_status?: 'UNFURNISHED' | 'SEMI_FURNISHED' | 'FURNISHED';
+  furnishing_details?: string;
+  is_furnished?: boolean;
 }
 
 interface LeaseType {
@@ -1047,7 +1050,92 @@ export function CreateLeaseForm() {
                       <strong>Province:</strong>{' '}
                       {selectedProperty.province || 'Not specified'}
                     </li>
+                    <li>
+                      <strong>Furnishing:</strong>{' '}
+                      {selectedProperty.furnishing_status === 'FURNISHED'
+                        ? 'Furnished'
+                        : selectedProperty.furnishing_status ===
+                            'SEMI_FURNISHED'
+                          ? 'Semi-furnished'
+                          : 'Unfurnished'}
+                      {selectedProperty.furnishing_details
+                        ? ` — ${selectedProperty.furnishing_details}`
+                        : ''}
+                    </li>
                   </ul>
+                  <div className="mt-3 space-y-2 border-t pt-3">
+                    <Label className="text-xs">
+                      Furnishing on this listing (shown on the lease)
+                    </Label>
+                    <Select
+                      value={
+                        selectedProperty.furnishing_status || 'UNFURNISHED'
+                      }
+                      onValueChange={async (value) => {
+                        if (!token) return;
+                        try {
+                          const res = await axios.patch(
+                            `${DJANGO_API_URL}/properties/${selectedProperty.id}/`,
+                            { furnishing_status: value },
+                            {
+                              headers: {
+                                Authorization: `Token ${token}`,
+                              },
+                            }
+                          );
+                          setSelectedProperty({
+                            ...selectedProperty,
+                            ...res.data,
+                          });
+                          toast.success('Furnishing updated on the listing.');
+                        } catch {
+                          toast.error("Couldn't update furnishing.");
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UNFURNISHED">Unfurnished</SelectItem>
+                        <SelectItem value="SEMI_FURNISHED">
+                          Semi-furnished
+                        </SelectItem>
+                        <SelectItem value="FURNISHED">Furnished</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Textarea
+                      className="text-sm"
+                      placeholder="Optional details (e.g. bed only)"
+                      value={selectedProperty.furnishing_details || ''}
+                      onChange={(e) =>
+                        setSelectedProperty({
+                          ...selectedProperty,
+                          furnishing_details: e.target.value,
+                        })
+                      }
+                      onBlur={async () => {
+                        if (!token) return;
+                        try {
+                          await axios.patch(
+                            `${DJANGO_API_URL}/properties/${selectedProperty.id}/`,
+                            {
+                              furnishing_details:
+                                selectedProperty.furnishing_details || '',
+                            },
+                            {
+                              headers: {
+                                Authorization: `Token ${token}`,
+                              },
+                            }
+                          );
+                        } catch {
+                          /* silent — toast on status change is enough */
+                        }
+                      }}
+                      rows={2}
+                    />
+                  </div>
                 </div>
               </div>
             )}

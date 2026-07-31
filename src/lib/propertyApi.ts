@@ -245,10 +245,20 @@ export interface PropertyDetail {
   public_slug: string | null;
   asking_rent: string | null;
   available_from: string | null;
-  is_furnished: boolean; // DERIVED from inventory. Never editable.
+  furnishing_status: 'UNFURNISHED' | 'SEMI_FURNISHED' | 'FURNISHED';
+  furnishing_details: string;
+  is_furnished: boolean; // filter cache: status or inventory
   publish_blockers: string[]; // why this can't appear publicly, in plain words
   can_be_published: boolean;
 }
+
+export const FURNISHING_STATUSES = [
+  { value: 'UNFURNISHED', label: 'Unfurnished' },
+  { value: 'SEMI_FURNISHED', label: 'Semi-furnished' },
+  { value: 'FURNISHED', label: 'Furnished' },
+] as const;
+
+export type FurnishingStatus = (typeof FURNISHING_STATUSES)[number]['value'];
 
 export interface PropertyImage {
   id: number;

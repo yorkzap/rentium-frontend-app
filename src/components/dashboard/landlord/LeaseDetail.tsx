@@ -104,8 +104,12 @@ interface LeaseDetailData {
   status: string;
   status_display: string;
   is_locked: boolean;
+  property?: number | null;
   property_name: string | null;
   property_address: string | null;
+  property_furnishing_status?: string | null;
+  property_furnishing_details?: string | null;
+  property_furnishing_label?: string | null;
   group_name: string | null;
   landlord_signed: boolean;
   landlord_signed_date: string | null;
@@ -860,6 +864,29 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
             <div>
               <p className="text-slate-500">Agreement</p>
               <p>{lease.lease_type_display}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Furnishing (from listing)</p>
+              <p>
+                {lease.property_furnishing_label ||
+                  (lease.property_furnishing_status === 'FURNISHED'
+                    ? 'Furnished'
+                    : lease.property_furnishing_status === 'SEMI_FURNISHED'
+                      ? 'Semi-furnished'
+                      : 'Unfurnished')}
+              </p>
+              {lease.property && !lease.is_locked && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Edit on the{' '}
+                  <a
+                    href={`/dashboard/properties/edit/${lease.property}`}
+                    className="text-teal-700 underline"
+                  >
+                    listing
+                  </a>{' '}
+                  or ask RAMA to adjust the lease.
+                </p>
+              )}
             </div>
             <div>
               <p className="text-slate-500">Start Date</p>
