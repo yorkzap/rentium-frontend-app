@@ -90,6 +90,8 @@ export interface CreateAppointmentPayload {
   starts_at: string; // ISO datetime
   ends_at?: string | null;
   contact_name?: string;
+  /** Prospect email — triggers the viewing confirmation email when set. */
+  contact_email?: string;
   contact_phone?: string;
   notes?: string;
 }

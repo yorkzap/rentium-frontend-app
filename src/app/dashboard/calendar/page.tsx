@@ -140,6 +140,7 @@ export default function LandlordCalendarPage() {
   const [schedTime, setSchedTime] = useState('10:00');
   const [schedProp, setSchedProp] = useState<string>('');
   const [schedWho, setSchedWho] = useState('');
+  const [schedEmail, setSchedEmail] = useState('');
   // expense form
   const [expAmount, setExpAmount] = useState('');
   const [expCategory, setExpCategory] =
@@ -357,8 +358,20 @@ export default function LandlordCalendarPage() {
     }
   };
 
-  const quickSchedule = () =>
-    run(async () => {
+  const quickSchedule = () => {
+    const email = schedEmail.trim();
+    const okMsg =
+      schedKind === 'VIEWING' && email
+        ? `Scheduled — invite email queued to ${email}. Sitting tenants get an entry notice when applicable.`
+        : 'Scheduled — tenants on the property are notified (their entry notice).';
+    return run(async () => {
+      if (
+        schedKind === 'VIEWING' &&
+        email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        throw new Error('Enter a valid prospect email, or leave it blank.');
+      }
       const lease = activeLeases.find(
         (l) =>
           l.property_name ===
@@ -370,9 +383,12 @@ export default function LandlordCalendarPage() {
         kind: schedKind,
         starts_at: new Date(`${selected}T${schedTime}:00`).toISOString(),
         contact_name: schedWho,
+        contact_email: email || undefined,
       });
       setSchedWho('');
-    }, 'Scheduled — tenants on the property are notified (their entry notice).');
+      setSchedEmail('');
+    }, okMsg);
+  };
 
   const quickExpense = () =>
     run(
@@ -1306,8 +1322,24 @@ export default function LandlordCalendarPage() {
                     <Input
                       value={schedWho}
                       onChange={(e) => setSchedWho(e.target.value)}
-                      placeholder="Who's coming (optional)"
+                      placeholder="Who's coming (name)"
                     />
+                    {schedKind === 'VIEWING' && (
+                      <div className="space-y-1">
+                        <Input
+                          type="email"
+                          value={schedEmail}
+                          onChange={(e) => setSchedEmail(e.target.value)}
+                          placeholder="Prospect email (sends invite)"
+                        />
+                        <p className="text-[11px] text-slate-500">
+                          If you enter an email, Rentium emails the viewing
+                          confirmation and tracking link to the prospect.
+                          Sitting tenants still get an entry notice when
+                          applicable.
+                        </p>
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -1318,7 +1350,9 @@ export default function LandlordCalendarPage() {
                         {busy && (
                           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                         )}{' '}
-                        Schedule
+                        {schedKind === 'VIEWING' && schedEmail.trim()
+                          ? 'Schedule & email'
+                          : 'Schedule'}
                       </Button>
                       <Button
                         size="sm"
