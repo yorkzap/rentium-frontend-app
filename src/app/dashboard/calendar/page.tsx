@@ -1089,15 +1089,17 @@ export default function LandlordCalendarPage() {
                                     disabled={
                                       busy || !rescheduleDate || !rescheduleTime
                                     }
-                                    onClick={() =>
-                                      run(async () => {
+                                    onClick={() => {
+                                      const id = rescheduleId;
+                                      if (!id || !token) return;
+                                      void run(async () => {
                                         // Wall-clock without Z — backend treats
                                         // naive as landlord (Vancouver) time.
                                         const wall = `${rescheduleDate}T${rescheduleTime}:00`;
                                         const result =
                                           await rescheduleAppointment(
-                                            token!,
-                                            rescheduleId,
+                                            token,
+                                            id,
                                             wall
                                           );
                                         setRescheduleId(null);
@@ -1112,8 +1114,8 @@ export default function LandlordCalendarPage() {
                                             'Already at that time — nothing changed.'
                                           );
                                         }
-                                      }, 'Rescheduled — visitor emailed the new time.')
-                                    }
+                                      }, 'Rescheduled — visitor emailed the new time.');
+                                    }}
                                   >
                                     Save new time
                                   </Button>
