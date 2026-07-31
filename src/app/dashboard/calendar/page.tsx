@@ -997,20 +997,24 @@ export default function LandlordCalendarPage() {
                               {apptId && e.status === 'SCHEDULED' && (
                                 <>
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
-                                    className="h-6 px-1.5 text-[10px]"
-                                    title="Reschedule this visit"
+                                    className="h-7 px-2 text-xs"
+                                    title="Change date/time and email the visitor"
                                     disabled={busy}
                                     onClick={() => {
+                                      const local = new Date(appt!.starts_at);
+                                      const y = local.getFullYear();
+                                      const m = String(
+                                        local.getMonth() + 1
+                                      ).padStart(2, '0');
+                                      const d = String(
+                                        local.getDate()
+                                      ).padStart(2, '0');
                                       setRescheduleId(apptId);
-                                      setRescheduleDate(
-                                        appt!.starts_at.slice(0, 10)
-                                      );
+                                      setRescheduleDate(`${y}-${m}-${d}`);
                                       setRescheduleTime(
-                                        new Date(appt!.starts_at)
-                                          .toTimeString()
-                                          .slice(0, 5)
+                                        `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`
                                       );
                                       setAction('reschedule');
                                     }}
@@ -1026,7 +1030,7 @@ export default function LandlordCalendarPage() {
                                     onClick={() =>
                                       run(
                                         () => cancelAppointment(token!, apptId),
-                                        'Cancelled — tenants notified.'
+                                        'Cancelled — visitors/tenants notified.'
                                       )
                                     }
                                   >
@@ -1039,9 +1043,26 @@ export default function LandlordCalendarPage() {
                           {action === 'reschedule' &&
                             rescheduleId === apptId &&
                             appt && (
-                              <div className="mt-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-                                <p className="text-xs font-medium text-slate-700">
-                                  New time for {appt.contact_name || 'visitor'}
+                              <div className="mt-2 space-y-2 rounded-md border border-teal-200 bg-teal-50/60 p-3">
+                                <p className="text-xs font-medium text-slate-800">
+                                  Reschedule {appt.contact_name || 'visitor'}
+                                  {appt.contact_email
+                                    ? ` · ${appt.contact_email}`
+                                    : ''}
+                                </p>
+                                <p className="text-[11px] text-slate-500">
+                                  Currently{' '}
+                                  {new Date(appt.starts_at).toLocaleString(
+                                    'en-US',
+                                    {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                    }
+                                  )}
+                                  . Saving emails them the new time.
                                 </p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <input
@@ -1070,15 +1091,28 @@ export default function LandlordCalendarPage() {
                                     }
                                     onClick={() =>
                                       run(async () => {
-                                        await rescheduleAppointment(
-                                          token!,
-                                          rescheduleId,
-                                          new Date(
-                                            `${rescheduleDate}T${rescheduleTime}:00`
-                                          ).toISOString()
-                                        );
+                                        // Wall-clock without Z — backend treats
+                                        // naive as landlord (Vancouver) time.
+                                        const wall = `${rescheduleDate}T${rescheduleTime}:00`;
+                                        const result =
+                                          await rescheduleAppointment(
+                                            token!,
+                                            rescheduleId,
+                                            wall
+                                          );
                                         setRescheduleId(null);
-                                      }, 'Rescheduled — the visitor was emailed the new time.')
+                                        if (
+                                          (
+                                            result as Appointment & {
+                                              already_done?: boolean;
+                                            }
+                                          ).already_done
+                                        ) {
+                                          toast.message(
+                                            'Already at that time — nothing changed.'
+                                          );
+                                        }
+                                      }, 'Rescheduled — visitor emailed the new time.')
                                     }
                                   >
                                     Save new time
