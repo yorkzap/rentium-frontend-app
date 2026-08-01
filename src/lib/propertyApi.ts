@@ -458,6 +458,22 @@ export async function fetchPropertyMedia(
   return data.media ?? [];
 }
 
+/** Reorder gallery photos (primary stays first). Pass every gallery:<id> once. */
+export async function reorderPropertyMedia(
+  token: string,
+  propertyId: number | string,
+  handles: string[]
+): Promise<PropertyMedia[]> {
+  const res = await fetch(`${DJANGO_API_URL}/properties/${propertyId}/media/`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ handles }),
+  });
+  const data = await handle<PropertyMedia[] | { media?: PropertyMedia[] }>(res);
+  if (Array.isArray(data)) return data;
+  return data.media ?? [];
+}
+
 // NOTE the URL. Django routes groups at /api/properties/groups/ — the frontend
 // was calling /api/property-groups/ everywhere, which is a 404. Group listing,
 // group creation, and common-area management have all been completely dead,

@@ -13,6 +13,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckSquare,
+  ChevronDown,
+  ChevronUp,
   ImageIcon,
   Loader2,
   Square,
@@ -26,6 +28,7 @@ import {
   PropertyMedia,
   deletePropertyMedia,
   fetchPropertyMedia,
+  reorderPropertyMedia,
 } from '@/lib/propertyApi';
 
 const ORIGIN = (() => {
@@ -198,6 +201,48 @@ export default function PropertyMediaManager({
     onChange?.();
   };
 
+  /** Move a gallery photo earlier/later. Primary stays first (not reordered). */
+  const moveGallery = async (handle: string, direction: -1 | 1) => {
+    if (!handle.startsWith('gallery:')) {
+      toast.error(
+        'The main photo stays first — pick a gallery photo to reorder.'
+      );
+      return;
+    }
+    const gallery = media.filter((row) => row.kind === 'gallery');
+    const index = gallery.findIndex((row) => row.handle === handle);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= gallery.length) return;
+
+    const nextGallery = [...gallery];
+    const [item] = nextGallery.splice(index, 1);
+    nextGallery.splice(target, 0, item);
+    const handles = nextGallery.map((row) => row.handle);
+
+    // Optimistic UI
+    const primary = media.filter((row) => row.kind === 'primary');
+    setMedia(
+      [...primary, ...nextGallery].map((row, i) => ({
+        ...row,
+        selection_number: i + 1,
+        order: row.kind === 'gallery' ? handles.indexOf(row.handle) : -1,
+      }))
+    );
+
+    setBusy(true);
+    try {
+      const rows = await reorderPropertyMedia(token, propertyId, handles);
+      setMedia(rows.map((row, i) => ({ ...row, selection_number: i + 1 })));
+      toast.success('Photo order updated.');
+      onChange?.();
+    } catch {
+      toast.error("Couldn't reorder photos.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading && media.length === 0) {
     return (
       <div className="flex items-center gap-2 py-6 text-sm text-[hsl(var(--ink-4))]">
@@ -226,7 +271,9 @@ export default function PropertyMediaManager({
             {media.length} photo{media.length === 1 ? '' : 's'}
           </span>
           {selected.size > 0 ? ` · ${selected.size} selected` : ''}
-          {' — tick junk (mortgage, wrong house) and remove.'}
+          {
+            ' — tick junk to remove; use ↑↓ on gallery photos to set public order.'
+          }
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -301,19 +348,43 @@ export default function PropertyMediaManager({
                     <Square className="h-3.5 w-3.5" />
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void removeOne(row.handle)}
-                  disabled={isBusy}
-                  aria-label={`Remove photo ${row.selection_number}`}
-                  className="rounded bg-black/60 p-1 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                >
-                  {isBusy ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <X className="h-3.5 w-3.5" />
+                <div className="flex flex-col gap-1">
+                  {row.kind === 'gallery' && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void moveGallery(row.handle, -1)}
+                        aria-label={`Move photo ${row.selection_number} earlier`}
+                        className="rounded bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-40"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void moveGallery(row.handle, 1)}
+                        aria-label={`Move photo ${row.selection_number} later`}
+                        className="rounded bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-40"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeOne(row.handle)}
+                    disabled={isBusy}
+                    aria-label={`Remove photo ${row.selection_number}`}
+                    className="rounded bg-black/60 p-1 text-white hover:bg-black/80"
+                  >
+                    {isBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 text-[10px] font-medium text-white">
                 #{row.selection_number}{' '}

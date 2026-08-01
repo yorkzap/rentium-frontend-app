@@ -131,12 +131,13 @@ export default function ListingGallery({
       </div>
 
       {/* --------------------------------------------------- lightbox */}
+      {/* z-[10000]: Leaflet map panes use ~400–1000; z-50 sits under them. */}
       {open !== null && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={`Photo ${open + 1} of ${count}`}
-          className="fixed inset-0 z-50 flex flex-col bg-black/95"
+          className="fixed inset-0 z-[10000] flex flex-col bg-black/95"
           onClick={close}
           onTouchStart={(e) => {
             touchStartX.current = e.touches[0].clientX;
