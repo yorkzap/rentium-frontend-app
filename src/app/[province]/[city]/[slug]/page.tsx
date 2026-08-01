@@ -9,7 +9,8 @@ import InquiryForm from '@/components/public/InquiryForm';
 import ListingGallery from '@/components/public/ListingGallery';
 import ListingsMapLazy from '@/components/public/ListingsMapLazy';
 
-export const revalidate = 300;
+// Keep in sync with publicApi REVALIDATE_LISTING — photo deletes must not linger.
+export const revalidate = 30;
 
 type Params = { province: string; city: string; slug: string };
 

@@ -151,10 +151,11 @@ export interface RentalDiscoveryPayload {
   results: PublicCard[];
 }
 
-// A short revalidate window is what makes "the sitemap regenerates as properties
-// change" true without a build step: a room going OCCUPIED drops out of
-// Property.objects.public(), and within five minutes it drops out of here too.
-const REVALIDATE = 300;
+// Short revalidate so photo deletes / rent edits show up on public pages without
+// waiting on a long Cloudflare/edge TTL. Listing *detail* is even shorter —
+// galleries change more often than city indexes.
+const REVALIDATE = 60;
+const REVALIDATE_LISTING = 30;
 
 /**
  * The one fetcher.
@@ -171,13 +172,17 @@ const REVALIDATE = 300;
  * so. In dev it throws, loudly, with the status and body. In prod it degrades to a
  * 404 rather than a white screen, but it still shouts into the server log first.
  */
-async function get<T>(path: string): Promise<T | null> {
+async function get<T>(
+  path: string,
+  opts?: { revalidate?: number }
+): Promise<T | null> {
   const url = `${PUBLIC}${path}`;
+  const revalidate = opts?.revalidate ?? REVALIDATE;
 
   let res: Response;
   try {
     res = await fetch(url, {
-      next: { revalidate: REVALIDATE },
+      next: { revalidate },
       headers: { Accept: 'application/json' },
     });
   } catch (err) {
@@ -241,7 +246,11 @@ export function getRentalListings(
   return get<RentalDiscoveryPayload>(`/listings/${query ? `?${query}` : ''}`);
 }
 export const getListing = (slug: string) =>
-  get<PublicDetail>(`/listings/${slug}/`);
+  // Cache-bust version: bump when public listing serialization changes so
+  // Cloudflare/Next drop stale gallery payloads after media deletes.
+  get<PublicDetail>(`/listings/${slug}/?v=3`, {
+    revalidate: REVALIDATE_LISTING,
+  });
 export const getShowcase = (slug: string) =>
   get<ShowcasePayload>(`/l/${slug}/`);
 export const getSitemapData = () => get<SitemapData>('/sitemap-data/');
