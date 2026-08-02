@@ -59,8 +59,19 @@ const MATERIAL_FIELDS = new Set<keyof LeaseTermsPatch>([
   'custom_tenant_notice_months',
 ]);
 
+export interface ServiceChoice {
+  value: string;
+  label: string;
+}
+
 export interface EditableLease {
   id: string;
+  /** Enum shipped by the server so this list can never drift from the model. */
+  service_choices?: ServiceChoice[];
+  services_and_facilities?: string[];
+  house_rules?: string;
+  occupants?: string[];
+  landlord_fax?: string;
   start_date: string;
   end_date: string | null;
   is_month_to_month: boolean;
@@ -117,8 +128,20 @@ function buildDraft(lease: EditableLease): Draft {
     landlord_service_email: str(lease.landlord_service_email),
     landlord_daytime_phone: str(lease.landlord_daytime_phone),
     landlord_other_phone: str(lease.landlord_other_phone),
+    landlord_fax: str(lease.landlord_fax),
+    house_rules: str(lease.house_rules),
+    // Lists live in the draft as joined strings so a shallow !== comparison
+    // still tells us whether the landlord actually changed anything.
+    services_and_facilities: (lease.services_and_facilities ?? []).join(','),
+    occupants: (lease.occupants ?? []).join(', '),
   };
 }
+
+/** Fields that are lists on the wire but strings in the draft. */
+const LIST_FIELDS: Record<string, string> = {
+  services_and_facilities: ',',
+  occupants: ',',
+};
 
 /** Blank number/date fields go as null, not "" — the API distinguishes them. */
 const NULLABLE = new Set([
@@ -167,6 +190,11 @@ export function LeaseTermsEditor({
       const value = draft[field];
       if (typeof value === 'boolean') {
         out[field] = value;
+      } else if (field in LIST_FIELDS) {
+        out[field] = String(value)
+          .split(LIST_FIELDS[field])
+          .map((part) => part.trim())
+          .filter(Boolean);
       } else if (value === '' && NULLABLE.has(field)) {
         out[field] = null;
       } else {
@@ -174,6 +202,21 @@ export function LeaseTermsEditor({
       }
     }
     return out;
+  };
+
+  const services = String(draft.services_and_facilities ?? '')
+    .split(',')
+    .filter(Boolean);
+  const toggleService = (value: string, on: boolean) => {
+    const next = on
+      ? [...services, value]
+      : services.filter((s) => s !== value);
+    // Keep the server's own order so the draft compares cleanly against the
+    // original regardless of the order boxes were clicked in.
+    const ordered = (lease.service_choices ?? [])
+      .map((c) => c.value)
+      .filter((v) => next.includes(v));
+    set('services_and_facilities', ordered.join(','));
   };
 
   const save = async () => {
@@ -288,6 +331,56 @@ export function LeaseTermsEditor({
         </div>
       </div>
 
+      {(lease.service_choices?.length ?? 0) > 0 && (
+        <div className="space-y-2 border-t pt-3">
+          <Label className="text-xs text-slate-500">Included in the rent</Label>
+          <p className="text-xs text-slate-400">
+            What you include here prints on the agreement, and each included
+            utility gets a fair-use term with it — no leaving the water running,
+            no heat on with the windows open.
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+            {lease.service_choices!.map((choice) => (
+              <label
+                key={choice.value}
+                className="flex items-center gap-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={services.includes(choice.value)}
+                  onChange={(e) =>
+                    toggleService(choice.value, e.target.checked)
+                  }
+                />
+                {choice.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <Label className="text-xs text-slate-500">
+          Other occupants (not tenants on this agreement)
+        </Label>
+        <Input
+          className="h-8"
+          value={String(draft.occupants ?? '')}
+          onChange={(e) => set('occupants', e.target.value)}
+          placeholder="Comma-separated: a child, a partner who isn't signing"
+        />
+      </div>
+
+      <div>
+        <Label className="text-xs text-slate-500">House rules</Label>
+        <Textarea
+          rows={3}
+          value={String(draft.house_rules ?? '')}
+          onChange={(e) => set('house_rules', e.target.value)}
+          placeholder="Guests, quiet hours, cleaning rota, kitchen etiquette"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         {text('etransfer_email', 'e-Transfers go to', 'email')}
         {text(
@@ -317,6 +410,7 @@ export function LeaseTermsEditor({
           {text('landlord_service_email', 'Notice email', 'email')}
           {text('landlord_daytime_phone', 'Daytime phone')}
           {text('landlord_other_phone', 'Other phone')}
+          {text('landlord_fax', 'Fax')}
         </div>
       </div>
 

@@ -146,6 +146,12 @@ interface LeaseDetailData {
   landlord_service_email?: string;
   landlord_daytime_phone?: string;
   landlord_other_phone?: string;
+  landlord_fax?: string;
+  house_rules?: string;
+  occupants?: string[];
+  services_and_facilities?: string[];
+  // Enum shipped by the server so the editor's list can't drift from the model.
+  service_choices?: { value: string; label: string }[];
   bills_summary: string;
   bills_included?: BillsMap;
   special_terms: string;
