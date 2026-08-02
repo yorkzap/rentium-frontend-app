@@ -68,6 +68,7 @@ import {
   saveKeys,
   startMoveOut,
 } from '@/lib/inspectionApi';
+import { DepositDeductions } from './moveout/DepositDeductions';
 
 interface Props {
   inspectionId: string;
@@ -129,8 +130,7 @@ export default function InspectionWizard({ inspectionId, onChanged }: Props) {
 
   const getValue = (item: InspectionItem, field: string): string => {
     const patch = dirty[item.id] as unknown as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (patch && field in patch) return String(patch[field] ?? '');
     return String((item as unknown as Record<string, unknown>)[field] ?? '');
   };
@@ -634,6 +634,20 @@ export default function InspectionWizard({ inspectionId, onChanged }: Props) {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      {/* What the landlord proposes to keep — only meaningful once the
+          move-out column exists to evidence it. */}
+      {(activePass === 'MOVE_OUT' || inspection.status === 'COMPLETED') &&
+        token && (
+          <DepositDeductions
+            token={token}
+            inspection={inspection}
+            onChanged={() => {
+              load();
+              onChanged?.();
+            }}
+          />
+        )}
 
       {/* Add custom row */}
       {activePass && (

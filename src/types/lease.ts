@@ -37,8 +37,8 @@ export interface LeaseTenant {
   effective_rent?: string | null;
   room?: number | null;
   room_name: string | null;
-  cleaning_fee?: string | null;
-  cleaning_fee_paid?: boolean;
+  cleaning_deposit?: string | null;
+  cleaning_deposit_paid?: boolean;
   is_primary_tenant?: boolean;
   has_signed: boolean;
   signed_date?: string | null;
@@ -110,7 +110,7 @@ export interface Lease {
   move_out_date?: string | null;
   security_deposit?: string | null;
   pet_deposit?: string | null;
-  cleaning_fee?: string | null;
+  cleaning_deposit?: string | null;
   pets_allowed?: boolean;
   smoking_allowed?: boolean;
   bills_included?: Record<string, unknown> | null;

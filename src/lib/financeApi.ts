@@ -457,6 +457,62 @@ export async function recordPayment(
   return handle(res);
 }
 
+/** One charge and what this transfer puts against it. */
+export interface PaymentAllocation {
+  charge_id: string;
+  description: string;
+  amount: string;
+}
+
+export interface SplitSuggestion {
+  matched: boolean;
+  amount: string;
+  allocations: PaymentAllocation[];
+}
+
+/**
+ * "A $400 e-transfer landed — what is it?" Deposits are due together and
+ * arrive as one bank line, but stay separate charges because they are
+ * returned separately. Suggestion only; nothing is written.
+ */
+export async function suggestSplit(
+  token: string,
+  amount: string | number,
+  scope?: { lease?: string; property?: string }
+): Promise<SplitSuggestion> {
+  const params = new URLSearchParams({ amount: String(amount) });
+  if (scope?.lease) params.set('lease', scope.lease);
+  if (scope?.property) params.set('property', scope.property);
+  const res = await fetch(`${LEDGER}/entries/suggest_split/?${params}`, {
+    headers: authHeaders(token),
+  });
+  return handle(res);
+}
+
+export interface RecordSplitPaymentPayload {
+  /** The landlord's own total, checked against the allocations server-side. */
+  amount?: string | number;
+  payment_method: PaymentMethod;
+  payment_date?: string;
+  reference_number?: string;
+  notes?: string;
+  tenant?: number | string;
+  allocations: { charge_id: string; amount: string | number }[];
+}
+
+/** Records one payment against several charges — one entry per charge. */
+export async function recordSplitPayment(
+  token: string,
+  payload: RecordSplitPaymentPayload
+): Promise<{ total: string; payments: LedgerEntry[] }> {
+  const res = await fetch(`${LEDGER}/entries/record_split_payment/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
 export async function postCredit(
   token: string,
   chargeId: string,

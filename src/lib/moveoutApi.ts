@@ -89,6 +89,45 @@ export interface SettleDepositPayload {
   tenant_agreement_signed_on?: string;
   /** Required when settling as RTB — an application has a file number. */
   rtb_file_number?: string;
+  /** Required whenever deposit money actually moves (RETURNED or AGREED). */
+  deposit_return_method?: 'ETRANSFER' | 'CASH' | 'CHEQUE' | 'OTHER';
+  deposit_return_date?: string;
+}
+
+/**
+ * One held deposit, and what a settlement would do to it.
+ *
+ * Deposits are separate charges precisely so they can be returned separately —
+ * a single "deposit held" figure is what makes a landlord hand back the
+ * cleaning deposit they meant to keep part of.
+ */
+export interface DepositBalance {
+  charge_id: string;
+  kind: string;
+  label: string;
+  held: string;
+  proposed_deduction: string;
+  returning: string;
+  tenant: string | null;
+}
+
+export interface DepositBalances {
+  /** Set when the ledger can't compute cleanly — show it, don't work around it. */
+  blocked: string | null;
+  deposits: DepositBalance[];
+  deductions_agreed: boolean;
+  total_held: string;
+}
+
+export async function fetchDepositBalances(
+  token: string,
+  id: string
+): Promise<DepositBalances> {
+  const res = await fetch(
+    `${DJANGO_API_URL}/leases/moveouts/${id}/deposit_balances/`,
+    { headers: headers(token) }
+  );
+  return handle(res);
 }
 
 export async function settleDeposit(

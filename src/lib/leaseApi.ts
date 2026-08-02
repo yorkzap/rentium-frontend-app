@@ -240,9 +240,59 @@ export async function updateLeaseTenant(
     rent_amount: number;
     is_primary_tenant: boolean;
     tenant_notes: string;
+    invited_name: string;
   }>
 ) {
   return apiPatch(token, `/leases/tenants/${leaseTenantId}/`, payload);
+}
+
+/** Every lease field the API will accept an edit for. */
+export interface LeaseTermsPatch {
+  lease_type: string;
+  start_date: string;
+  end_date: string | null;
+  is_month_to_month: boolean;
+  move_in_date: string | null;
+  move_out_date: string | null;
+  total_rent: string;
+  rent_due_day: number | null;
+  security_deposit: string;
+  pet_deposit: string;
+  cleaning_deposit: string;
+  pets_allowed: boolean;
+  pets_terms: string;
+  smoking_allowed: boolean;
+  smoking_terms: string;
+  parking_included: boolean;
+  parking_description: string;
+  parking_extra_charge: string | null;
+  services_and_facilities: string;
+  house_rules: string;
+  special_terms: string;
+  etransfer_email: string;
+  custom_tenant_notice_months: number | null;
+  landlord_service_address: string;
+  landlord_service_email: string;
+  landlord_daytime_phone: string;
+  landlord_other_phone: string;
+  landlord_fax: string;
+}
+
+/**
+ * Edit a lease that hasn't been executed yet.
+ *
+ * The backend refuses once the lease is ACTIVE (LeaseNotLocked) — by then the
+ * signed document is frozen and the ledger charges are posted. Before then it
+ * goes through, even if some tenants already signed; the response carries
+ * `amended_signers` naming anyone whose signed terms this changed, so the
+ * landlord can be told rather than the edit succeeding silently.
+ */
+export async function updateLease(
+  token: string,
+  leaseId: string,
+  payload: Partial<LeaseTermsPatch>
+): Promise<{ amended_signers?: string[] } & Record<string, unknown>> {
+  return apiPatch(token, `/leases/${leaseId}/`, payload);
 }
 
 /** All payments for a given lease, scoped to the requesting user automatically. */

@@ -79,6 +79,9 @@ import {
   fetchLeaseBillingInfo,
   leaseLabel,
   recordPayment,
+  recordSplitPayment,
+  suggestSplit,
+  type SplitSuggestion,
   postCredit,
   voidEntry,
   correctEntry,
@@ -1146,18 +1149,71 @@ function RecordPaymentDialog({
     leaseTenants.length > 0 && (isJoint || leaseTenants.length > 1);
   const [key] = useState(() => newIdempotencyKey());
 
+  // Deposits are due together and land as ONE bank line — a single $400
+  // e-transfer that is $200 security plus $200 cleaning. They stay separate
+  // charges because they are returned separately at the end of the tenancy, so
+  // the split has to happen here, at the moment the money is recorded.
+  // Triggered by the amount exceeding this charge alone: that is the landlord
+  // telling us the transfer covers more than what they clicked on.
+  const [split, setSplit] = useState<SplitSuggestion | null>(null);
+  const [useSplit, setUseSplit] = useState(false);
+  const overpaying = Number(amount) > Number(outstanding) + 0.001;
+
+  useEffect(() => {
+    if (!leaseId || !overpaying) {
+      setSplit(null);
+      setUseSplit(false);
+      return;
+    }
+    let live = true;
+    const timer = setTimeout(() => {
+      suggestSplit(token, amount, { lease: leaseId })
+        .then((found) => {
+          if (!live) return;
+          const coversThisCharge = found.allocations.some(
+            (a) => a.charge_id === charge.id
+          );
+          const usable = found.matched && coversThisCharge;
+          setSplit(usable ? found : null);
+          setUseSplit(usable);
+        })
+        .catch(() => live && setSplit(null));
+    }, 350);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [token, leaseId, amount, overpaying, charge.id]);
+
   const submit = async () => {
     setBusy(true);
     try {
-      await recordPayment(token, charge.id, {
-        amount,
-        payment_method: method,
-        payment_date: date,
-        reference_number: reference,
-        idempotency_key: key,
-        ...(paidBy ? { tenant: paidBy } : {}),
-      } as Parameters<typeof recordPayment>[2]);
-      toast.success('Payment recorded.');
+      if (useSplit && split) {
+        await recordSplitPayment(token, {
+          amount,
+          payment_method: method,
+          payment_date: date,
+          reference_number: reference,
+          allocations: split.allocations.map((a) => ({
+            charge_id: a.charge_id,
+            amount: a.amount,
+          })),
+          ...(paidBy ? { tenant: paidBy } : {}),
+        });
+        toast.success(
+          `Payment recorded across ${split.allocations.length} charges.`
+        );
+      } else {
+        await recordPayment(token, charge.id, {
+          amount,
+          payment_method: method,
+          payment_date: date,
+          reference_number: reference,
+          idempotency_key: key,
+          ...(paidBy ? { tenant: paidBy } : {}),
+        } as Parameters<typeof recordPayment>[2]);
+        toast.success('Payment recorded.');
+      }
       onDone();
     } catch (err) {
       toast.error(
@@ -1190,6 +1246,44 @@ function RecordPaymentDialog({
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
+          {split && (
+            <div className="space-y-2 rounded-md border border-[hsl(var(--brand))]/30 bg-[hsl(var(--brand))]/5 p-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={useSplit}
+                  onChange={(e) => setUseSplit(e.target.checked)}
+                />
+                <span>
+                  <span className="font-medium">
+                    {money(amount)} covers {split.allocations.length} charges
+                  </span>
+                  <span className="block text-xs text-ink-3">
+                    Split it, and each charge keeps its own balance — which is
+                    what lets you return the deposits separately later.
+                  </span>
+                </span>
+              </label>
+              <ul className="space-y-1 pl-6 text-xs text-ink-2">
+                {split.allocations.map((a) => (
+                  <li key={a.charge_id} className="flex justify-between gap-3">
+                    <span className="truncate">{a.description}</span>
+                    <span className="shrink-0 tabular-nums">
+                      {money(a.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {overpaying && !split && (
+            <p className="text-xs text-amber-700">
+              That is more than the {money(outstanding)} outstanding on this
+              charge, and it doesn&apos;t match any combination of the other
+              open charges. Record each charge separately, or check the amount.
+            </p>
+          )}
           {showPayerPicker && (
             <div className="space-y-2">
               <Label>Paid by</Label>

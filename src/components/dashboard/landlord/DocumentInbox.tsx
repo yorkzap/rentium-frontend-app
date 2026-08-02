@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckSquare,
+  Download,
+  Eye,
   FileCheck2,
   FileSearch,
   Loader2,
+  PencilLine,
   Search,
   Square,
   Trash2,
@@ -20,12 +23,14 @@ import {
   deleteRamaDocument,
   fetchHoldings,
   fetchRamaDocuments,
+  fetchRamaDocumentBlob,
   fetchRamaDocumentTags,
   downloadRamaDocument,
   fileRamaDocument,
   markRamaDocumentPaid,
   moveRamaDocument,
   reocrRamaDocument,
+  renameRamaDocument,
   restoreRamaDocument,
   updateRamaDocumentTags,
   uploadRamaDocument,
@@ -37,6 +42,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -92,6 +104,28 @@ function documentHeadline(row: RamaDocument): string {
   );
 }
 
+function formatDocumentAmount(row: RamaDocument): string | null {
+  if (!row.amount) return null;
+  const value = Number(row.amount);
+  if (!Number.isFinite(value)) return `${row.currency || 'CAD'} ${row.amount}`;
+  try {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: row.currency || 'CAD',
+    }).format(value);
+  } catch {
+    return `${row.currency || 'CAD'} ${value.toFixed(2)}`;
+  }
+}
+
+function paymentLabel(row: RamaDocument): string | null {
+  if (!row.amount) return null;
+  if (row.payment_state === 'PAID') return 'Paid';
+  if (row.payment_state === 'UNPAID') return 'Not yet paid';
+  if (row.payment_state === 'UNKNOWN') return 'Payment status needed';
+  return null;
+}
+
 export default function DocumentInbox({
   focusDocumentId,
 }: {
@@ -125,6 +159,17 @@ export default function DocumentInbox({
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkHolding, setBulkHolding] = useState('');
   const [bulkTag, setBulkTag] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<RamaDocument | null>(
+    null
+  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const previewRequest = useRef(0);
 
   const viewingTrash = statusFilter === 'TRASH';
   const selectedIds = Object.entries(selected)
@@ -203,6 +248,13 @@ export default function DocumentInbox({
       .getElementById(`business-document-${focusDocumentId}`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [documents, focusDocumentId]);
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl]
+  );
 
   const upload = async (file?: File) => {
     if (!file || !token) return;
@@ -518,6 +570,74 @@ export default function DocumentInbox({
       );
     } finally {
       setBusy(false);
+    }
+  };
+
+  const startRename = (row: RamaDocument) => {
+    setRenamingId(row.id);
+    setRenameDraft(documentHeadline(row));
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameDraft('');
+  };
+
+  const saveRename = async (row: RamaDocument) => {
+    if (!token || renameBusy) return;
+    const title = renameDraft.trim();
+    if (!title) {
+      toast.error('Enter a name for this document.');
+      return;
+    }
+    setRenameBusy(true);
+    try {
+      const renamed = await renameRamaDocument(token, row.id, title);
+      update(row.id, {
+        title: renamed.title,
+        display_title: renamed.display_title,
+      });
+      cancelRename();
+      toast.success('Document renamed. Original file preserved.');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not rename document'
+      );
+    } finally {
+      setRenameBusy(false);
+    }
+  };
+
+  const closePreview = () => {
+    previewRequest.current += 1;
+    setPreviewDocument(null);
+    setPreviewUrl(null);
+    setPreviewType('');
+    setPreviewError('');
+    setPreviewLoading(false);
+  };
+
+  const openPreview = async (row: RamaDocument) => {
+    if (!token) return;
+    const requestId = previewRequest.current + 1;
+    previewRequest.current = requestId;
+    setPreviewDocument(row);
+    setPreviewUrl(null);
+    setPreviewType('');
+    setPreviewError('');
+    setPreviewLoading(true);
+    try {
+      const blob = await fetchRamaDocumentBlob(token, row.id);
+      if (previewRequest.current !== requestId) return;
+      setPreviewType(blob.type || 'application/octet-stream');
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      if (previewRequest.current !== requestId) return;
+      setPreviewError(
+        error instanceof Error ? error.message : 'Could not preview document'
+      );
+    } finally {
+      if (previewRequest.current === requestId) setPreviewLoading(false);
     }
   };
 
@@ -864,8 +984,8 @@ export default function DocumentInbox({
               }
             >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
                     <button
                       type="button"
                       className="mt-1 text-[hsl(var(--ink-3))] hover:text-[hsl(var(--ink-1))]"
@@ -880,22 +1000,83 @@ export default function DocumentInbox({
                         <Square className="h-4 w-4" />
                       )}
                     </button>
-                    <div>
-                      <CardTitle className="text-base">
-                        {documentHeadline(row)}
-                      </CardTitle>
-                      <p className="mt-1 text-xs text-[hsl(var(--ink-4))]">
-                        {row.canonical_filename || row.original_filename}
-                        {row.original_filename &&
-                        row.title &&
-                        row.original_filename !== row.title
-                          ? ` · was ${row.original_filename}`
-                          : ''}{' '}
-                        · {row.status.replaceAll('_', ' ')}
-                        {row.holding_name ? ` · ${row.holding_name}` : ''}
-                        {row.amount ? ` · $${row.amount}` : ''}
-                        {row.kind ? ` · ${row.kind_display || row.kind}` : ''}
+                    <div className="min-w-0 flex-1">
+                      {renamingId === row.id ? (
+                        <div className="flex max-w-2xl flex-wrap items-center gap-2">
+                          <Input
+                            autoFocus
+                            aria-label="Document name"
+                            className="h-9 min-w-[14rem] flex-1 font-medium"
+                            maxLength={255}
+                            value={renameDraft}
+                            onChange={(event) =>
+                              setRenameDraft(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                void saveRename(row);
+                              }
+                              if (event.key === 'Escape') cancelRename();
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={renameBusy || !renameDraft.trim()}
+                            onClick={() => saveRename(row)}
+                          >
+                            {renameBusy && (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            )}
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={renameBusy}
+                            onClick={cancelRename}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <CardTitle className="truncate text-base sm:text-lg">
+                            {documentHeadline(row)}
+                          </CardTitle>
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md p-1.5 text-[hsl(var(--ink-4))] transition-colors hover:bg-[hsl(var(--surface-2))] hover:text-[hsl(var(--ink-1))]"
+                            onClick={() => startRename(row)}
+                            aria-label={`Rename ${documentHeadline(row)}`}
+                            title="Rename document"
+                          >
+                            <PencilLine className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      <p className="mt-1 truncate text-xs text-[hsl(var(--ink-4))]">
+                        Original file: {row.original_filename}
                       </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--surface-1))] px-2 py-0.5 text-xs font-medium text-[hsl(var(--ink-2))]">
+                          {row.status.replaceAll('_', ' ')}
+                        </span>
+                        {row.kind && (
+                          <span className="rounded-full bg-[hsl(var(--surface-2))] px-2 py-0.5 text-xs text-[hsl(var(--ink-2))]">
+                            {row.kind_display || row.kind}
+                          </span>
+                        )}
+                        {(row.holding_name || row.portfolio_wide) && (
+                          <span className="max-w-full truncate rounded-full bg-[hsl(var(--surface-2))] px-2 py-0.5 text-xs text-[hsl(var(--ink-2))]">
+                            {row.portfolio_wide
+                              ? 'Whole portfolio'
+                              : row.holding_name}
+                          </span>
+                        )}
+                      </div>
                       {(row.tags?.length ?? 0) > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {row.tags!.map((tag) => (
@@ -915,61 +1096,105 @@ export default function DocumentInbox({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    {row.archival_pdf && token && (
-                      <button
-                        className="text-sm text-[hsl(var(--brand))] hover:underline"
-                        onClick={() =>
-                          downloadRamaDocument(token, row).catch(
-                            (error: unknown) =>
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : 'Download failed'
-                              )
-                          )
-                        }
-                      >
-                        Download PDF/A
-                      </button>
+                  <div className="flex shrink-0 flex-wrap items-start gap-3 lg:justify-end">
+                    {formatDocumentAmount(row) && (
+                      <div className="min-w-[9.5rem] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-1))] px-4 py-2.5 lg:text-right">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-[hsl(var(--ink-4))]">
+                          Amount
+                        </p>
+                        <p className="text-xl font-semibold tabular-nums text-[hsl(var(--ink-1))]">
+                          {formatDocumentAmount(row)}
+                        </p>
+                        {paymentLabel(row) && (
+                          <p
+                            className={`mt-0.5 text-xs font-medium ${
+                              row.payment_state === 'PAID'
+                                ? 'text-emerald-700'
+                                : row.payment_state === 'UNKNOWN'
+                                  ? 'text-amber-700'
+                                  : 'text-[hsl(var(--ink-3))]'
+                            }`}
+                          >
+                            {paymentLabel(row)}
+                          </p>
+                        )}
+                      </div>
                     )}
-                    {viewingTrash ? (
-                      <>
-                        <button
+                    <div className="flex flex-wrap items-center gap-2">
+                      {token && (
+                        <Button
                           type="button"
-                          className="text-sm text-[hsl(var(--brand))] hover:underline disabled:opacity-40"
-                          disabled={busy}
-                          onClick={() => restore(row)}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPreview(row)}
                         >
-                          Restore
-                        </button>
-                        <button
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          Preview
+                        </Button>
+                      )}
+                      {token && (
+                        <Button
                           type="button"
-                          className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
-                          disabled={busy || !!row.ledger_entry_id}
-                          title={
-                            row.ledger_entry_id
-                              ? 'Linked to a ledger expense — cannot hard-delete'
-                              : 'Delete forever'
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            downloadRamaDocument(token, row).catch(
+                              (error: unknown) =>
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : 'Download failed'
+                                )
+                            )
                           }
+                        >
+                          <Download className="mr-1.5 h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      )}
+                      {viewingTrash ? (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => restore(row)}
+                          >
+                            Restore
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700"
+                            disabled={busy || !!row.ledger_entry_id}
+                            title={
+                              row.ledger_entry_id
+                                ? 'Linked to a ledger expense — cannot hard-delete'
+                                : 'Delete forever'
+                            }
+                            onClick={() => remove(row)}
+                          >
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Delete forever
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700"
+                          disabled={busy}
+                          title="Move to trash"
                           onClick={() => remove(row)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete forever
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-sm text-red-600 hover:underline disabled:opacity-40"
-                        disabled={busy}
-                        title="Move to trash"
-                        onClick={() => remove(row)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Trash
-                      </button>
-                    )}
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          Trash
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -1286,6 +1511,111 @@ export default function DocumentInbox({
           ))}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(previewDocument)}
+        onOpenChange={(open) => {
+          if (!open) closePreview();
+        }}
+      >
+        <DialogContent className="flex h-[min(90vh,900px)] max-w-6xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-[hsl(var(--border))] px-6 py-4 pr-14">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <DialogTitle className="truncate text-lg">
+                  {previewDocument
+                    ? documentHeadline(previewDocument)
+                    : 'Document preview'}
+                </DialogTitle>
+                <DialogDescription className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span>{previewDocument?.original_filename}</span>
+                  {previewDocument && formatDocumentAmount(previewDocument) && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-semibold text-[hsl(var(--ink-1))]">
+                        {formatDocumentAmount(previewDocument)}
+                      </span>
+                    </>
+                  )}
+                </DialogDescription>
+              </div>
+              {previewDocument && token && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 self-start sm:self-auto"
+                  onClick={() =>
+                    downloadRamaDocument(token, previewDocument).catch(
+                      (error: unknown) =>
+                        toast.error(
+                          error instanceof Error
+                            ? error.message
+                            : 'Download failed'
+                        )
+                    )
+                  }
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Download
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-100 p-3 sm:p-5">
+            {previewLoading && (
+              <div className="flex flex-col items-center gap-3 text-sm text-[hsl(var(--ink-3))]">
+                <Loader2 className="h-7 w-7 animate-spin text-[hsl(var(--brand))]" />
+                Loading secure preview…
+              </div>
+            )}
+            {!previewLoading && previewError && (
+              <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 text-center">
+                <p className="font-medium text-red-700">Preview unavailable</p>
+                <p className="mt-1 text-sm text-[hsl(var(--ink-3))]">
+                  {previewError}
+                </p>
+              </div>
+            )}
+            {!previewLoading && !previewError && previewUrl && (
+              <>
+                {previewType === 'application/pdf' ? (
+                  <iframe
+                    src={previewUrl}
+                    title={`Preview of ${
+                      previewDocument
+                        ? documentHeadline(previewDocument)
+                        : 'document'
+                    }`}
+                    className="h-full w-full rounded-lg border border-slate-200 bg-white shadow-sm"
+                  />
+                ) : previewType.startsWith('image/') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewUrl}
+                    alt={
+                      previewDocument
+                        ? `Preview of ${documentHeadline(previewDocument)}`
+                        : 'Document preview'
+                    }
+                    className="max-h-full max-w-full rounded-lg bg-white object-contain shadow-sm"
+                  />
+                ) : (
+                  <div className="max-w-md rounded-lg border border-[hsl(var(--border))] bg-white p-6 text-center">
+                    <FileSearch className="mx-auto h-8 w-8 text-[hsl(var(--ink-4))]" />
+                    <p className="mt-3 font-medium">
+                      This file type cannot be previewed here
+                    </p>
+                    <p className="mt-1 text-sm text-[hsl(var(--ink-3))]">
+                      Download the original to open it on your device.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

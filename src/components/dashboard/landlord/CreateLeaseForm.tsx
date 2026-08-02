@@ -131,7 +131,7 @@ const formSchema = z
         .min(0, 'Deposit cannot be negative')
         .default(0)
     ),
-    cleaningFee: z.preprocess(
+    cleaningDeposit: z.preprocess(
       (val) => (val === '' ? 0 : Number(val)),
       z
         .number({ invalid_type_error: 'Fee must be a number' })
@@ -452,7 +452,7 @@ export function CreateLeaseForm() {
       totalRent: undefined,
       securityDeposit: 0,
       petDeposit: 0,
-      cleaningFee: 0,
+      cleaningDeposit: 0,
       etransferEmail: '',
       tenantNoticeMonths: 1,
       petsAllowed: false,
@@ -787,7 +787,7 @@ export function CreateLeaseForm() {
       'totalRent',
       'securityDeposit',
       'petDeposit',
-      'cleaningFee',
+      'cleaningDeposit',
       'etransferEmail',
       'tenantNoticeMonths',
       'petsAllowed',
@@ -882,7 +882,7 @@ export function CreateLeaseForm() {
         total_rent: values.totalRent.toFixed(2),
         security_deposit: values.securityDeposit.toFixed(2),
         pet_deposit: values.petDeposit.toFixed(2),
-        cleaning_fee: values.cleaningFee.toFixed(2),
+        cleaning_deposit: values.cleaningDeposit.toFixed(2),
         etransfer_email: values.etransferEmail || '',
         custom_tenant_notice_months: values.tenantNoticeMonths,
         pets_allowed: values.petsAllowed,
@@ -1445,10 +1445,12 @@ export function CreateLeaseForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cleaningFee">Cleaning Fee ($)</Label>
+                      <Label htmlFor="cleaningDeposit">
+                        Cleaning deposit ($)
+                      </Label>
                       <Controller
                         control={form.control}
-                        name="cleaningFee"
+                        name="cleaningDeposit"
                         render={({ field }) => (
                           <Input
                             type="number"
@@ -1459,9 +1461,9 @@ export function CreateLeaseForm() {
                           />
                         )}
                       />
-                      {form.formState.errors.cleaningFee && (
+                      {form.formState.errors.cleaningDeposit && (
                         <p className="text-sm text-red-500">
-                          {form.formState.errors.cleaningFee.message}
+                          {form.formState.errors.cleaningDeposit.message}
                         </p>
                       )}
                     </div>

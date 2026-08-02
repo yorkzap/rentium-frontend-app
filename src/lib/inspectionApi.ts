@@ -6,13 +6,7 @@ import { DJANGO_API_URL } from '@/lib/config';
 
 // ---------------------------------------------------------------- types
 export type ConditionCode =
-  | 'GOOD'
-  | 'FAIR'
-  | 'POOR'
-  | 'MISSING'
-  | 'DAMAGED'
-  | 'SCRATCHED'
-  | 'BROKEN';
+  'GOOD' | 'FAIR' | 'POOR' | 'MISSING' | 'DAMAGED' | 'SCRATCHED' | 'BROKEN';
 export type CleanlinessCode = 'DIRTY' | 'STAINED';
 export type InspectionPass = 'MOVE_IN' | 'MOVE_OUT';
 export type InspectionStatus =
@@ -111,7 +105,13 @@ export interface InspectionDetail extends InspectionSummary {
   tenant_move_out_signature_name: string;
   deduction_security_deposit: string | null;
   deduction_pet_deposit: string | null;
+  deduction_cleaning_deposit: string | null;
+  /** Set once the tenant agreed IN WRITING — until then nothing is kept. */
   deduction_agreed_at: string | null;
+  deposit_deductions: DepositDeduction[];
+  /** Live sum of the lines, per deposit. Compare with the deduction_* fields
+   *  above to see whether the signed agreement still covers the claim. */
+  deduction_totals: Record<DepositKind, string>;
   tenant_forwarding_address: string;
   move_in_report_delivered_at: string | null;
   move_out_report_delivered_at: string | null;
@@ -121,6 +121,57 @@ export interface InspectionDetail extends InspectionSummary {
   disputed_move_out: boolean;
   items: InspectionItem[];
   key_rows: InspectionKeyRow[];
+}
+
+/** Which deposit a deduction comes out of. They are held and returned
+ *  separately, so this is never inferred. */
+export type DepositKind = 'SECURITY' | 'PET' | 'CLEANING';
+
+export type DeductionBasis =
+  'LABOUR' | 'SUPPLIES' | 'CLEANER' | 'GARBAGE' | 'OTHER';
+
+export const DEDUCTION_BASES: { value: DeductionBasis; label: string }[] = [
+  { value: 'LABOUR', label: 'Own labour (hours × rate)' },
+  { value: 'SUPPLIES', label: 'Cleaning supplies / materials' },
+  { value: 'CLEANER', label: 'Professional cleaners' },
+  { value: 'GARBAGE', label: 'Garbage removal / dumping fees' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+export const DEPOSIT_KINDS: { value: DepositKind; label: string }[] = [
+  { value: 'SECURITY', label: 'Security deposit' },
+  { value: 'PET', label: 'Pet damage deposit' },
+  { value: 'CLEANING', label: 'Cleaning deposit' },
+];
+
+/** One costed line of what the landlord proposes to keep, and why. */
+export interface DepositDeduction {
+  id: string;
+  inspection: string;
+  inspection_item: string | null;
+  item_label: string | null;
+  work_order: string | null;
+  deposit_kind: DepositKind;
+  deposit_kind_display: string;
+  basis: DeductionBasis;
+  basis_display: string;
+  hours: string | null;
+  hourly_rate: string | null;
+  /** Server-computed for LABOUR (hours × rate); entered for everything else. */
+  amount: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeductionPayload {
+  deposit_kind: DepositKind;
+  basis: DeductionBasis;
+  hours?: string | null;
+  hourly_rate?: string | null;
+  amount?: string | null;
+  note?: string;
+  inspection_item?: string | null;
 }
 
 export interface ItemPatch {
@@ -358,5 +409,75 @@ export async function dismissSuggestion(
       headers: authHeaders(token),
     }
   );
+  return handle(res);
+}
+
+// ------------------------------------------------------- deposit deductions
+//
+// Adding lines KEEPS NOTHING. Under the BC RTA a landlord may hold back
+// deposit money only with the tenant's written agreement (agreeDeductions
+// below) or an RTB order. Lines freeze once agreed — the RTB's answer to a
+// correction is an addendum, never a silent edit.
+export async function fetchDeductions(
+  token: string,
+  inspectionId: string
+): Promise<DepositDeduction[]> {
+  const res = await fetch(`${I}/${inspectionId}/deductions/`, {
+    headers: authHeaders(token),
+  });
+  return unwrap(await handle(res));
+}
+
+export async function addDeduction(
+  token: string,
+  inspectionId: string,
+  payload: DeductionPayload
+): Promise<DepositDeduction> {
+  const res = await fetch(`${I}/${inspectionId}/deductions/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function updateDeduction(
+  token: string,
+  inspectionId: string,
+  lineId: string,
+  payload: Partial<DeductionPayload>
+): Promise<DepositDeduction> {
+  const res = await fetch(`${I}/${inspectionId}/deductions/${lineId}/`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handle(res);
+}
+
+export async function deleteDeduction(
+  token: string,
+  inspectionId: string,
+  lineId: string
+): Promise<void> {
+  const res = await fetch(`${I}/${inspectionId}/deductions/${lineId}/`, {
+    method: 'DELETE',
+    headers: authHeaders(token, false),
+  });
+  await handle(res);
+}
+
+/** Record the tenant's written agreement to these deductions. This is the
+ *  consent that lets any deposit money be kept at all. */
+export async function agreeDeductions(
+  token: string,
+  inspectionId: string,
+  signedOn?: string
+): Promise<InspectionDetail> {
+  const res = await fetch(`${I}/${inspectionId}/agree_deductions/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(signedOn ? { signed_on: signedOn } : {}),
+  });
   return handle(res);
 }

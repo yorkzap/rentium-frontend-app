@@ -49,6 +49,7 @@ import LeaseInspections from './LeaseInspections';
 import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
 import BillsEditor, { BillsSummaryList, type BillsMap } from './BillsEditor';
+import { LeaseTermsEditor } from './LeaseTermsEditor';
 import { dateLabel } from '@/lib/utils';
 interface RentAdjustment {
   id: string;
@@ -126,9 +127,25 @@ interface LeaseDetailData {
   smoking_allowed?: boolean;
   etransfer_email?: string;
   effective_etransfer_email?: string;
+  move_out_date?: string | null;
   security_deposit: string;
   pet_deposit: string;
-  cleaning_fee: string;
+  cleaning_deposit: string;
+  // Stamped by the ledger when the deposit is actually settled.
+  security_deposit_received_date?: string | null;
+  pet_deposit_received_date?: string | null;
+  cleaning_deposit_received_date?: string | null;
+  rent_due_day?: number | null;
+  pets_terms?: string;
+  smoking_terms?: string;
+  parking_included?: boolean;
+  parking_description?: string;
+  parking_extra_charge?: string | null;
+  custom_tenant_notice_months?: number | null;
+  landlord_service_address?: string;
+  landlord_service_email?: string;
+  landlord_daytime_phone?: string;
+  landlord_other_phone?: string;
   bills_summary: string;
   bills_included?: BillsMap;
   special_terms: string;
@@ -171,6 +188,9 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSigning, setIsSigning] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  // Who signed under the terms this edit just changed. Landlord-facing only.
+  const [amendedSigners, setAmendedSigners] = useState<string[]>([]);
   const [isInviteCoOpen, setIsInviteCoOpen] = useState(false);
   const [coName, setCoName] = useState('');
   const [coEmail, setCoEmail] = useState('');
@@ -858,148 +878,190 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
         )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>Lease Terms</CardTitle>
+            {!lease.is_locked && !termsOpen && (
+              <button
+                onClick={() => setTermsOpen(true)}
+                className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
+              >
+                Edit terms
+              </button>
+            )}
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-slate-500">Lease Number</p>
-              <p className="font-mono text-xs pt-0.5">{lease.lease_number}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Agreement</p>
-              <p>{lease.lease_type_display}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Furnishing (from listing)</p>
-              <p>
-                {lease.property_furnishing_label ||
-                  (lease.property_furnishing_status === 'FURNISHED'
-                    ? 'Furnished'
-                    : lease.property_furnishing_status === 'SEMI_FURNISHED'
-                      ? 'Semi-furnished'
-                      : 'Unfurnished')}
-              </p>
-              {lease.property && !lease.is_locked && (
-                <p className="mt-1 text-xs text-slate-500">
-                  Edit on the{' '}
-                  <a
-                    href={`/dashboard/properties/edit/${lease.property}`}
-                    className="text-teal-700 underline"
-                  >
-                    listing
-                  </a>{' '}
-                  or ask RAMA to adjust the lease.
-                </p>
-              )}
-            </div>
-            <div>
-              <p className="text-slate-500">Start Date</p>
-              <p>{lease.start_date}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">End Date</p>
-              <p>
-                {lease.is_month_to_month
-                  ? 'Month-to-month'
-                  : lease.end_date || '—'}
-              </p>
-            </div>
-            {lease.move_in_date && lease.move_in_date !== lease.start_date && (
-              <div>
-                <p className="text-slate-500">Move-in Date</p>
-                <p>{lease.move_in_date}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-slate-500">Total Monthly Rent</p>
-              <p className="font-medium">${lease.total_rent}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Security Deposit</p>
-              <p>${lease.security_deposit}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Pet Deposit</p>
-              <p>${lease.pet_deposit}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Cleaning Fee</p>
-              <p>${lease.cleaning_fee}</p>
-            </div>
-            {Number(lease.unallocated_rent) > 0.01 && (
-              <div>
-                <p className="text-slate-500">Unallocated</p>
-                <p className="font-medium text-amber-600">
-                  ${lease.unallocated_rent}
-                </p>
-              </div>
-            )}
-            <div>
-              <p className="text-slate-500">Pets</p>
-              <p>{lease.pets_allowed ? 'Allowed' : 'Not allowed'}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Smoking</p>
-              <p>{lease.smoking_allowed ? 'Allowed' : 'Not allowed'}</p>
-            </div>
-            {(lease.effective_etransfer_email || lease.etransfer_email) && (
-              <div className="col-span-2 pt-2 border-t">
-                <p className="text-slate-500 mb-1">e-Transfers go to</p>
-                <p className="select-all">
-                  {lease.etransfer_email || lease.effective_etransfer_email}
-                </p>
-                {!lease.etransfer_email && (
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Fallback (your service/account email) — set a dedicated
-                    e-transfer address when creating a lease.
+            {termsOpen && token ? (
+              <LeaseTermsEditor
+                token={token}
+                lease={lease}
+                signedNames={lease.lease_tenants
+                  .filter((lt) => lt.has_signed && !lt.declined)
+                  .map(
+                    (lt) =>
+                      lt.tenant_name ||
+                      lt.invited_name ||
+                      lt.invited_email ||
+                      'a tenant'
+                  )}
+                onCancel={() => setTermsOpen(false)}
+                onSaved={(amended) => {
+                  setTermsOpen(false);
+                  setAmendedSigners(amended);
+                  fetchLease();
+                }}
+              />
+            ) : (
+              <>
+                {amendedSigners.length > 0 && (
+                  <div className="col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                    Saved. {amendedSigners.join(', ')} had already signed, so
+                    this amends the agreement they signed. They were not
+                    notified.
+                  </div>
+                )}
+                <div>
+                  <p className="text-slate-500">Lease Number</p>
+                  <p className="font-mono text-xs pt-0.5">
+                    {lease.lease_number}
                   </p>
-                )}
-              </div>
-            )}
-            <div className="col-span-2 pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <p className="text-slate-500 mb-1">Bills &amp; Utilities</p>
-                {!lease.is_locked && (
-                  <button
-                    onClick={() => setBillsOpen((o) => !o)}
-                    className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
-                  >
-                    {billsOpen ? 'Close' : 'Edit'}
-                  </button>
-                )}
-              </div>
-              {!billsOpen && (
-                <BillsSummaryList
-                  bills={lease.bills_included}
-                  fallback={lease.bills_summary}
-                />
-              )}
-              {billsOpen && !lease.is_locked && (
-                <div className="mt-2">
-                  <BillsEditor
-                    value={lease.bills_included || {}}
-                    onSave={handleSaveBills}
-                    saving={savingBills}
-                    title=""
-                    hint="Mark each utility as included in rent or tenant-paid. Applies to this lease."
-                  />
                 </div>
-              )}
-            </div>
-            {lease.common_space_clause_text && (
-              <div className="col-span-2 pt-2 border-t">
-                <p className="text-slate-500 mb-1">Shared Spaces</p>
-                <p className="whitespace-pre-wrap">
-                  {lease.common_space_clause_text}
-                </p>
-              </div>
-            )}
-            {lease.special_terms && (
-              <div className="col-span-2 pt-2 border-t">
-                <p className="text-slate-500 mb-1">Special Terms</p>
-                <p className="whitespace-pre-wrap">{lease.special_terms}</p>
-              </div>
+                <div>
+                  <p className="text-slate-500">Agreement</p>
+                  <p>{lease.lease_type_display}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Furnishing (from listing)</p>
+                  <p>
+                    {lease.property_furnishing_label ||
+                      (lease.property_furnishing_status === 'FURNISHED'
+                        ? 'Furnished'
+                        : lease.property_furnishing_status === 'SEMI_FURNISHED'
+                          ? 'Semi-furnished'
+                          : 'Unfurnished')}
+                  </p>
+                  {lease.property && !lease.is_locked && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Edit on the{' '}
+                      <a
+                        href={`/dashboard/properties/edit/${lease.property}`}
+                        className="text-teal-700 underline"
+                      >
+                        listing
+                      </a>{' '}
+                      or ask RAMA to adjust the lease.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-500">Start Date</p>
+                  <p>{lease.start_date}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">End Date</p>
+                  <p>
+                    {lease.is_month_to_month
+                      ? 'Month-to-month'
+                      : lease.end_date || '—'}
+                  </p>
+                </div>
+                {lease.move_in_date &&
+                  lease.move_in_date !== lease.start_date && (
+                    <div>
+                      <p className="text-slate-500">Move-in Date</p>
+                      <p>{lease.move_in_date}</p>
+                    </div>
+                  )}
+                <div>
+                  <p className="text-slate-500">Total Monthly Rent</p>
+                  <p className="font-medium">${lease.total_rent}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Security Deposit</p>
+                  <p>${lease.security_deposit}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Pet Deposit</p>
+                  <p>${lease.pet_deposit}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Cleaning deposit</p>
+                  <p>${lease.cleaning_deposit}</p>
+                </div>
+                {Number(lease.unallocated_rent) > 0.01 && (
+                  <div>
+                    <p className="text-slate-500">Unallocated</p>
+                    <p className="font-medium text-amber-600">
+                      ${lease.unallocated_rent}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-slate-500">Pets</p>
+                  <p>{lease.pets_allowed ? 'Allowed' : 'Not allowed'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Smoking</p>
+                  <p>{lease.smoking_allowed ? 'Allowed' : 'Not allowed'}</p>
+                </div>
+                {(lease.effective_etransfer_email || lease.etransfer_email) && (
+                  <div className="col-span-2 pt-2 border-t">
+                    <p className="text-slate-500 mb-1">e-Transfers go to</p>
+                    <p className="select-all">
+                      {lease.etransfer_email || lease.effective_etransfer_email}
+                    </p>
+                    {!lease.etransfer_email && (
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Fallback (your service/account email) — set a dedicated
+                        e-transfer address when creating a lease.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="col-span-2 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-500 mb-1">Bills &amp; Utilities</p>
+                    {!lease.is_locked && (
+                      <button
+                        onClick={() => setBillsOpen((o) => !o)}
+                        className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
+                      >
+                        {billsOpen ? 'Close' : 'Edit'}
+                      </button>
+                    )}
+                  </div>
+                  {!billsOpen && (
+                    <BillsSummaryList
+                      bills={lease.bills_included}
+                      fallback={lease.bills_summary}
+                    />
+                  )}
+                  {billsOpen && !lease.is_locked && (
+                    <div className="mt-2">
+                      <BillsEditor
+                        value={lease.bills_included || {}}
+                        onSave={handleSaveBills}
+                        saving={savingBills}
+                        title=""
+                        hint="Mark each utility as included in rent or tenant-paid. Applies to this lease."
+                      />
+                    </div>
+                  )}
+                </div>
+                {lease.common_space_clause_text && (
+                  <div className="col-span-2 pt-2 border-t">
+                    <p className="text-slate-500 mb-1">Shared Spaces</p>
+                    <p className="whitespace-pre-wrap">
+                      {lease.common_space_clause_text}
+                    </p>
+                  </div>
+                )}
+                {lease.special_terms && (
+                  <div className="col-span-2 pt-2 border-t">
+                    <p className="text-slate-500 mb-1">Special Terms</p>
+                    <p className="whitespace-pre-wrap">{lease.special_terms}</p>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

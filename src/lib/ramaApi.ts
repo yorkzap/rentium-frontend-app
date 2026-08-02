@@ -561,6 +561,7 @@ export interface RamaDocument {
   clarification_question: string;
   original_filename: string;
   canonical_filename: string;
+  original_file: string | null;
   archival_pdf: string | null;
   ledger_entry_id: string | null;
   failure_reason: string;
@@ -762,15 +763,35 @@ export async function fileRamaDocument(
   return handle(res);
 }
 
+export async function renameRamaDocument(
+  token: string,
+  id: string,
+  title: string
+): Promise<RamaDocument> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({ title }),
+  });
+  return handle(res);
+}
+
+export async function fetchRamaDocumentBlob(
+  token: string,
+  id: string
+): Promise<Blob> {
+  const res = await fetch(ramaUrl(`/rama/documents/${id}/download/`), {
+    headers: { Authorization: `Token ${token}` },
+  });
+  if (!res.ok) await handle(res);
+  return res.blob();
+}
+
 export async function downloadRamaDocument(
   token: string,
   document: RamaDocument
 ): Promise<void> {
-  const res = await fetch(ramaUrl(`/rama/documents/${document.id}/download/`), {
-    headers: { Authorization: `Token ${token}` },
-  });
-  if (!res.ok) await handle(res);
-  const blob = await res.blob();
+  const blob = await fetchRamaDocumentBlob(token, document.id);
   const url = URL.createObjectURL(blob);
   const anchor = window.document.createElement('a');
   anchor.href = url;
