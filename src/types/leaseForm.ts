@@ -116,6 +116,19 @@ export interface LeaseForm {
    * up front instead of letting the landlord discover it by pressing Send.
    */
   needs_filling: string[];
+  /**
+   * The signed-in user's own signature slot, when they have one outstanding.
+   * Present for a landlord on their own form, so they can sign in the
+   * dashboard rather than round-tripping through their own emailed link.
+   */
+  my_signature: {
+    signer_id: string;
+    role: SignerRole;
+    name: string;
+    has_signed: boolean;
+    declined: boolean;
+    can_sign: boolean;
+  } | null;
   executed_sha256: string;
   completed_at: string | null;
   created_via: string;

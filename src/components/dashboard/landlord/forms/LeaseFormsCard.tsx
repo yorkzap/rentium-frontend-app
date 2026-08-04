@@ -20,6 +20,7 @@ import {
   FilePlus2,
   FileText,
   Loader2,
+  PenLine,
   Send,
   Settings2,
   XCircle,
@@ -52,6 +53,7 @@ import {
   remindLeaseForm,
   sendLeaseForm,
   setLeaseFormValues,
+  signLeaseFormInApp,
   voidLeaseForm,
 } from '@/lib/leaseFormApi';
 import type {
@@ -60,6 +62,11 @@ import type {
   LeaseForm,
   LeaseFormTemplate,
 } from '@/types/leaseForm';
+
+import SignaturePad, {
+  signatureIsReady,
+  type SignatureValue,
+} from '@/components/signing/SignaturePad';
 
 import FormFieldPlacer from './FormFieldPlacer';
 import FormPicker from './FormPicker';
@@ -92,6 +99,7 @@ export default function LeaseFormsCard({
   const [placing, setPlacing] = useState<LeaseFormTemplate | null>(null);
   const [sendTarget, setSendTarget] = useState<LeaseForm | null>(null);
   const [fillTarget, setFillTarget] = useState<LeaseForm | null>(null);
+  const [signTarget, setSignTarget] = useState<LeaseForm | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -226,6 +234,7 @@ export default function LeaseFormsCard({
               busy={busyId === form.id}
               onSend={() => setSendTarget(form)}
               onFill={() => setFillTarget(form)}
+              onSign={() => setSignTarget(form)}
               onRemind={() => handleRemind(form)}
               onVoid={() => handleVoid(form)}
               onDownload={() =>
@@ -276,6 +285,18 @@ export default function LeaseFormsCard({
         />
       )}
 
+      {signTarget && (
+        <SignDialog
+          form={signTarget}
+          onClose={() => setSignTarget(null)}
+          onSigned={async () => {
+            setSignTarget(null);
+            await load();
+            onChanged?.();
+          }}
+        />
+      )}
+
       {sendTarget && (
         <SendDialog
           form={sendTarget}
@@ -296,6 +317,7 @@ function FormRow({
   busy,
   onSend,
   onFill,
+  onSign,
   onRemind,
   onVoid,
   onDownload,
@@ -304,12 +326,18 @@ function FormRow({
   busy: boolean;
   onSend: () => void;
   onFill: () => void;
+  onSign: () => void;
   onRemind: () => void;
   onVoid: () => void;
   onDownload: () => void;
 }) {
   const done = form.status === 'COMPLETED';
   const voided = form.status === 'VOID';
+  // The backend locks the contents at the FIRST signature, not at send — so a
+  // typo can still be corrected after the link has gone out, as long as nobody
+  // has put their name to it yet.
+  const editable =
+    !done && !voided && !form.signers.some((signer) => signer.has_signed);
 
   return (
     <div className="rounded-lg border p-3">
@@ -344,29 +372,33 @@ function FormRow({
         </div>
 
         <div className="flex flex-wrap gap-1">
+          {editable && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onFill}
+              disabled={busy}
+            >
+              <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+              {form.needs_filling?.length > 0 ? 'Fill in' : 'Edit details'}
+            </Button>
+          )}
           {!done && !voided && form.status === 'DRAFT' && (
-            <>
-              {form.needs_filling?.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onFill}
-                  disabled={busy}
-                >
-                  <Settings2 className="mr-1.5 h-3.5 w-3.5" />
-                  Fill in
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onSend}
-                disabled={busy || form.needs_filling?.length > 0}
-              >
-                <Send className="mr-1.5 h-3.5 w-3.5" />
-                Send
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onSend}
+              disabled={busy || form.needs_filling?.length > 0}
+            >
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              Send
+            </Button>
+          )}
+          {form.my_signature?.can_sign && (
+            <Button size="sm" onClick={onSign} disabled={busy}>
+              <PenLine className="mr-1.5 h-3.5 w-3.5" />
+              Sign
+            </Button>
           )}
           {!done && !voided && form.status !== 'DRAFT' && (
             <Button
@@ -432,6 +464,84 @@ function FormRow({
 }
 
 /**
+ * The landlord signing their own form, in the dashboard.
+ *
+ * They get an emailed link like everybody else, but making the person who
+ * created the document go and find their own email to sign it is a round trip
+ * for nothing. This calls the authenticated endpoint, which produces the
+ * identical evidence row — same typed legal name, timestamp, IP, user agent and
+ * document checksums as the public link.
+ */
+function SignDialog({
+  form,
+  onClose,
+  onSigned,
+}: {
+  form: LeaseForm;
+  onClose: () => void;
+  onSigned: () => void;
+}) {
+  const { token } = useAuth();
+  const [signature, setSignature] = useState<SignatureValue | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function sign() {
+    if (!token || !signature || !signatureIsReady(signature)) return;
+    setSaving(true);
+    try {
+      await signLeaseFormInApp(token, form.id, {
+        typed_name: signature.typedName.trim(),
+        method: signature.method,
+        signature_png: signature.signaturePng,
+      });
+      toast.success(`${form.title} signed.`);
+      onSigned();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not sign that.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Sign {form.title}</DialogTitle>
+          <DialogDescription>
+            Signing as {form.my_signature?.name}. Read the document first — the
+            download button on the form has it.
+          </DialogDescription>
+        </DialogHeader>
+
+        {form.needs_filling?.length > 0 && (
+          <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            Still blank: {form.needs_filling.join(', ')}. Fill those in before
+            signing — once anyone signs, the contents are fixed.
+          </p>
+        )}
+
+        <SignaturePad
+          defaultName={form.my_signature?.name ?? ''}
+          disabled={saving}
+          onChange={setSignature}
+        />
+
+        <Button
+          onClick={sign}
+          disabled={saving || !signatureIsReady(signature)}
+          className="w-full"
+        >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Sign this document
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
  * Type in the boxes the form insists on before it can go out.
  *
  * Only the blank required ones. Everything the lease already knows — the
@@ -449,17 +559,21 @@ function FillDialog({
   onSaved: () => void;
 }) {
   const { token } = useAuth();
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(() => ({
+    ...form.values,
+  }));
   const [saving, setSaving] = useState(false);
 
   // Match the labels the API reported back to the placements they came from.
+  // Every box a person types into, not just the blank required ones. Limiting
+  // it to those meant a prefilled name could not be corrected and an optional
+  // address could not be entered at all — the landlord's own address block on
+  // RTB-8 was unreachable from the UI.
   const rows = form.placements.filter(
     (placement) =>
-      placement.required &&
       placement.kind !== 'SIGNATURE' &&
       placement.kind !== 'INITIALS' &&
-      !(placement.kind === 'DATE' && placement.auto_source === 'today') &&
-      !String(form.values[placement.key] ?? '').trim()
+      !(placement.kind === 'DATE' && placement.auto_source === 'today')
   );
 
   // A form's labels are not unique. RTB-8 prints "first and middle name(s)"
@@ -483,11 +597,20 @@ function FillDialog({
     return `${WHOSE[placement.signer_role] ?? ''} ${label}`.trim();
   };
 
+  // Only what the landlord actually altered. The editor is seeded with the
+  // form's current values so it reads as editing rather than re-entry, which
+  // means "did anything change" has to be asked explicitly.
+  const changed = Object.fromEntries(
+    Object.entries(values).filter(
+      ([key, value]) => value !== (form.values[key] ?? '')
+    )
+  );
+
   async function save() {
     if (!token) return;
     setSaving(true);
     try {
-      await setLeaseFormValues(token, form.id, values);
+      await setLeaseFormValues(token, form.id, changed);
       toast.success('Saved.');
       onSaved();
     } catch (err) {
@@ -501,10 +624,11 @@ function FillDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Fill in {form.title}</DialogTitle>
+          <DialogTitle>{form.title} — details</DialogTitle>
           <DialogDescription>
-            These are the details Rentium can&apos;t work out on its own. They
-            print on the document exactly as typed.
+            Everything that prints on the document. Names and addresses come off
+            the lease where Rentium knows them; correct anything that is wrong,
+            and fill in what it cannot know. Locked once anyone has signed.
           </DialogDescription>
         </DialogHeader>
 
@@ -531,7 +655,7 @@ function FillDialog({
 
           <Button
             onClick={save}
-            disabled={saving || Object.keys(values).length === 0}
+            disabled={saving || Object.keys(changed).length === 0}
             className="w-full"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
