@@ -57,6 +57,7 @@ import { startConversation } from '@/lib/engagementApi';
 import { fetchMaintenanceAreas, MaintenanceArea } from '@/lib/maintenanceApi';
 import { DJANGO_API_URL } from '@/lib/config';
 import LeaseSignGate from './tenant/LeaseSignGate';
+import TenantLeaseForms from './tenant/TenantLeaseForms';
 import TenantMaintenance from './tenant/TenantMaintenance';
 import TenantOverviewTab from './tenant/TenantOverviewTab';
 import TenantPaymentsTab from './tenant/TenantPaymentsTab';
@@ -577,19 +578,29 @@ export default function TenantDashboard() {
     (leaseTenantInfo.declined || !leaseTenantInfo.has_signed)
   ) {
     return (
-      <LeaseSignGate
-        leaseId={currentLease.id}
-        leaseNumber={currentLease.lease_number}
-        propertyLabel={
-          currentLease.property_name ||
-          currentLease.group_name ||
-          currentLease.lease_number
-        }
-        declined={leaseTenantInfo.declined}
-        currentPhone={(user as { phone?: string } | null)?.phone ?? null}
-        onSign={handleSignLease}
-        onDecline={handleDeclineLease}
-      />
+      <div className="space-y-6">
+        <LeaseSignGate
+          leaseId={currentLease.id}
+          leaseNumber={currentLease.lease_number}
+          propertyLabel={
+            currentLease.property_name ||
+            currentLease.group_name ||
+            currentLease.lease_number
+          }
+          declined={leaseTenantInfo.declined}
+          currentPhone={(user as { phone?: string } | null)?.phone ?? null}
+          onSign={handleSignLease}
+          onDecline={handleDeclineLease}
+        />
+        {/* Attached forms are shown alongside the gate, not after it: a lease
+            with a WITH_LEASE form attached needs BOTH signatures before it
+            activates, and hiding one behind the other makes the tenancy look
+            stuck for no visible reason. */}
+        <TenantLeaseForms
+          leaseId={currentLease.id}
+          tenantName={user?.name ?? ''}
+        />
+      </div>
     );
   }
 
@@ -619,6 +630,14 @@ export default function TenantDashboard() {
           Contact landlord
         </Button>
       </div>
+
+      {/* Above the tabs on purpose. A form attached AFTER the tenant signed the
+          lease is invisible from their side otherwise — nothing about their
+          dashboard changed, and the only other signal is an email. */}
+      <TenantLeaseForms
+        leaseId={currentLease.id}
+        tenantName={user?.name ?? ''}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto">

@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 // Condition inspections (move-in / move-out) — built in the inspections
 // suite (LeaseInspections + InspectionWizard + inspectionApi); mounted as
 // a section of this page below.
+import LeaseFormsCard from './forms/LeaseFormsCard';
 import LeaseInspections from './LeaseInspections';
 import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
@@ -1489,6 +1490,15 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
           ))}
         </CardContent>
       </Card>
+      {/* Form packs: RTB-8, addendums, and the landlord's own PDFs. Mounted for
+          DRAFT leases too — preparing the paperwork before anyone is invited is
+          the normal order, and a WITH_LEASE form placed now is what the lease
+          will wait on. */}
+      <LeaseFormsCard
+        leaseId={lease.id}
+        leaseStatus={lease.status}
+        onChanged={fetchLease}
+      />
       {/* Condition inspections (move-in / move-out) — the components existed
           but were never mounted anywhere; this is their home. The section
           handles its own nag banner, per-tenant vs per-unit creation, and

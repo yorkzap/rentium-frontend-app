@@ -44,6 +44,9 @@ const RESERVED_SUBDOMAINS = new Set([
   'rentals',
   'rentium',
   'settings',
+  // /sign/<token> — the public form-signing page. Reserved so a landlord can
+  // never claim it as a vanity slug and shadow every signing link in the system.
+  'sign',
   'signup',
   'sitemap',
   'static',
