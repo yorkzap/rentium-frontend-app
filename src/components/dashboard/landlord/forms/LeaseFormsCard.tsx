@@ -71,6 +71,17 @@ import SignaturePad, {
 import FormFieldPlacer from './FormFieldPlacer';
 import FormPicker from './FormPicker';
 
+// A form's boxes are grouped by whose block they sit in. RTB-8 prints the same
+// labels over its landlord and tenant blocks, so the heading is what tells them
+// apart — the flat list is how a landlord's own name reached the tenant's block.
+const GROUP_ORDER = ['LANDLORD', 'CO_LANDLORD', 'TENANT', 'OTHER'];
+const GROUP_TITLE: Record<string, string> = {
+  LANDLORD: 'Landlord',
+  CO_LANDLORD: 'Co-landlord',
+  TENANT: 'Tenant',
+  OTHER: 'The agreement',
+};
+
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Not sent yet',
   SENT: 'Waiting for signatures',
@@ -564,7 +575,6 @@ function FillDialog({
   }));
   const [saving, setSaving] = useState(false);
 
-  // Match the labels the API reported back to the placements they came from.
   // Every box a person types into, not just the blank required ones. Limiting
   // it to those meant a prefilled name could not be corrected and an optional
   // address could not be entered at all — the landlord's own address block on
@@ -576,26 +586,14 @@ function FillDialog({
       !(placement.kind === 'DATE' && placement.auto_source === 'today')
   );
 
-  // A form's labels are not unique. RTB-8 prints "first and middle name(s)"
-  // over BOTH its landlord block and its tenant block, so an unqualified list
-  // gave the landlord two identical fields and no way to tell them apart —
-  // which is how their own name ended up in the tenant's block. Same rule the
-  // backend applies to its error message: qualify only what repeats.
-  const seen = new Map<string, number>();
-  for (const placement of form.placements) {
-    const label = placement.label || placement.key;
-    seen.set(label, (seen.get(label) ?? 0) + 1);
-  }
-  const WHOSE: Record<string, string> = {
-    LANDLORD: "Landlord's",
-    CO_LANDLORD: "Co-landlord's",
-    TENANT: "Tenant's",
-  };
-  const labelFor = (placement: FormPlacement) => {
-    const label = placement.label || placement.key;
-    if ((seen.get(label) ?? 0) < 2) return label;
-    return `${WHOSE[placement.signer_role] ?? ''} ${label}`.trim();
-  };
+  const grouped = rows.reduce<Record<string, FormPlacement[]>>(
+    (acc, placement) => {
+      const role = placement.signer_role || 'OTHER';
+      (acc[role] ??= []).push(placement);
+      return acc;
+    },
+    {}
+  );
 
   // Only what the landlord actually altered. The editor is seeded with the
   // form's current values so it reads as editing rather than re-entry, which
@@ -622,9 +620,9 @@ function FillDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{form.title} — details</DialogTitle>
+          <DialogTitle className="pr-6">{form.title} — details</DialogTitle>
           <DialogDescription>
             Everything that prints on the document. Names and addresses come off
             the lease where Rentium knows them; correct anything that is wrong,
@@ -632,34 +630,65 @@ function FillDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          {rows.map((placement) => (
-            <div key={placement.key}>
-              <Label htmlFor={placement.key} className="text-xs">
-                {labelFor(placement)}
-                {placement.kind === 'DATE' && ' (DD/MM/YYYY)'}
-              </Label>
-              <Input
-                id={placement.key}
-                value={values[placement.key] ?? ''}
-                placeholder={placement.kind === 'DATE' ? '31/08/2026' : ''}
-                onChange={(event) =>
-                  setValues((current) => ({
-                    ...current,
-                    [placement.key]: event.target.value,
-                  }))
-                }
-              />
-            </div>
+        {/* RTB-8 alone has twenty of these. Grouped by whose block they are
+            in, scrolled inside the dialog rather than off the bottom of a
+            phone, and two-up once there is room. The save bar stays put so it
+            is reachable without scrolling back. */}
+        <div className="-mx-1 max-h-[55vh] overflow-y-auto px-1">
+          {GROUP_ORDER.filter((role) => grouped[role]?.length).map((role) => (
+            <section key={role} className="mb-5 last:mb-0">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-4">
+                {GROUP_TITLE[role]}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {grouped[role].map((placement) => {
+                  const blank = !String(values[placement.key] ?? '').trim();
+                  return (
+                    <div key={placement.key} className="min-w-0">
+                      <Label
+                        htmlFor={placement.key}
+                        className="text-xs text-ink-3"
+                      >
+                        {placement.label || placement.key}
+                        {placement.kind === 'DATE' && ' (DD/MM/YYYY)'}
+                        {placement.required && blank && (
+                          <span className="ml-1 text-amber-600">required</span>
+                        )}
+                      </Label>
+                      <Input
+                        id={placement.key}
+                        className="mt-1"
+                        value={values[placement.key] ?? ''}
+                        placeholder={
+                          placement.kind === 'DATE' ? '31/08/2026' : ''
+                        }
+                        onChange={(event) =>
+                          setValues((current) => ({
+                            ...current,
+                            [placement.key]: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           ))}
+        </div>
 
+        <div className="flex flex-col-reverse gap-2 border-t pt-3 sm:flex-row sm:justify-end">
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
           <Button
             onClick={save}
             disabled={saving || Object.keys(changed).length === 0}
-            className="w-full"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save
+            {Object.keys(changed).length > 0
+              ? `Save ${Object.keys(changed).length} change${Object.keys(changed).length === 1 ? '' : 's'}`
+              : 'Save'}
           </Button>
         </div>
       </DialogContent>
