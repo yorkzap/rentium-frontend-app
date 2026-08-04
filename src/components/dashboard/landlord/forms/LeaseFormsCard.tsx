@@ -56,6 +56,7 @@ import {
 } from '@/lib/leaseFormApi';
 import type {
   ActivationStatus,
+  FormPlacement,
   LeaseForm,
   LeaseFormTemplate,
 } from '@/types/leaseForm';
@@ -461,6 +462,27 @@ function FillDialog({
       !String(form.values[placement.key] ?? '').trim()
   );
 
+  // A form's labels are not unique. RTB-8 prints "first and middle name(s)"
+  // over BOTH its landlord block and its tenant block, so an unqualified list
+  // gave the landlord two identical fields and no way to tell them apart —
+  // which is how their own name ended up in the tenant's block. Same rule the
+  // backend applies to its error message: qualify only what repeats.
+  const seen = new Map<string, number>();
+  for (const placement of form.placements) {
+    const label = placement.label || placement.key;
+    seen.set(label, (seen.get(label) ?? 0) + 1);
+  }
+  const WHOSE: Record<string, string> = {
+    LANDLORD: "Landlord's",
+    CO_LANDLORD: "Co-landlord's",
+    TENANT: "Tenant's",
+  };
+  const labelFor = (placement: FormPlacement) => {
+    const label = placement.label || placement.key;
+    if ((seen.get(label) ?? 0) < 2) return label;
+    return `${WHOSE[placement.signer_role] ?? ''} ${label}`.trim();
+  };
+
   async function save() {
     if (!token) return;
     setSaving(true);
@@ -490,7 +512,7 @@ function FillDialog({
           {rows.map((placement) => (
             <div key={placement.key}>
               <Label htmlFor={placement.key} className="text-xs">
-                {placement.label || placement.key}
+                {labelFor(placement)}
                 {placement.kind === 'DATE' && ' (DD/MM/YYYY)'}
               </Label>
               <Input
