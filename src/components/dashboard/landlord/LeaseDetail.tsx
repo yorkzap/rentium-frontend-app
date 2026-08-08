@@ -37,6 +37,7 @@ import {
   Trash2,
   Ban,
   FileDown,
+  Pencil,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DJANGO_API_URL } from '@/lib/config';
@@ -51,6 +52,7 @@ import LeaseMoveOuts from './LeaseMoveOuts';
 import LeaseAppointments from './LeaseAppointments';
 import BillsEditor, { BillsSummaryList, type BillsMap } from './BillsEditor';
 import { LeaseTermsEditor } from './LeaseTermsEditor';
+import { InviteEditor, type EditableInvite } from './InviteEditor';
 import { dateLabel } from '@/lib/utils';
 interface RentAdjustment {
   id: string;
@@ -61,6 +63,9 @@ interface RentAdjustment {
   end_date: string | null;
   is_recurring: boolean;
   adjusted_preview: string | number | null;
+  reason?: string;
+  nights_charged?: number | null;
+  nights_in_period?: number | null;
 }
 interface LeaseTenantDetail {
   id: string;
@@ -205,6 +210,9 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
   const [billsOpen, setBillsOpen] = useState(false);
   const [savingBills, setSavingBills] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [editingInvite, setEditingInvite] = useState<EditableInvite | null>(
+    null
+  );
   const [isAddTenantOpen, setIsAddTenantOpen] = useState(false);
   interface RosterRow {
     id: string | null; // null = new, not-yet-created row
@@ -769,6 +777,18 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
     );
   }
   const hasDeclinedTenants = lease.lease_tenants.some((lt) => lt.declined);
+
+  // A tenancy that ends on the last day of its month uses the whole final
+  // month, so there is nothing to prorate. Anything earlier leaves days the
+  // tenant is billed for and does not occupy.
+  const finalDay = lease.end_date
+    ? new Date(`${lease.end_date}T00:00:00`)
+    : null;
+  const daysInFinalMonth = finalDay
+    ? new Date(finalDay.getFullYear(), finalDay.getMonth() + 1, 0).getDate()
+    : 0;
+  const unusedFinalDays = finalDay ? daysInFinalMonth - finalDay.getDate() : 0;
+  const endsMidMonth = unusedFinalDays > 0;
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -887,12 +907,16 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
         <Card className="md:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>Lease Terms</CardTitle>
-            {!lease.is_locked && !termsOpen && (
+            {/* A live tenancy is amendable, not editable: its wording can
+                change by agreement while rent, deposits and dates stay fixed.
+                Anything past ACTIVE stays frozen — that record is what a
+                dispute is argued from. */}
+            {(!lease.is_locked || lease.status === 'ACTIVE') && !termsOpen && (
               <button
                 onClick={() => setTermsOpen(true)}
                 className="text-xs font-medium text-[hsl(var(--brand))] hover:underline"
               >
-                Edit terms
+                {lease.status === 'ACTIVE' ? 'Amend terms' : 'Edit terms'}
               </button>
             )}
           </CardHeader>
@@ -901,6 +925,7 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
               <LeaseTermsEditor
                 token={token}
                 lease={lease}
+                amendOnly={lease.status === 'ACTIVE'}
                 signedNames={lease.lease_tenants
                   .filter((lt) => lt.has_signed && !lt.declined)
                   .map(
@@ -970,6 +995,20 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                       ? 'Month-to-month'
                       : lease.end_date || '—'}
                   </p>
+                  {/* The final month is billed in full and prorated at move-out
+                      (the "prorate final month" option credits the unused days
+                      back). That is one mechanism, not two, so nothing is
+                      discounted here — but a landlord who never runs the
+                      move-out would silently overcharge, so the date says so
+                      while there is still time to act on it. */}
+                  {!lease.is_month_to_month && endsMidMonth && (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Ends mid-month: the final month bills in full. Choose
+                      &ldquo;prorate final month&rdquo; in the move-out to
+                      credit back the {unusedFinalDays} unused day
+                      {unusedFinalDays === 1 ? '' : 's'}.
+                    </p>
+                  )}
                 </div>
                 {lease.move_in_date &&
                   lease.move_in_date !== lease.start_date && (
@@ -1374,6 +1413,44 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                     )}
                     {lt.room_name && ` · ${lt.room_name}`}
                   </div>
+                  {/* Proration was computed and billed but never shown. A
+                      tenancy starting on the 15th quietly charges a part month,
+                      which is right — and a landlord who cannot see the working
+                      has no way to check it, or even to know it happened. */}
+                  {lt.rent_adjustments?.map((adj) => (
+                    <div
+                      key={adj.id}
+                      className="mt-1 text-xs text-slate-600"
+                      title={adj.reason || undefined}
+                    >
+                      {adj.adjustment_type === 'PRORATION' ? (
+                        <>
+                          Prorated{' '}
+                          {adj.nights_charged && adj.nights_in_period
+                            ? `${adj.nights_charged}/${adj.nights_in_period} nights`
+                            : ''}{' '}
+                          from {dateLabel(adj.effective_date)}
+                          {adj.adjusted_preview != null && (
+                            <>
+                              {' '}
+                              ={' '}
+                              <span className="font-medium text-slate-800">
+                                ${adj.adjusted_preview}
+                              </span>{' '}
+                              for that period
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {adj.adjustment_type.toLowerCase()}
+                          {adj.adjusted_preview != null &&
+                            ` → $${adj.adjusted_preview}/mo`}
+                          {adj.reason ? ` · ${adj.reason}` : ''}
+                        </>
+                      )}
+                    </div>
+                  ))}
                   {lt.invite_lifecycle && (
                     <div
                       className="mt-1.5 space-y-0.5 text-xs"
@@ -1464,6 +1541,30 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                  {/* Fix a wrong address, a misspelled name, or withdraw the
+                      invite outright. Offered while the lease is still editable
+                      — once it is executed the roster is part of the signed
+                      document. */}
+                  {!lease.is_locked && !lt.has_signed && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Edit or withdraw this invite"
+                      onClick={() =>
+                        setEditingInvite({
+                          id: lt.id,
+                          invited_email: lt.invited_email,
+                          invited_name: lt.invited_name ?? null,
+                          tenant_name: lt.tenant_name,
+                          invite_status: lt.invite_status,
+                          has_signed: lt.has_signed,
+                          rent_amount: lt.rent_amount,
+                        })
+                      }
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {!lt.declined && lt.invite_status !== 'LINKED' && (
                     <Button
                       variant="ghost"
@@ -1490,6 +1591,17 @@ export default function LeaseDetail({ leaseId }: { leaseId: string }) {
           ))}
         </CardContent>
       </Card>
+      {editingInvite && token && (
+        <InviteEditor
+          token={token}
+          invite={editingInvite}
+          onClose={() => setEditingInvite(null)}
+          onDone={() => {
+            setEditingInvite(null);
+            fetchLease();
+          }}
+        />
+      )}
       {/* Form packs: RTB-8, addendums, and the landlord's own PDFs. Mounted for
           DRAFT leases too — preparing the paperwork before anyone is invited is
           the normal order, and a WITH_LEASE form placed now is what the lease

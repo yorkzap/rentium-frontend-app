@@ -41,6 +41,27 @@ import { updateLease, type LeaseTermsPatch } from '@/lib/leaseApi';
 /** Changing one of these is changing the deal — mirrors the backend's
  *  MATERIAL_LEASE_FIELDS, which is what decides whether an amendment gets
  *  recorded against anyone who already signed. */
+/** What a LIVE (ACTIVE) tenancy still accepts — mirrors the backend's
+ *  services.AMENDABLE_WHEN_ACTIVE. Wording may be amended by agreement; the
+ *  deal may not, because rent and deposits have ledger charges posted against
+ *  them and the dates drive statutory notice and deposit-return clocks. Those
+ *  move through a rent adjustment or a terminate/re-issue, not a text box. */
+export const AMENDABLE_WHEN_ACTIVE = new Set<string>([
+  'special_terms',
+  'house_rules',
+  'pets_terms',
+  'smoking_terms',
+  'parking_description',
+  'services_and_facilities',
+  'occupants',
+  'landlord_service_address',
+  'landlord_service_email',
+  'landlord_daytime_phone',
+  'landlord_other_phone',
+  'landlord_fax',
+  'etransfer_email',
+]);
+
 const MATERIAL_FIELDS = new Set<keyof LeaseTermsPatch>([
   'total_rent',
   'security_deposit',
@@ -157,6 +178,7 @@ export function LeaseTermsEditor({
   token,
   lease,
   signedNames,
+  amendOnly = false,
   onCancel,
   onSaved,
 }: {
@@ -164,6 +186,10 @@ export function LeaseTermsEditor({
   lease: EditableLease;
   /** Who has already signed. Drives the confirmation, not the permission. */
   signedNames: string[];
+  /** The tenancy is LIVE: offer only what can still be amended. The backend
+   *  refuses the rest either way; hiding it stops the landlord typing a new
+   *  rent into a box that will be rejected. */
+  amendOnly?: boolean;
   onCancel: () => void;
   onSaved: (amendedSigners: string[]) => void;
 }) {
@@ -175,8 +201,14 @@ export function LeaseTermsEditor({
   const set = (field: string, value: string | boolean) =>
     setDraft((d) => ({ ...d, [field]: value }));
 
+  // On a live tenancy the frozen fields are not rendered, so they cannot
+  // change — but filtering here too means a stale draft or a future field
+  // added to the form can never smuggle one into the PATCH and get the whole
+  // amendment refused for a value the landlord never touched.
   const changed = Object.keys(draft).filter(
-    (field) => draft[field] !== original[field]
+    (field) =>
+      draft[field] !== original[field] &&
+      (!amendOnly || AMENDABLE_WHEN_ACTIVE.has(field))
   );
   const materialChanges = changed.filter((f) =>
     MATERIAL_FIELDS.has(f as keyof LeaseTermsPatch)
@@ -264,32 +296,47 @@ export function LeaseTermsEditor({
 
   return (
     <div className="col-span-2 space-y-4">
-      {signedNames.length > 0 && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+      {amendOnly ? (
+        <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 p-2 text-sm text-sky-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            {signedNames.join(', ')} {signedNames.length === 1 ? 'has' : 'have'}{' '}
-            already signed. Changing rent, deposits or dates amends the
-            agreement they signed — it is recorded on the lease, and they are
-            not notified.
+            This tenancy is live, so you can amend its <strong>wording</strong>{' '}
+            — terms, rules, contact details. Rent, deposits and dates are fixed:
+            charges are already posted against them and the dates run the notice
+            and deposit-return clocks. To change those, use a rent adjustment or
+            end this tenancy and issue a new agreement.
           </p>
         </div>
+      ) : (
+        signedNames.length > 0 && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {signedNames.join(', ')}{' '}
+              {signedNames.length === 1 ? 'has' : 'have'} already signed.
+              Changing rent, deposits or dates amends the agreement they signed
+              — it is recorded on the lease, and they are not notified.
+            </p>
+          </div>
+        )
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        {text('start_date', 'Start date', 'date')}
-        {text('end_date', 'End date', 'date')}
-        {check('is_month_to_month', 'Month-to-month')}
-        {text('move_in_date', 'Move-in date', 'date')}
-        {text('move_out_date', 'Move-out date', 'date')}
-        {text('total_rent', 'Total monthly rent ($)', 'number', '0.01')}
-        {text('rent_due_day', 'Rent due on day', 'number')}
-        {text('security_deposit', 'Security deposit ($)', 'number', '0.01')}
-        {text('pet_deposit', 'Pet deposit ($)', 'number', '0.01')}
-        {text('cleaning_deposit', 'Cleaning deposit ($)', 'number', '0.01')}
-        {check('pets_allowed', 'Pets allowed')}
-        {check('smoking_allowed', 'Smoking allowed')}
-      </div>
+      {!amendOnly && (
+        <div className="grid grid-cols-2 gap-3">
+          {text('start_date', 'Start date', 'date')}
+          {text('end_date', 'End date', 'date')}
+          {check('is_month_to_month', 'Month-to-month')}
+          {text('move_in_date', 'Move-in date', 'date')}
+          {text('move_out_date', 'Move-out date', 'date')}
+          {text('total_rent', 'Total monthly rent ($)', 'number', '0.01')}
+          {text('rent_due_day', 'Rent due on day', 'number')}
+          {text('security_deposit', 'Security deposit ($)', 'number', '0.01')}
+          {text('pet_deposit', 'Pet deposit ($)', 'number', '0.01')}
+          {text('cleaning_deposit', 'Cleaning deposit ($)', 'number', '0.01')}
+          {check('pets_allowed', 'Pets allowed')}
+          {check('smoking_allowed', 'Smoking allowed')}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
@@ -313,13 +360,14 @@ export function LeaseTermsEditor({
             onChange={(e) => set('smoking_terms', e.target.value)}
           />
         </div>
-        {check('parking_included', 'Parking included')}
-        {text(
-          'parking_extra_charge',
-          'Parking charge ($/mo)',
-          'number',
-          '0.01'
-        )}
+        {!amendOnly && check('parking_included', 'Parking included')}
+        {!amendOnly &&
+          text(
+            'parking_extra_charge',
+            'Parking charge ($/mo)',
+            'number',
+            '0.01'
+          )}
         <div className="col-span-2">
           <Label className="text-xs text-slate-500">Parking details</Label>
           <Input
@@ -374,7 +422,8 @@ export function LeaseTermsEditor({
       <div>
         <Label className="text-xs text-slate-500">House rules</Label>
         <Textarea
-          rows={3}
+          rows={8}
+          className="min-h-[10rem] resize-y"
           value={String(draft.house_rules ?? '')}
           onChange={(e) => set('house_rules', e.target.value)}
           placeholder="Guests, quiet hours, cleaning rota, kitchen etiquette"
@@ -391,11 +440,25 @@ export function LeaseTermsEditor({
       </div>
 
       <div>
-        <Label className="text-xs text-slate-500">Special terms</Label>
+        <div className="flex items-baseline justify-between">
+          <Label className="text-xs text-slate-500">Special terms</Label>
+          <span className="text-[11px] tabular-nums text-slate-400">
+            {String(draft.special_terms ?? '').length.toLocaleString()}{' '}
+            characters
+          </span>
+        </div>
+        {/* Sized for what is actually in here. Real leases carry the whole
+            clause block in this field — 2,000 characters on a draft in this
+            portfolio, 7,600 across 121 lines on another — and a rows={3} box
+            meant scrolling a three-line window through a legal document.
+            Editable in principle, unusable in practice, which is why the
+            landlord reported it as "can't edit special terms". */}
         <Textarea
-          rows={3}
+          rows={14}
+          className="min-h-[16rem] resize-y font-mono text-[13px] leading-relaxed"
           value={String(draft.special_terms ?? '')}
           onChange={(e) => set('special_terms', e.target.value)}
+          placeholder="Clauses that print into the agreement"
         />
       </div>
 

@@ -359,6 +359,38 @@ export async function resendInvite(token: string, leaseTenantId: string) {
   return apiPost(token, `/leases/tenants/${leaseTenantId}/resend_invite/`);
 }
 
+/**
+ * Correct an invite that went to the wrong address, or fix a misspelled name.
+ *
+ * Changing the email REDIRECTS the invite rather than relabelling it: the
+ * backend rotates invite_token, so the link the first recipient received stops
+ * working, and records an INVITE_REDIRECTED event. Nothing is sent
+ * automatically — resend when you are ready.
+ *
+ * The name is frozen once the tenant links an account; from that point their
+ * own account name is what prints on the agreement.
+ */
+export async function updateInvite(
+  token: string,
+  leaseTenantId: string,
+  patch: {
+    invited_email?: string;
+    invited_name?: string;
+    invited_phone?: string;
+  }
+) {
+  return apiPatch(token, `/leases/tenants/${leaseTenantId}/`, patch);
+}
+
+/**
+ * Withdraw an invite entirely — the wrong person, or a tenant who is no longer
+ * joining. Removes the slot and with it the rent share assigned to it, so the
+ * lease's allocation needs revisiting afterwards.
+ */
+export async function removeLeaseTenant(token: string, leaseTenantId: string) {
+  return apiDelete(token, `/leases/tenants/${leaseTenantId}/`);
+}
+
 /** Copies an already-fetched invite_url to the clipboard — not an API call, just
  *  grouped here since every caller that has one wants to do this. */
 export async function copyInviteLink(inviteUrl: string): Promise<void> {

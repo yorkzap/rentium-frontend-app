@@ -102,13 +102,41 @@ const TYPE_FILTERS: { value: string; label: string }[] = [
   { value: 'DEPOSIT_RETURN', label: 'Deposit returns' },
 ];
 
+/** A charge with money still on it, which the landlord can settle from here. */
+function isSettleable(e: LedgerEntry): boolean {
+  return (
+    !e.voided &&
+    (CHARGE_TYPES as string[]).includes(e.entry_type) &&
+    Number(e.outstanding ?? 0) > 0
+  );
+}
+
 interface Props {
   token: string;
   properties: PropertyLite[];
   onOpenWorkOrder?: (id: string) => void;
+  /** Open the record-payment dialog for this charge.
+   *
+   *  The Ledger tab is the default view and the one a landlord is looking at
+   *  when they see a deposit sitting OVERDUE — but the only way to settle it
+   *  was the Charges tab, or asking RAMA. The dialog itself is not rebuilt
+   *  here: it lives in FinancialManagement (deposit splitting, payer picker,
+   *  idempotency key and all) and this hands it the row. */
+  onRecordPayment?: (charge: LedgerEntry) => void;
+  /** Bumped by the parent after a write lands. The feed owns its own rows, so
+   *  without this a payment recorded from here leaves the charge reading
+   *  OVERDUE until the landlord navigates away and back — which looks exactly
+   *  like the payment not having been recorded. */
+  refreshKey?: number;
 }
 
-export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
+export function LedgerFeed({
+  token,
+  properties,
+  onOpenWorkOrder,
+  onRecordPayment,
+  refreshKey = 0,
+}: Props) {
   const [rows, setRows] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -133,7 +161,11 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [token, typeFilter, propertyFilter, search]);
+    // refreshKey is not read inside this callback — it is here on purpose, so
+    // that bumping it produces a new `load` and re-runs the effect below. That
+    // is the whole mechanism for picking up a payment recorded from this feed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, typeFilter, propertyFilter, search, refreshKey]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), search ? 300 : 0);
@@ -386,6 +418,17 @@ export function LedgerFeed({ token, properties, onOpenWorkOrder }: Props) {
                                   {money(e.outstanding)} left
                                 </span>
                               )}
+                            {/* Where the landlord is already looking when they
+                                see a deposit reading OVERDUE. */}
+                            {onRecordPayment && isSettleable(e) && (
+                              <button
+                                type="button"
+                                onClick={() => onRecordPayment(e)}
+                                className="mt-0.5 block font-medium normal-case text-[hsl(var(--brand))] hover:underline"
+                              >
+                                Record payment
+                              </button>
+                            )}
                           </td>
                         </tr>
                       </React.Fragment>

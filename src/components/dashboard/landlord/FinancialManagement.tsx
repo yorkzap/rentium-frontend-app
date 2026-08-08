@@ -214,8 +214,14 @@ export default function FinancialManagement() {
     [router]
   );
 
+  // LedgerFeed fetches its own rows, so reloadAll() alone leaves a charge the
+  // landlord just settled from the Ledger tab still reading OVERDUE — which
+  // looks exactly like the payment not having landed. Bumped by every write.
+  const [ledgerRefresh, setLedgerRefresh] = useState(0);
+
   const reloadAll = useCallback(async () => {
     if (!token) return;
+    setLedgerRefresh((n) => n + 1);
     setLoading(true);
     try {
       const prop = propertyFilter === 'all' ? undefined : propertyFilter;
@@ -533,6 +539,8 @@ export default function FinancialManagement() {
           token={token ?? ''}
           properties={properties}
           onOpenWorkOrder={() => router.push('/dashboard/maintenance')}
+          onRecordPayment={setPayTarget}
+          refreshKey={ledgerRefresh}
         />
       ) : tab === 'charges' ? (
         <ChargesTable
