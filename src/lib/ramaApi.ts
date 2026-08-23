@@ -14,6 +14,11 @@ export interface RamaConfig {
   model: string;
   has_api_key?: boolean;
   can_override: boolean;
+  orchestration?: {
+    web: 'legacy' | 'shadow' | 'v3';
+    telegram: 'legacy' | 'shadow' | 'v3';
+    available_modes: Array<'legacy' | 'shadow' | 'v3'>;
+  };
   providers: string[];
   models: Record<string, RamaModelOption[]>;
   platform_ready?: Record<string, boolean>;
@@ -87,6 +92,10 @@ export interface RamaReply {
   tools_used: string[];
   pending_plan?: RamaPendingPlan | null;
   attachments?: RamaReplyAttachment[];
+  answer_mode?: 'CERTIFIED' | 'EXPLORATORY' | 'ABSTAINED';
+  coverage?: 'COMPLETE' | 'PARTIAL' | 'CONFLICTING' | '';
+  trace_id?: string | null;
+  engine_mode?: 'legacy' | 'shadow' | 'v3';
 }
 
 export interface RamaPropertyMediaItem {

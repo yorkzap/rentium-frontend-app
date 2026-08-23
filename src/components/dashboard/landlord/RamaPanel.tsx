@@ -37,7 +37,27 @@ interface Bubble {
   text: string;
   model?: string;
   attachments?: RamaReplyAttachment[];
+  answerMode?: 'CERTIFIED' | 'EXPLORATORY' | 'ABSTAINED';
+  coverage?: 'COMPLETE' | 'PARTIAL' | 'CONFLICTING' | '';
 }
+
+const ANSWER_LABELS = {
+  CERTIFIED: {
+    label: 'Certified',
+    title: 'Verified from complete, structured Rentium records.',
+    className: 'bg-emerald-100 text-emerald-800',
+  },
+  EXPLORATORY: {
+    label: 'Exploratory',
+    title: 'Model-assisted guidance; verify before relying on it.',
+    className: 'bg-amber-100 text-amber-800',
+  },
+  ABSTAINED: {
+    label: 'Could not verify',
+    title: 'RAMA did not have complete enough evidence to make the claim.',
+    className: 'bg-slate-200 text-slate-700',
+  },
+} as const;
 
 const mediaUrl = (value: string): string => {
   if (!value || value.startsWith('http') || value.startsWith('blob:'))
@@ -268,6 +288,8 @@ export default function RamaPanel() {
           text: reply.reply,
           model: reply.model,
           attachments: reply.attachments,
+          answerMode: reply.answer_mode,
+          coverage: reply.coverage,
         },
       ]);
     } catch (err) {
@@ -438,6 +460,24 @@ export default function RamaPanel() {
                 )}
               >
                 <div>{bubble.text}</div>
+                {bubble.role === 'assistant' && bubble.answerMode && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px]">
+                    <span
+                      title={ANSWER_LABELS[bubble.answerMode].title}
+                      className={cn(
+                        'rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide',
+                        ANSWER_LABELS[bubble.answerMode].className
+                      )}
+                    >
+                      {ANSWER_LABELS[bubble.answerMode].label}
+                    </span>
+                    {bubble.coverage && (
+                      <span className="text-[hsl(var(--ink-4))]">
+                        {bubble.coverage.toLowerCase()} evidence
+                      </span>
+                    )}
+                  </div>
+                )}
                 {bubble.attachments?.map((attachment, attachmentIndex) => {
                   if (!isPropertyMediaAttachment(attachment)) return null;
                   return (
