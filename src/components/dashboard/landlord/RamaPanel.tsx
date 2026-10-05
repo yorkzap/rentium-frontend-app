@@ -1,8 +1,9 @@
 // RamaPanel — per-landlord RAMA chat. Shown only when this landlord has
 // enabled RAMA in Settings and the platform has a key for their provider.
-// Conversation memory is server-side (their audit trail only).
+// Visible conversation/episode state is server-side and landlord-scoped.
 'use client';
 
+import { financeChanged } from '@/lib/moneyApi';
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Paperclip, RotateCcw, Send, Sparkles, X } from 'lucide-react';
@@ -11,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { DJANGO_API_URL } from '@/lib/config';
 import {
   fetchRamaConfig,
+  cancelRamaPlan,
+  confirmRamaPlan,
   fetchPortfolios,
   setActingPortfolio,
   sendRamaMessage,
@@ -22,15 +25,37 @@ import {
   type RamaPortfolio,
   type RamaPropertyMediaAttachment,
   type RamaReplyAttachment,
-  RAMA_ROLES,
-  ramaRole,
-  type RamaRole,
+  type RamaChatTarget,
 } from '@/lib/ramaApi';
 
 // The roles you can talk to directly. The Analyst has no chat surface — it
 // only ever answers a background finding — so it is absent by construction
 // rather than by an exclusion list here.
-const CHAT_ROLES = RAMA_ROLES.filter((r) => r.chatPath);
+const CHAT_ROLES: readonly {
+  key: RamaChatTarget;
+  label: string;
+  tagline: string;
+  blurb: string;
+}[] = [
+  {
+    key: 'auto',
+    label: 'Auto',
+    tagline: 'Routes each request to the right specialist',
+    blurb: 'RAMA chooses Ops, Chief, or Treasurer from the request.',
+  },
+  {
+    key: 'ops',
+    label: 'Ops',
+    tagline: 'Fast portfolio operations · asks before writing',
+    blurb: 'Lookups, records, leases, maintenance, and routine changes.',
+  },
+  {
+    key: 'treasurer',
+    label: 'Treasurer',
+    tagline: 'Grounded financial analysis · read only',
+    blurb: 'Cash flow, costs, opportunities, and financial strategy.',
+  },
+];
 
 interface Bubble {
   role: 'user' | 'assistant' | 'error';
@@ -94,9 +119,7 @@ export default function RamaPanel() {
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [pendingPlan, setPendingPlan] = useState<RamaPendingPlan | null>(null);
-  // Ops = fast operational agent; General = chief of staff; Treasurer =
-  // finance head. Each keeps its own conversation thread.
-  const [role, setRole] = useState<RamaRole>('corporal');
+  const [role, setRole] = useState<RamaChatTarget>('auto');
   // Files remain one explicit composer batch until this message is sent. RAMA
   // classifies that batch from the instruction; it never reaches back to old
   // uploads from another message or conversation.
@@ -274,10 +297,12 @@ export default function RamaPanel() {
           conversation_id: conversationId,
           attachment_batch_id:
             attachments.length > 0 ? attachmentBatchId : undefined,
+          message_id: crypto.randomUUID(),
         },
         role
       );
       setConversationId(reply.conversation_id);
+      financeChanged();
       setPendingPlan(reply.pending_plan ?? null);
       setAttachmentBatchId(undefined);
       setAttachments([]);
@@ -298,6 +323,43 @@ export default function RamaPanel() {
           ? err.message
           : 'Something went wrong talking to RAMA.';
       setBubbles((b) => [...b, { role: 'error', text }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const actOnPlan = async (action: 'confirm' | 'cancel') => {
+    if (!token || !pendingPlan || busy) return;
+    setBusy(true);
+    try {
+      const reply =
+        action === 'confirm'
+          ? await confirmRamaPlan(token, pendingPlan)
+          : await cancelRamaPlan(token, pendingPlan);
+      setConversationId(reply.conversation_id);
+      financeChanged();
+      setPendingPlan(reply.pending_plan ?? null);
+      setBubbles((b) => [
+        ...b,
+        { role: 'user', text: action === 'confirm' ? 'Confirm' : 'Cancel' },
+        {
+          role: 'assistant',
+          text: reply.reply,
+          model: reply.model,
+          attachments: reply.attachments,
+          answerMode: reply.answer_mode,
+          coverage: reply.coverage,
+        },
+      ]);
+    } catch (err) {
+      setBubbles((b) => [
+        ...b,
+        {
+          role: 'error',
+          text:
+            err instanceof Error ? err.message : 'Could not update that plan.',
+        },
+      ]);
     } finally {
       setBusy(false);
     }
@@ -334,10 +396,10 @@ export default function RamaPanel() {
               <Sparkles className="h-4 w-4" />
               <div>
                 <p className="text-sm font-semibold leading-tight">
-                  RAMA {role === 'corporal' ? '' : `· ${ramaRole(role).label}`}
+                  RAMA · {CHAT_ROLES.find((item) => item.key === role)?.label}
                 </p>
                 <p className="text-[11px] leading-tight text-white/75">
-                  {ramaRole(role).tagline}
+                  {CHAT_ROLES.find((item) => item.key === role)?.tagline}
                 </p>
               </div>
               <div className="ml-1 flex items-center gap-1">
@@ -347,11 +409,7 @@ export default function RamaPanel() {
                     type="button"
                     onClick={() => {
                       if (spec.key === role) return;
-                      // Each role keeps its own conversation thread.
                       setRole(spec.key);
-                      setBubbles([]);
-                      setConversationId(undefined);
-                      setPendingPlan(null);
                     }}
                     title={spec.blurb}
                     aria-pressed={spec.key === role}
@@ -525,9 +583,7 @@ export default function RamaPanel() {
                 })}
               </div>
             ))}
-            {/* Pending plan card. Confirm/Cancel just send "yes"/"cancel" —
-                the backend's deterministic confirm machine stays the single
-                authority; the buttons only make it language-independent. */}
+            {/* Confirmation is bound to this exact plan + visible prompt. */}
             {pendingPlan && !busy && (
               <div
                 className="rounded-2xl border bg-[hsl(var(--surface-sunken))] p-3 text-sm"
@@ -573,7 +629,7 @@ export default function RamaPanel() {
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => void ask('yes')}
+                    onClick={() => void actOnPlan('confirm')}
                     className="rounded-lg bg-[hsl(var(--brand))] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                   >
                     {pendingPlan.awaiting_own_confirm
@@ -582,7 +638,7 @@ export default function RamaPanel() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void ask('cancel')}
+                    onClick={() => void actOnPlan('cancel')}
                     className="rounded-lg border px-3 py-1.5 text-xs font-medium text-[hsl(var(--ink-2))] hover:bg-white"
                     style={{ borderColor: 'hsl(var(--line))' }}
                   >

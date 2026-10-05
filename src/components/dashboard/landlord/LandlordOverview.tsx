@@ -1,5 +1,6 @@
 // src/components/dashboard/landlord/LandlordOverview.tsx
 'use client';
+import { FINANCE_CHANGED } from '@/lib/moneyApi';
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -149,6 +150,12 @@ export default function LandlordOverview({
     viewings: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [financeVersion, setFinanceVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setFinanceVersion((v) => v + 1);
+    window.addEventListener(FINANCE_CHANGED, refresh);
+    return () => window.removeEventListener(FINANCE_CHANGED, refresh);
+  }, []);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -196,7 +203,7 @@ export default function LandlordOverview({
       }
     };
     load();
-  }, [token]);
+  }, [token, financeVersion]);
 
   // --- Stats ---
   const totalListings = properties.length;
@@ -240,7 +247,7 @@ export default function LandlordOverview({
       ) : isLoading ? (
         <Loader2 className="h-6 w-6 animate-spin" />
       ) : (
-        '$0'
+        'Unavailable'
       ),
       // "Expected $0 · $0 collected" is technically right and practically
       // misleading when a deposit landed or rent starts next month — say
@@ -269,7 +276,7 @@ export default function LandlordOverview({
           )}
         </>
       ) : (
-        'From active leases'
+        'Could not load finance data. Open Money to retry.'
       ),
       icon: DollarSign,
       color: 'bg-amber-50 text-amber-600',

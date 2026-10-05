@@ -6,7 +6,20 @@ and `docs/phase-b-spec.md` (implemented; kept as reference).
 
 ---
 
-## 0. State of the world (July 2026, session 3)
+## Current update — October 2026 (local implementation)
+
+The financial landing page is now a Money workspace with monthly evidence,
+saved bank-statement review, one complete approval, and the existing ledger
+tools. RAMA calls the same projection and reconciliation services. Backend and
+frontend changes target the current `main` checkouts; the historical branch and
+deployment statements below describe July, not the current working tree.
+
+See `../rentium/docs/MONEY_WORKFLOW.md` for API/schema changes, supported imports,
+limits and deployment order. The 2024 workbook is a workflow reference only;
+its history was not imported. Local automated verification uses synthetic data.
+Production rollout and the first real-statement pilot remain outstanding.
+
+## Historical state (July 2026, session 3)
 
 Everything below is MERGED and PUSHED. Frontend: `main`. Backend: `dev`.
 There are no pending patch files or unmerged work branches.

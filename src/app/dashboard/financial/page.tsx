@@ -1,7 +1,12 @@
 // page.tsx
 
-"use client";
-import FinancialManagement from "@/components/dashboard/landlord/FinancialManagement";
+'use client';
+import { Suspense } from 'react';
+import MoneyWorkspace from '@/components/dashboard/landlord/MoneyWorkspace';
 export default function FinancialPage() {
-  return <FinancialManagement />;
+  return (
+    <Suspense fallback={<p>Loading money workspace…</p>}>
+      <MoneyWorkspace />
+    </Suspense>
+  );
 }

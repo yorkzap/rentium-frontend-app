@@ -97,6 +97,9 @@ export interface LedgerEntry {
 
   tenant: number | null;
   tenant_name: string | null;
+  /** All non-declined participants on the lease. Joint household charges have
+   *  tenant=null, so this is the authoritative display list for those rows. */
+  tenant_names?: string[];
   /** Household charge on a joint (roommate) lease — everyone owes it
    *  together and any tenant's payment settles it. */
   is_joint: boolean;
@@ -320,6 +323,16 @@ export function newIdempotencyKey(): string {
 }
 
 const LEDGER = `${DJANGO_API_URL}/ledger`;
+
+export async function fetchLedgerEntry(
+  token: string,
+  id: string
+): Promise<LedgerEntry> {
+  const res = await fetch(`${LEDGER}/entries/${encodeURIComponent(id)}/`, {
+    headers: { Authorization: `Token ${token}` },
+  });
+  return handle(res);
+}
 
 // ---------------------------------------------------------------- reads
 export async function fetchSummary(

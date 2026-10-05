@@ -14,6 +14,7 @@ export interface RamaConfig {
   model: string;
   has_api_key?: boolean;
   can_override: boolean;
+  write_planning_certified?: boolean;
   orchestration?: {
     web: 'legacy' | 'shadow' | 'v3';
     telegram: 'legacy' | 'shadow' | 'v3';
@@ -72,10 +73,13 @@ export interface RamaBlockedItem {
   options?: string[];
 }
 
-// A multi-step plan awaiting the landlord's confirmation. Confirm/Cancel are
-// just "yes"/"cancel" chat messages — the backend's deterministic confirm
-// machine is the single authority, the buttons only make it language-proof.
+// A multi-step plan awaiting an explicit, task-bound confirmation.
 export interface RamaPendingPlan {
+  id: string;
+  plan_id: string;
+  episode_id?: string | null;
+  prompt_message_id: string;
+  expires_at?: string | null;
   operation: string;
   summary: string;
   status: string;
@@ -86,6 +90,8 @@ export interface RamaPendingPlan {
 
 export interface RamaReply {
   conversation_id: string;
+  episode_id?: string | null;
+  message_id?: string | null;
   reply: string;
   provider: string;
   model: string;
@@ -369,6 +375,7 @@ export async function updateRamaSettings(
 }
 
 export type RamaRole = 'corporal' | 'general' | 'fsa' | 'treasurer';
+export type RamaChatTarget = 'auto' | 'ops' | 'chief' | 'treasurer';
 
 /** One row per role — the single place a role is described.
  *
@@ -817,19 +824,20 @@ export async function sendRamaMessage(
     upload_ids?: string[];
     document_ids?: string[];
     attachment_batch_id?: string;
+    message_id?: string;
+    reply_to_message_id?: string;
+    target_role?: RamaChatTarget;
+    client_context?: Record<string, unknown>;
   },
-  role: RamaRole = 'corporal'
+  target: RamaChatTarget = 'auto'
 ): Promise<RamaReply> {
-  const path = ramaRole(role).chatPath;
-  if (!path) {
-    throw new Error(`The ${ramaRole(role).label} is not reachable directly.`);
-  }
+  const path = '/rama/chat/';
   try {
     // Tool loops can take a while (several provider round-trips).
     const res = await fetch(ramaUrl(path), {
       method: 'POST',
       headers: headers(token),
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, target_role: target }),
     });
     return await handle(res);
   } catch (err) {
@@ -844,6 +852,36 @@ export async function sendRamaMessage(
     }
     throw err;
   }
+}
+
+export async function confirmRamaPlan(
+  token: string,
+  plan: RamaPendingPlan
+): Promise<RamaReply> {
+  const res = await fetch(ramaUrl(`/rama/plans/${plan.plan_id}/confirm/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      prompt_message_id: plan.prompt_message_id,
+      message_id: crypto.randomUUID(),
+    }),
+  });
+  return handle(res);
+}
+
+export async function cancelRamaPlan(
+  token: string,
+  plan: RamaPendingPlan
+): Promise<RamaReply> {
+  const res = await fetch(ramaUrl(`/rama/plans/${plan.plan_id}/cancel/`), {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      prompt_message_id: plan.prompt_message_id,
+      message_id: crypto.randomUUID(),
+    }),
+  });
+  return handle(res);
 }
 
 // ---------------------------------------------------------------- memory

@@ -1,5 +1,6 @@
 // FinancialManagement.tsx
 'use client';
+import { FINANCE_CHANGED, financeChanged } from '@/lib/moneyApi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -192,6 +193,7 @@ export default function FinancialManagement() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const [payTarget, setPayTarget] = useState<LedgerEntry | null>(null);
   const [creditTarget, setCreditTarget] = useState<LedgerEntry | null>(null);
@@ -223,6 +225,7 @@ export default function FinancialManagement() {
     if (!token) return;
     setLedgerRefresh((n) => n + 1);
     setLoading(true);
+    setLoadError('');
     try {
       const prop = propertyFilter === 'all' ? undefined : propertyFilter;
       const [sum, ch, exps] = await Promise.all([
@@ -239,6 +242,9 @@ export default function FinancialManagement() {
       setCharges(ch);
       setExpenses(exps);
     } catch (err) {
+      setLoadError(
+        err instanceof Error ? err.message : 'Financial data is unavailable.'
+      );
       toast.error(
         err instanceof Error ? err.message : 'Failed to load financial data.'
       );
@@ -249,6 +255,14 @@ export default function FinancialManagement() {
 
   useEffect(() => {
     reloadAll();
+  }, [reloadAll]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void reloadAll();
+    };
+    window.addEventListener(FINANCE_CHANGED, refresh);
+    return () => window.removeEventListener(FINANCE_CHANGED, refresh);
   }, [reloadAll]);
 
   useEffect(() => {
@@ -324,66 +338,79 @@ export default function FinancialManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* What actually hit the bank — rent AND deposits. collected_income is
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-4"
+        >
+          {loadError}{' '}
+          <button className="underline" onClick={() => void reloadAll()}>
+            Retry
+          </button>
+        </div>
+      )}
+      {!loadError && !loading && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* What actually hit the bank — rent AND deposits. collected_income is
             income-only by design (a deposit is a liability, not earnings), so
             showing it here meant a landlord who had just banked a $100 deposit
             still read "Collected this month $0.00". The backend already
             computed the combined figure; this tile just never used it. The
             hint keeps the accounting distinction visible. */}
-        <StatCard
-          label="Received this month"
-          value={money(
-            summary?.collected_this_month_total ?? thisMonth?.collected_income
-          )}
-          hint={
-            Number(thisMonth?.deposits_collected ?? 0) > 0
-              ? `${money(thisMonth?.collected_income)} rent of ${money(thisMonth?.expected_income)} expected · ${money(thisMonth?.deposits_collected)} deposits`
-              : thisMonth
-                ? `of ${money(thisMonth.expected_income)} rent expected`
-                : ''
-          }
-          icon={<ArrowUpRight className="h-5 w-5" />}
-          tone="green"
-        />
-        {/* owed_* covers every charge type, matching the rows in the ledger
+          <StatCard
+            label="Received this month"
+            value={money(
+              summary?.collected_this_month_total ?? thisMonth?.collected_income
+            )}
+            hint={
+              Number(thisMonth?.deposits_collected ?? 0) > 0
+                ? `${money(thisMonth?.collected_income)} rent of ${money(thisMonth?.expected_income)} expected · ${money(thisMonth?.deposits_collected)} deposits`
+                : thisMonth
+                  ? `of ${money(thisMonth.expected_income)} rent expected`
+                  : ''
+            }
+            icon={<ArrowUpRight className="h-5 w-5" />}
+            tone="green"
+          />
+          {/* owed_* covers every charge type, matching the rows in the ledger
             below. outstanding_* is income-only, so a landlord looking at an
             overdue deposit saw it badged in the feed and counted nowhere up
             here. Fall back to the old fields if the backend predates them. */}
-        <StatCard
-          label="Owed to you"
-          value={money(summary?.owed_total ?? summary?.outstanding_total)}
-          hint={
-            summary
-              ? `across ${summary.owed_count ?? summary.outstanding_count} unpaid charge(s)`
-              : ''
-          }
-          icon={<Wallet className="h-5 w-5" />}
-          tone="amber"
-        />
-        <StatCard
-          label="Overdue"
-          value={
-            summary
-              ? String(summary.owed_overdue_count ?? summary.overdue_count)
-              : '—'
-          }
-          hint="past due, unpaid"
-          icon={<ArrowDownRight className="h-5 w-5" />}
-          tone="red"
-        />
-        <StatCard
-          label="Deposits held"
-          value={money(summary?.deposits_held)}
-          hint={
-            Number(summary?.deposits_outstanding ?? 0) > 0
-              ? `${money(summary?.deposits_outstanding)} not received yet`
-              : "yours to hold, the tenant's to get back"
-          }
-          icon={<ShieldCheck className="h-5 w-5" />}
-          tone="blue"
-        />
-      </div>
+          <StatCard
+            label="Owed to you"
+            value={money(summary?.owed_total ?? summary?.outstanding_total)}
+            hint={
+              summary
+                ? `across ${summary.owed_count ?? summary.outstanding_count} unpaid charge(s)`
+                : ''
+            }
+            icon={<Wallet className="h-5 w-5" />}
+            tone="amber"
+          />
+          <StatCard
+            label="Overdue"
+            value={
+              summary
+                ? String(summary.owed_overdue_count ?? summary.overdue_count)
+                : '—'
+            }
+            hint="past due, unpaid"
+            icon={<ArrowDownRight className="h-5 w-5" />}
+            tone="red"
+          />
+          <StatCard
+            label="Deposits held"
+            value={money(summary?.deposits_held)}
+            hint={
+              Number(summary?.deposits_outstanding ?? 0) > 0
+                ? `${money(summary?.deposits_outstanding)} not received yet`
+                : "yours to hold, the tenant's to get back"
+            }
+            icon={<ShieldCheck className="h-5 w-5" />}
+            tone="blue"
+          />
+        </div>
+      )}
 
       {/* What the Outstanding total is made of. Without this the new number is
           just a different number; with it, the page states for itself why a
@@ -431,8 +458,10 @@ export default function FinancialManagement() {
                   <th className="px-4 py-2.5 text-left">Month</th>
                   <th className="px-4 py-2.5 text-right">Expected</th>
                   <th className="px-4 py-2.5 text-right">Collected</th>
-                  <th className="px-4 py-2.5 text-right">Expenses</th>
-                  <th className="px-4 py-2.5 text-right">Net</th>
+                  <th className="px-4 py-2.5 text-right">Expenses incurred</th>
+                  <th className="px-4 py-2.5 text-right">
+                    Received less incurred
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -571,7 +600,7 @@ export default function FinancialManagement() {
           onClose={() => setPayTarget(null)}
           onDone={() => {
             setPayTarget(null);
-            reloadAll();
+            financeChanged();
           }}
         />
       )}
@@ -582,7 +611,7 @@ export default function FinancialManagement() {
           onClose={() => setCreditTarget(null)}
           onDone={() => {
             setCreditTarget(null);
-            reloadAll();
+            financeChanged();
           }}
         />
       )}
@@ -593,7 +622,7 @@ export default function FinancialManagement() {
           onClose={() => setVoidTarget(null)}
           onDone={() => {
             setVoidTarget(null);
-            reloadAll();
+            financeChanged();
           }}
         />
       )}
@@ -604,7 +633,7 @@ export default function FinancialManagement() {
           onClose={() => setCorrectTarget(null)}
           onDone={() => {
             setCorrectTarget(null);
-            reloadAll();
+            financeChanged();
           }}
         />
       )}
@@ -615,7 +644,7 @@ export default function FinancialManagement() {
           onClose={() => setMarkPaidTarget(null)}
           onDone={() => {
             setMarkPaidTarget(null);
-            reloadAll();
+            financeChanged();
           }}
         />
       )}
@@ -640,7 +669,7 @@ export default function FinancialManagement() {
         onClose={() => setExpenseOpen(false)}
         onDone={() => {
           setExpenseOpen(false);
-          reloadAll();
+          financeChanged();
         }}
       />
       <UtilityBillSheet
@@ -650,7 +679,7 @@ export default function FinancialManagement() {
         onClose={() => setUtilityOpen(false)}
         onDone={() => {
           setUtilityOpen(false);
-          reloadAll();
+          financeChanged();
         }}
       />
     </div>

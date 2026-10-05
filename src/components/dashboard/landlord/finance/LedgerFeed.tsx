@@ -15,6 +15,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, Search, Wrench } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ import {
 import {
   CHARGE_TYPES,
   fetchEntries,
+  fetchLedgerEntry,
   type EntryType,
   type LedgerEntry,
   type PropertyLite,
@@ -60,6 +62,12 @@ function directionOf(e: LedgerEntry): Direction {
  */
 function placeOf(e: LedgerEntry): string {
   return e.property_name || e.holding_name || 'Portfolio-wide';
+}
+
+/** Who this row concerns without changing household-charge ownership. */
+function peopleOf(e: LedgerEntry): string {
+  if (e.is_joint && e.tenant_names?.length) return e.tenant_names.join(', ');
+  return e.tenant_name || '';
 }
 
 function statusOf(e: LedgerEntry): { label: string; cls: string } | null {
@@ -139,6 +147,10 @@ export function LedgerFeed({
 }: Props) {
   const [rows, setRows] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const focusedId = searchParams.get('entry');
   const [typeFilter, setTypeFilter] = useState('all');
   const [propertyFilter, setPropertyFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -146,6 +158,7 @@ export function LedgerFeed({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const filters: Parameters<typeof fetchEntries>[1] = {
         ordering: '-effective_date',
@@ -155,9 +168,16 @@ export function LedgerFeed({
         filters.entry_type = typeFilter as EntryType;
       if (propertyFilter !== 'all') filters.property = propertyFilter;
       if (search.trim()) filters.search = search.trim();
-      setRows(await fetchEntries(token, filters));
-    } catch {
+      setRows(
+        focusedId
+          ? [await fetchLedgerEntry(token, focusedId)]
+          : await fetchEntries(token, filters)
+      );
+    } catch (e) {
       setRows([]);
+      setLoadError(
+        e instanceof Error ? e.message : 'Could not load the ledger.'
+      );
     } finally {
       setLoading(false);
     }
@@ -165,7 +185,7 @@ export function LedgerFeed({
     // that bumping it produces a new `load` and re-runs the effect below. That
     // is the whole mechanism for picking up a payment recorded from this feed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, typeFilter, propertyFilter, search, refreshKey]);
+  }, [token, typeFilter, propertyFilter, search, refreshKey, focusedId]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), search ? 300 : 0);
@@ -261,33 +281,59 @@ export function LedgerFeed({
         )}
       </div>
 
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-4"
+        >
+          {loadError}{' '}
+          <button onClick={() => void load()} className="underline">
+            Retry
+          </button>
+        </div>
+      )}
+      {focusedId && (
+        <p className="text-sm">
+          Showing the selected record.{' '}
+          <button
+            className="underline"
+            onClick={() => {
+              router.replace('/dashboard/financial');
+            }}
+          >
+            Show all records
+          </button>
+        </p>
+      )}
       {/* One quiet summary line rather than four competing tiles. */}
-      <Card>
-        <CardContent className="flex flex-wrap gap-x-8 gap-y-2 p-4 text-sm">
-          <span>
-            <span className="text-ink-4">In</span>{' '}
-            <span className="font-medium text-green-700">
-              {money(totals.inn)}
+      {!loadError && !loading && (
+        <Card>
+          <CardContent className="flex flex-wrap gap-x-8 gap-y-2 p-4 text-sm">
+            <span>
+              <span className="text-ink-4">In</span>{' '}
+              <span className="font-medium text-green-700">
+                {money(totals.inn)}
+              </span>
             </span>
-          </span>
-          <span>
-            <span className="text-ink-4">Out</span>{' '}
-            <span className="font-medium text-red-700">
-              {money(totals.out)}
+            <span>
+              <span className="text-ink-4">Out</span>{' '}
+              <span className="font-medium text-red-700">
+                {money(totals.out)}
+              </span>
             </span>
-          </span>
-          <span>
-            <span className="text-ink-4">Net</span>{' '}
-            <span className="font-medium">{money(totals.net)}</span>
-          </span>
-          <span title="Face value of all charge lines in this filtered ledger, including scheduled and overdue charges. Payments received are shown under In.">
-            <span className="text-ink-4">Charges shown</span>{' '}
-            <span className="font-medium text-ink-2">
-              {money(totals.expected)}
+            <span>
+              <span className="text-ink-4">Net</span>{' '}
+              <span className="font-medium">{money(totals.net)}</span>
             </span>
-          </span>
-        </CardContent>
-      </Card>
+            <span title="Face value of all charge lines in this filtered ledger, including scheduled and overdue charges. Payments received are shown under In.">
+              <span className="text-ink-4">Charges shown</span>{' '}
+              <span className="font-medium text-ink-2">
+                {money(totals.expected)}
+              </span>
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -295,6 +341,10 @@ export function LedgerFeed({
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-5 w-5 animate-spin text-ink-4" />
             </div>
+          ) : loadError ? (
+            <p className="p-5 text-sm">
+              Ledger records are unavailable. Retry to load this view.
+            </p>
           ) : visible.length === 0 ? (
             <p className="py-12 text-center text-sm text-ink-4">
               Nothing in the ledger for this view yet.
@@ -318,6 +368,7 @@ export function LedgerFeed({
                     const dir = directionOf(e);
                     const status = statusOf(e);
                     const month = monthOf(e);
+                    const people = peopleOf(e);
                     // Grouped over the rendered array, so a month whose only
                     // entry was a hidden correction leaves no orphan heading.
                     const newMonth =
@@ -377,12 +428,17 @@ export function LedgerFeed({
                             <span className="block text-xs text-ink-4 md:hidden">
                               {placeOf(e)}
                             </span>
+                            {people && (
+                              <span className="block text-xs text-ink-4 md:hidden">
+                                {people}
+                              </span>
+                            )}
                           </td>
                           <td className="hidden px-4 py-3 text-ink-3 md:table-cell">
                             {placeOf(e)}
-                            {e.tenant_name && (
+                            {people && (
                               <span className="block text-xs text-ink-4">
-                                {e.tenant_name}
+                                {people}
                               </span>
                             )}
                           </td>
