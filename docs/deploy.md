@@ -1,9 +1,18 @@
 # Deploying Rentium
 
-Two moving parts: the Next.js frontend on **Vercel**, and the Django backend
-running — for now — on **your own machine**, reached through a **Cloudflare
-Tunnel** at `api.rentium.ca`. Swap the tunnel for a VPS later without touching
-the frontend: the hostname stays the same.
+The Next.js frontend runs on **Vercel**, automatically deployed from this
+repository's `main` branch. Django, PostgreSQL, Redis and Celery run on the
+Rentium VPS, reached through the **Cloudflare Tunnel** at `api.rentium.ca`.
+
+For routine releases, deploy the complete backend revision and migrations first,
+verify API health and worker readiness, then push the frontend to `main`. Verify
+the Vercel deployment status and `https://www.rentium.ca/dashboard/financial`.
+The backend's `docs/ORACLE_DEPLOYMENT.md` is the current operations runbook;
+`docs/MONEY_WORKFLOW.md` describes money-workflow migration and rollback rules.
+Do not run the initial DNS/bootstrap script for a routine update.
+
+The instructions below describe the original bootstrap and laptop hosting setup.
+They are retained as historical reference, not the current deployment procedure.
 
 ## 1. Frontend → Vercel (one command)
 
