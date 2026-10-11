@@ -8,6 +8,7 @@ export interface RamaModelOption {
 }
 
 export interface RamaConfig {
+  workflows_enabled?: boolean;
   enabled: boolean;
   configured: boolean;
   provider: string;
@@ -75,6 +76,7 @@ export interface RamaBlockedItem {
 
 // A multi-step plan awaiting an explicit, task-bound confirmation.
 export interface RamaPendingPlan {
+  previews?: unknown[];
   id: string;
   plan_id: string;
   episode_id?: string | null;
@@ -89,6 +91,7 @@ export interface RamaPendingPlan {
 }
 
 export interface RamaReply {
+  workflow?: RamaWorkflowTask;
   conversation_id: string;
   episode_id?: string | null;
   message_id?: string | null;
@@ -102,6 +105,60 @@ export interface RamaReply {
   coverage?: 'COMPLETE' | 'PARTIAL' | 'CONFLICTING' | '';
   trace_id?: string | null;
   engine_mode?: 'legacy' | 'shadow' | 'v3';
+}
+
+export interface RamaWorkflowTask {
+  id: string;
+  parent_id: string | null;
+  workflow: string;
+  detail?: string;
+  version: number;
+  status: string;
+  stage: string;
+  summary: string;
+  updated_at: string;
+  can_resume: boolean;
+  steps: Array<{
+    step_id: string;
+    tool: string;
+    status: string;
+    verified: boolean;
+    detail: string;
+  }>;
+  receipts: Array<{
+    id: string;
+    verified: boolean;
+    links: Array<{ field: string; url: string }>;
+  }>;
+}
+
+export async function fetchRamaTasks(token: string): Promise<{
+  enabled: boolean;
+  tasks: RamaWorkflowTask[];
+  attention: Array<{
+    id: number;
+    summary: string;
+    task_id?: string;
+    path?: string;
+  }>;
+}> {
+  return handle(
+    await fetch(ramaUrl('/rama/tasks/'), { headers: headers(token) })
+  );
+}
+
+export async function resumeRamaTask(
+  token: string,
+  id: string,
+  conversationId?: string
+): Promise<RamaReply> {
+  return handle(
+    await fetch(ramaUrl(`/rama/tasks/${id}/resume/`), {
+      method: 'POST',
+      headers: headers(token),
+      body: JSON.stringify({ conversation_id: conversationId }),
+    })
+  );
 }
 
 export interface RamaPropertyMediaItem {

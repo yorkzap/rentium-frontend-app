@@ -4,6 +4,8 @@
 'use client';
 
 import { financeChanged } from '@/lib/moneyApi';
+import RamaWorkflowProgress from './RamaWorkflowProgress';
+import RamaEffectPreview from './RamaEffectPreview';
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Paperclip, RotateCcw, Send, Sparkles, X } from 'lucide-react';
@@ -584,6 +586,21 @@ export default function RamaPanel() {
               </div>
             ))}
             {/* Confirmation is bound to this exact plan + visible prompt. */}
+            {config.workflows_enabled && token && (
+              <RamaWorkflowProgress
+                token={token}
+                conversationId={conversationId}
+                busy={busy}
+                onResume={(reply) => {
+                  setConversationId(reply.conversation_id);
+                  setPendingPlan(reply.pending_plan ?? null);
+                  setBubbles((current) => [
+                    ...current,
+                    { role: 'assistant', text: reply.reply },
+                  ]);
+                }}
+              />
+            )}
             {pendingPlan && !busy && (
               <div
                 className="rounded-2xl border bg-[hsl(var(--surface-sunken))] p-3 text-sm"
@@ -624,6 +641,14 @@ export default function RamaPanel() {
                         Blocked — {b.target}: {b.detail}
                       </p>
                     ))}
+                  </div>
+                )}
+                {!!pendingPlan.previews?.length && (
+                  <div className="mt-3 max-h-80 overflow-auto rounded-lg bg-white p-2 text-xs">
+                    <p className="mb-2 font-semibold">
+                      Changes for your approval
+                    </p>
+                    <RamaEffectPreview value={pendingPlan.previews} />
                   </div>
                 )}
                 <div className="mt-3 flex gap-2">
